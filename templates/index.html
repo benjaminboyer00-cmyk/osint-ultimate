@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINT Ultimate V2.0</title>
+    <title>OSINT Ultimate V2.1</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0f0f0f;
-            color: #e0e0e0;
+            background: #0a0a0a;
+            color: #ddd;
             font-family: 'Segoe UI', system-ui, sans-serif;
             display: flex;
             justify-content: center;
             padding: 2rem;
         }
-        .container { max-width: 800px; width: 100%; }
-        h1 { color: #00ffc8; text-align: center; margin-bottom: 2rem; }
+        .container { max-width: 900px; width: 100%; }
+        h1 { color: #00e676; text-align: center; margin-bottom: 2rem; }
         .modules {
             display: flex;
             flex-wrap: wrap;
@@ -33,14 +33,16 @@
             font-size: 0.9rem;
             transition: 0.2s;
         }
-        .module-btn.active { background: #00ffc8; color: #000; border-color: #00ffc8; }
+        .module-btn.active { background: #00e676; color: #000; border-color: #00e676; }
         .input-area {
             display: flex;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
         }
         #target {
             flex: 1;
+            min-width: 200px;
             padding: 0.8rem;
             background: #1e1e1e;
             border: 1px solid #333;
@@ -48,9 +50,9 @@
             color: #fff;
             font-size: 1rem;
         }
-        #target:focus { outline: none; border-color: #00ffc8; }
+        #target:focus { outline: none; border-color: #00e676; }
         #scan-btn {
-            background: #00ffc8;
+            background: #00e676;
             border: none;
             color: #000;
             padding: 0 2rem;
@@ -59,6 +61,21 @@
             cursor: pointer;
         }
         #scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .email-options {
+            display: none;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #1e1e1e;
+            border-radius: 6px;
+        }
+        .email-options label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
         .result-box {
             background: #1e1e1e;
             border: 1px solid #333;
@@ -69,72 +86,117 @@
             font-family: monospace;
             font-size: 0.9rem;
             line-height: 1.5;
-            color: #b0b0b0;
+            color: #bbb;
         }
         .result-box.error { color: #ff5555; }
-        .result-box h3 { color: #00ffc8; margin-bottom: 1rem; font-size: 1.1rem; }
+        .result-box h3 { color: #00e676; margin-bottom: 1rem; }
         .result-box ul { list-style: none; }
         .result-box li { margin: 0.3rem 0; }
         .result-box .key { color: #fff; font-weight: bold; }
+        .map { height: 200px; margin-top: 1rem; border-radius: 6px; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🕵️ OSINT Ultimate V2.0</h1>
+        <h1>🕵️ OSINT Ultimate V2.1</h1>
         <div class="modules" id="modules">
             <button class="module-btn active" data-module="site">🌐 Site Web</button>
             <button class="module-btn" data-module="instagram">📸 Instagram</button>
             <button class="module-btn" data-module="email">✉️ Email</button>
             <button class="module-btn" data-module="phone">📞 Téléphone</button>
-            <button class="module-btn" data-module="ip">🌍 IP Publique</button>
+            <button class="module-btn" data-module="ip">🌍 IP</button>
+            <button class="module-btn" data-module="pseudo">🔍 Pseudo</button>
+            <button class="module-btn" data-module="twitter">🐦 Twitter</button>
+            <button class="module-btn" data-module="tiktok">🎵 TikTok</button>
+            <button class="module-btn" data-module="github">🐙 GitHub</button>
+            <button class="module-btn" data-module="facebook">📘 Facebook</button>
             <button class="module-btn" data-module="linkedin">🔗 LinkedIn</button>
             <button class="module-btn" data-module="snapchat">👻 Snapchat</button>
         </div>
+
         <div class="input-area">
             <input type="text" id="target" placeholder="Entrez la cible..." />
             <button id="scan-btn" onclick="launchScan()">🔍 Scanner</button>
         </div>
-        <div id="result" class="result-box"></div>
+
+        <div id="email-options" class="email-options">
+            <label><input type="checkbox" value="mx" checked> MX</label>
+            <label><input type="checkbox" value="spf"> SPF/DMARC</label>
+            <label><input type="checkbox" value="smtp"> Vérif. SMTP</label>
+            <label><input type="checkbox" value="catchall"> Catch-all</label>
+            <label><input type="checkbox" value="breaches"> Fuites (HIBP)</label>
+            <label><input type="checkbox" value="reputation"> Réputation (EmailRep)</label>
+            <label><input type="checkbox" value="social"> Profils sociaux</label>
+            <label><input type="checkbox" value="all"> Tout</label>
+        </div>
+
+        <div id="result" class="result-box">
+            <!-- results here -->
+        </div>
+        <div id="map" class="map"></div>
     </div>
 
     <script>
         let currentModule = 'site';
-        document.querySelectorAll('.module-btn').forEach(btn => {
+        const moduleBtns = document.querySelectorAll('.module-btn');
+        const targetInput = document.getElementById('target');
+        const scanBtn = document.getElementById('scan-btn');
+        const resultDiv = document.getElementById('result');
+        const emailOptions = document.getElementById('email-options');
+
+        moduleBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.module-btn').forEach(b => b.classList.remove('active'));
+                moduleBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentModule = btn.dataset.module;
-                document.getElementById('target').placeholder = getPlaceholder(currentModule);
+                targetInput.placeholder = getPlaceholder(currentModule);
+                if (currentModule === 'email') {
+                    emailOptions.style.display = 'flex';
+                } else {
+                    emailOptions.style.display = 'none';
+                }
+                resultDiv.innerHTML = '';
             });
         });
 
-        function getPlaceholder(module) {
+        function getPlaceholder(mod) {
             const map = {
                 site: 'ex: example.com',
                 instagram: 'ex: nom_utilisateur (sans @)',
                 email: 'ex: adresse@domaine.com',
                 phone: 'ex: +33 6 12 34 56 78',
                 ip: 'ex: 8.8.8.8',
+                pseudo: 'ex: pseudo',
+                twitter: 'ex: pseudo (sans @)',
+                tiktok: 'ex: pseudo (sans @)',
+                github: 'ex: pseudo',
+                facebook: 'ex: pseudo',
                 linkedin: 'ex: identifiant-linkedin',
                 snapchat: 'ex: pseudosnap'
             };
-            return map[module] || '';
+            return map[mod] || '';
         }
-        document.getElementById('target').placeholder = getPlaceholder('site');
+
+        targetInput.placeholder = getPlaceholder(currentModule);
 
         async function launchScan() {
-            const target = document.getElementById('target').value.trim();
+            const target = targetInput.value.trim();
             if (!target) return;
-            const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '⏳ Scan en cours...';
-            const scanBtn = document.getElementById('scan-btn');
             scanBtn.disabled = true;
+
+            const options = [];
+            if (currentModule === 'email') {
+                document.querySelectorAll('#email-options input[type="checkbox"]:checked').forEach(cb => {
+                    options.push(cb.value);
+                });
+            }
 
             try {
                 const resp = await fetch('/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ module: currentModule, target })
+                    body: JSON.stringify({ module: currentModule, target, options })
                 });
                 const data = await resp.json();
                 if (data.error) {
@@ -143,6 +205,20 @@
                 } else {
                     resultDiv.classList.remove('error');
                     resultDiv.innerHTML = formatResult(data);
+                    // If geoloc data with Lat/Lon, show map
+                    let lat, lon;
+                    if (data.Géolocalisation && data.Géolocalisation.Lat) {
+                        lat = data.Géolocalisation.Lat;
+                        lon = data.Géolocalisation.Lon;
+                    } else if (data.Géolocalisation_IP && data.Géolocalisation_IP.Lat) {
+                        lat = data.Géolocalisation_IP.Lat;
+                        lon = data.Géolocalisation_IP.Lon;
+                    }
+                    if (lat && lon) {
+                        showMap(lat, lon);
+                    } else {
+                        document.getElementById('map').style.display = 'none';
+                    }
                 }
             } catch (err) {
                 resultDiv.innerHTML = `<h3>❌ Erreur réseau</h3><p>${err.message}</p>`;
@@ -168,6 +244,36 @@
                 html += '</p>';
             }
             return html;
+        }
+
+        function showMap(lat, lon) {
+            const mapDiv = document.getElementById('map');
+            mapDiv.style.display = 'block';
+            if (!window.leafletLoaded) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+                document.head.appendChild(link);
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
+                script.onload = () => {
+                    window.leafletLoaded = true;
+                    initMap(lat, lon);
+                };
+                document.head.appendChild(script);
+            } else {
+                mapDiv.innerHTML = '';
+                initMap(lat, lon);
+            }
+        }
+
+        function initMap(lat, lon) {
+            const mapDiv = document.getElementById('map');
+            const map = L.map(mapDiv).setView([lat, lon], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+            L.marker([lat, lon]).addTo(map);
         }
     </script>
 </body>
