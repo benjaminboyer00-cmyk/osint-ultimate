@@ -1,0 +1,7 @@
+flask
+requests
+python-whois
+dnspython
+beautifulsoup4
+colorama
+phonenumbers

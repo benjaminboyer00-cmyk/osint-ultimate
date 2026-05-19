@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Ultimate V2.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f0f0f;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container { max-width: 800px; width: 100%; }
+        h1 { color: #00ffc8; text-align: center; margin-bottom: 2rem; }
+        .modules {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .module-btn {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .module-btn.active { background: #00ffc8; color: #000; border-color: #00ffc8; }
+        .input-area {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        #target {
+            flex: 1;
+            padding: 0.8rem;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1rem;
+        }
+        #target:focus { outline: none; border-color: #00ffc8; }
+        #scan-btn {
+            background: #00ffc8;
+            border: none;
+            color: #000;
+            padding: 0 2rem;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .result-box {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            min-height: 200px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #b0b0b0;
+        }
+        .result-box.error { color: #ff5555; }
+        .result-box h3 { color: #00ffc8; margin-bottom: 1rem; font-size: 1.1rem; }
+        .result-box ul { list-style: none; }
+        .result-box li { margin: 0.3rem 0; }
+        .result-box .key { color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕵️ OSINT Ultimate V2.0</h1>
+        <div class="modules" id="modules">
+            <button class="module-btn active" data-module="site">🌐 Site Web</button>
+            <button class="module-btn" data-module="instagram">📸 Instagram</button>
+            <button class="module-btn" data-module="email">✉️ Email</button>
+            <button class="module-btn" data-module="phone">📞 Téléphone</button>
+            <button class="module-btn" data-module="ip">🌍 IP Publique</button>
+            <button class="module-btn" data-module="linkedin">🔗 LinkedIn</button>
+            <button class="module-btn" data-module="snapchat">👻 Snapchat</button>
+        </div>
+        <div class="input-area">
+            <input type="text" id="target" placeholder="Entrez la cible..." />
+            <button id="scan-btn" onclick="launchScan()">🔍 Scanner</button>
+        </div>
+        <div id="result" class="result-box"></div>
+    </div>
+
+    <script>
+        let currentModule = 'site';
+        document.querySelectorAll('.module-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.module-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentModule = btn.dataset.module;
+                document.getElementById('target').placeholder = getPlaceholder(currentModule);
+            });
+        });
+
+        function getPlaceholder(module) {
+            const map = {
+                site: 'ex: example.com',
+                instagram: 'ex: nom_utilisateur (sans @)',
+                email: 'ex: adresse@domaine.com',
+                phone: 'ex: +33 6 12 34 56 78',
+                ip: 'ex: 8.8.8.8',
+                linkedin: 'ex: identifiant-linkedin',
+                snapchat: 'ex: pseudosnap'
+            };
+            return map[module] || '';
+        }
+        document.getElementById('target').placeholder = getPlaceholder('site');
+
+        async function launchScan() {
+            const target = document.getElementById('target').value.trim();
+            if (!target) return;
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ Scan en cours...';
+            const scanBtn = document.getElementById('scan-btn');
+            scanBtn.disabled = true;
+
+            try {
+                const resp = await fetch('/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ module: currentModule, target })
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    resultDiv.innerHTML = `<h3>❌ Erreur</h3><p>${data.error}</p>`;
+                    resultDiv.classList.add('error');
+                } else {
+                    resultDiv.classList.remove('error');
+                    resultDiv.innerHTML = formatResult(data);
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<h3>❌ Erreur réseau</h3><p>${err.message}</p>`;
+                resultDiv.classList.add('error');
+            } finally {
+                scanBtn.disabled = false;
+            }
+        }
+
+        function formatResult(obj, depth = 0) {
+            if (typeof obj !== 'object' || obj === null) return String(obj);
+            if (Array.isArray(obj)) {
+                return '<ul>' + obj.map(item => '<li>' + formatResult(item, depth+1) + '</li>').join('') + '</ul>';
+            }
+            let html = '';
+            for (const [key, value] of Object.entries(obj)) {
+                html += `<p><span class="key">${key}</span>: `;
+                if (typeof value === 'object' && value !== null) {
+                    html += formatResult(value, depth+1);
+                } else {
+                    html += value;
+                }
+                html += '</p>';
+            }
+            return html;
+        }
+    </script>
+</body>
+</html>
