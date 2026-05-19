@@ -4,119 +4,299 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSINT Ultimate V2.1</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
+        :root {
+            --bg: #0a0a0f;
+            --panel-bg: rgba(20, 20, 30, 0.6);
+            --text: #cfcfcf;
+            --accent: #00e676;
+            --accent2: #00d2ff;
+            --error: #ff5555;
+            --warning: #ffaa00;
+            --info: #4fc3f7;
+            --border: rgba(255, 255, 255, 0.08);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --glass: blur(16px) saturate(180%);
+            --radius: 16px;
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body.light {
+            --bg: #f5f7fa;
+            --panel-bg: rgba(255, 255, 255, 0.7);
+            --text: #2c3e50;
+            --accent: #00a86b;
+            --accent2: #0066cc;
+            --error: #c0392b;
+            --warning: #e67e22;
+            --info: #2471a3;
+            --border: rgba(0, 0, 0, 0.08);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0a0a0a;
-            color: #ddd;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             display: flex;
             justify-content: center;
-            padding: 2rem;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            transition: background var(--transition), color var(--transition);
+            overflow-x: hidden;
         }
-        .container { max-width: 900px; width: 100%; }
-        h1 { color: #00e676; text-align: center; margin-bottom: 2rem; }
+        canvas#particles {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+        body.light canvas#particles { opacity: 0.15; }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            width: 100%;
+            backdrop-filter: var(--glass);
+            -webkit-backdrop-filter: var(--glass);
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            transition: background var(--transition), border var(--transition), box-shadow var(--transition);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+        .theme-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            width: 48px;
+            height: 26px;
+            position: relative;
+            cursor: pointer;
+            transition: background var(--transition), border var(--transition);
+        }
+        .theme-toggle::after {
+            content: '';
+            width: 20px; height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+        }
+        body.light .theme-toggle::after { transform: translateX(22px); }
+
         .modules {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-            justify-content: center;
             margin-bottom: 2rem;
         }
         .module-btn {
-            background: #1e1e1e;
-            border: 1px solid #333;
-            color: #ccc;
-            padding: 0.6rem 1.2rem;
-            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
             cursor: pointer;
-            font-size: 0.9rem;
-            transition: 0.2s;
+            font-weight: 600;
+            font-size: 0.85rem;
+            backdrop-filter: blur(5px);
+            transition: all var(--transition);
+            white-space: nowrap;
         }
-        .module-btn.active { background: #00e676; color: #000; border-color: #00e676; }
+        .module-btn.active {
+            background: var(--accent);
+            color: #0a0a0f;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            font-weight: 700;
+        }
+        .module-btn:hover:not(.active) {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--accent2);
+        }
+
         .input-area {
             display: flex;
             gap: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             flex-wrap: wrap;
         }
         #target {
-            flex: 1;
-            min-width: 200px;
-            padding: 0.8rem;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 6px;
-            color: #fff;
+            flex: 1 1 300px;
+            padding: 0.9rem 1.2rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            color: var(--text);
             font-size: 1rem;
+            backdrop-filter: blur(5px);
+            transition: all var(--transition);
         }
-        #target:focus { outline: none; border-color: #00e676; }
+        #target:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
         #scan-btn {
-            background: #00e676;
+            background: var(--accent);
             border: none;
-            color: #000;
-            padding: 0 2rem;
-            border-radius: 6px;
-            font-weight: bold;
+            color: #0a0a0f;
+            padding: 0.9rem 2.5rem;
+            border-radius: 40px;
+            font-weight: 700;
             cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all var(--transition);
+            text-transform: uppercase;
+            box-shadow: 0 0 15px var(--accent);
         }
-        #scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #scan-btn:disabled { opacity: 0.5; box-shadow: none; }
+
         .email-options {
             display: none;
             flex-wrap: wrap;
             gap: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             padding: 1rem;
-            background: #1e1e1e;
-            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
         }
         .email-options label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .result-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            min-height: 200px;
+            backdrop-filter: blur(10px);
+            transition: all var(--transition);
+        }
+        .result-box.error { border-color: var(--error); }
+        .skeleton { width: 100%; height: 20px; background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1), rgba(255,255,255,0.05)); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; margin: 0.5rem 0; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+        .accordion { margin-top: 1rem; }
+        .accordion-item { border-bottom: 1px solid var(--border); }
+        .accordion-header {
+            padding: 0.8rem;
+            font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 0.3rem;
+            gap: 0.5rem;
+            transition: background var(--transition);
         }
-        .result-box {
-            background: #1e1e1e;
-            border: 1px solid #333;
+        .accordion-header:hover { background: rgba(255,255,255,0.03); }
+        .accordion-body { padding: 0.8rem 1.5rem; display: none; }
+        .accordion-body.show { display: block; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2em 0.6em;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(0,230,118,0.15); color: var(--accent); }
+        .badge-error { background: rgba(255,85,85,0.15); color: var(--error); }
+        .badge-warning { background: rgba(255,170,0,0.15); color: var(--warning); }
+        .badge-info { background: rgba(79,195,247,0.15); color: var(--info); }
+
+        .profile-card {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        .profile-card img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--accent); }
+
+        .map { height: 200px; border-radius: var(--radius); margin-top: 1rem; display: none; }
+
+        .export-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            justify-content: flex-end;
+        }
+        .icon-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--text);
+            padding: 0.5rem;
             border-radius: 8px;
-            padding: 1.5rem;
-            min-height: 200px;
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            color: #bbb;
+            cursor: pointer;
+            transition: background var(--transition);
         }
-        .result-box.error { color: #ff5555; }
-        .result-box h3 { color: #00e676; margin-bottom: 1rem; }
-        .result-box ul { list-style: none; }
-        .result-box li { margin: 0.3rem 0; }
-        .result-box .key { color: #fff; font-weight: bold; }
-        .map { height: 200px; margin-top: 1rem; border-radius: 6px; display: none; }
+        .icon-btn:hover { background: rgba(255,255,255,0.2); }
+
+        @media (max-width: 600px) {
+            body { padding: 1rem 0.5rem; }
+            h1 { font-size: 1.8rem; }
+            .container { padding: 1.5rem; }
+            #scan-btn { width: 100%; }
+            .input-area { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
+    <canvas id="particles"></canvas>
     <div class="container">
-        <h1>🕵️ OSINT Ultimate V2.1</h1>
+        <div class="header">
+            <h1>⚡ OSINT ULTIMATE V2.1</h1>
+            <div class="theme-toggle" onclick="toggleTheme()" title="Changer le thème"></div>
+        </div>
+
         <div class="modules" id="modules">
-            <button class="module-btn active" data-module="site">🌐 Site Web</button>
-            <button class="module-btn" data-module="instagram">📸 Instagram</button>
+            <button class="module-btn active" data-module="site">🌐 Site</button>
+            <button class="module-btn" data-module="instagram">📸 Insta</button>
             <button class="module-btn" data-module="email">✉️ Email</button>
-            <button class="module-btn" data-module="phone">📞 Téléphone</button>
+            <button class="module-btn" data-module="phone">📞 Tél</button>
             <button class="module-btn" data-module="ip">🌍 IP</button>
             <button class="module-btn" data-module="pseudo">🔍 Pseudo</button>
             <button class="module-btn" data-module="twitter">🐦 Twitter</button>
             <button class="module-btn" data-module="tiktok">🎵 TikTok</button>
             <button class="module-btn" data-module="github">🐙 GitHub</button>
-            <button class="module-btn" data-module="facebook">📘 Facebook</button>
+            <button class="module-btn" data-module="facebook">📘 FB</button>
             <button class="module-btn" data-module="linkedin">🔗 LinkedIn</button>
-            <button class="module-btn" data-module="snapchat">👻 Snapchat</button>
+            <button class="module-btn" data-module="snapchat">👻 Snap</button>
         </div>
 
         <div class="input-area">
-            <input type="text" id="target" placeholder="Entrez la cible..." />
-            <button id="scan-btn" onclick="launchScan()">🔍 Scanner</button>
+            <input type="text" id="target" placeholder="Entrez une cible..." />
+            <button id="scan-btn" onclick="launchScan()">Scanner</button>
         </div>
 
         <div id="email-options" class="email-options">
@@ -125,24 +305,110 @@
             <label><input type="checkbox" value="smtp"> Vérif. SMTP</label>
             <label><input type="checkbox" value="catchall"> Catch-all</label>
             <label><input type="checkbox" value="breaches"> Fuites (HIBP)</label>
-            <label><input type="checkbox" value="reputation"> Réputation (EmailRep)</label>
+            <label><input type="checkbox" value="reputation"> Réputation</label>
             <label><input type="checkbox" value="social"> Profils sociaux</label>
             <label><input type="checkbox" value="all"> Tout</label>
         </div>
 
-        <div id="result" class="result-box">
-            <!-- results here -->
+        <div id="result" class="result-box"></div>
+        <div class="export-bar" id="export-bar" style="display:none;">
+            <button class="icon-btn" onclick="copyResults()">📋 Copier</button>
+            <button class="icon-btn" onclick="printResults()">🖨️ Imprimer</button>
         </div>
         <div id="map" class="map"></div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        let currentModule = 'site';
+        // Particle Network (hacker aesthetic)
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let w, h, particles = [];
+        const maxParticles = 80;
+        const connectionDist = 150;
+        const mouse = { x: null, y: null, radius: 100 };
+
+        function resizeCanvas() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * w;
+                this.y = Math.random() * h;
+                this.vx = (Math.random() - 0.5) * 0.6;
+                this.vy = (Math.random() - 0.5) * 0.6;
+                this.radius = Math.random() * 2 + 1;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > w) this.vx = -this.vx;
+                if (this.y < 0 || this.y > h) this.vy = -this.vy;
+                // Mouse interaction
+                if (mouse.x && mouse.y) {
+                    let dx = this.x - mouse.x;
+                    let dy = this.y - mouse.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < mouse.radius) {
+                        let force = (mouse.radius - dist) / mouse.radius;
+                        this.x += dx * force * 0.02;
+                        this.y += dy * force * 0.02;
+                    }
+                }
+            }
+            draw() {
+                ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#00e676';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        for (let i=0; i<maxParticles; i++) particles.push(new Particle());
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, w, h);
+            particles.forEach(p => { p.update(); p.draw(); });
+            // Connections
+            for (let i=0; i<particles.length; i++) {
+                for (let j=i+1; j<particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < connectionDist) {
+                        ctx.strokeStyle = `rgba(0, 230, 118, ${1 - dist/connectionDist})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+        document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        document.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light');
+            localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+        }
+        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+
+        // Module selection
         const moduleBtns = document.querySelectorAll('.module-btn');
         const targetInput = document.getElementById('target');
         const scanBtn = document.getElementById('scan-btn');
         const resultDiv = document.getElementById('result');
         const emailOptions = document.getElementById('email-options');
+        let currentModule = 'site';
 
         moduleBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -150,131 +416,141 @@
                 btn.classList.add('active');
                 currentModule = btn.dataset.module;
                 targetInput.placeholder = getPlaceholder(currentModule);
-                if (currentModule === 'email') {
-                    emailOptions.style.display = 'flex';
-                } else {
-                    emailOptions.style.display = 'none';
-                }
+                emailOptions.style.display = currentModule === 'email' ? 'flex' : 'none';
                 resultDiv.innerHTML = '';
+                document.getElementById('export-bar').style.display = 'none';
+                document.getElementById('map').style.display = 'none';
             });
         });
 
-        function getPlaceholder(mod) {
+        function getPlaceholder(module) {
             const map = {
                 site: 'ex: example.com',
-                instagram: 'ex: nom_utilisateur (sans @)',
+                instagram: 'ex: pseudo (sans @)',
                 email: 'ex: adresse@domaine.com',
                 phone: 'ex: +33 6 12 34 56 78',
                 ip: 'ex: 8.8.8.8',
                 pseudo: 'ex: pseudo',
-                twitter: 'ex: pseudo (sans @)',
-                tiktok: 'ex: pseudo (sans @)',
+                twitter: 'ex: pseudo',
+                tiktok: 'ex: pseudo',
                 github: 'ex: pseudo',
                 facebook: 'ex: pseudo',
-                linkedin: 'ex: identifiant-linkedin',
-                snapchat: 'ex: pseudosnap'
+                linkedin: 'ex: identifiant',
+                snapchat: 'ex: pseudo'
             };
-            return map[mod] || '';
+            return map[module] || '';
         }
+        targetInput.placeholder = getPlaceholder('site');
 
-        targetInput.placeholder = getPlaceholder(currentModule);
-
+        // Scan function
         async function launchScan() {
             const target = targetInput.value.trim();
             if (!target) return;
-            resultDiv.innerHTML = '⏳ Scan en cours...';
+            resultDiv.innerHTML = '<div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:40%"></div><div class="skeleton" style="width:90%"></div>';
             scanBtn.disabled = true;
-
-            const options = [];
+            let options = [];
             if (currentModule === 'email') {
-                document.querySelectorAll('#email-options input[type="checkbox"]:checked').forEach(cb => {
-                    options.push(cb.value);
-                });
+                document.querySelectorAll('#email-options input[type="checkbox"]:checked').forEach(cb => options.push(cb.value));
             }
 
             try {
                 const resp = await fetch('/scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ module: currentModule, target, options })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({module: currentModule, target, options})
                 });
                 const data = await resp.json();
                 if (data.error) {
-                    resultDiv.innerHTML = `<h3>❌ Erreur</h3><p>${data.error}</p>`;
+                    resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${data.error}</h3>`;
                     resultDiv.classList.add('error');
                 } else {
                     resultDiv.classList.remove('error');
-                    resultDiv.innerHTML = formatResult(data);
-                    // If geoloc data with Lat/Lon, show map
+                    renderResult(data);
+                    document.getElementById('export-bar').style.display = 'flex';
+                    // Map
                     let lat, lon;
-                    if (data.Géolocalisation && data.Géolocalisation.Lat) {
-                        lat = data.Géolocalisation.Lat;
-                        lon = data.Géolocalisation.Lon;
-                    } else if (data.Géolocalisation_IP && data.Géolocalisation_IP.Lat) {
-                        lat = data.Géolocalisation_IP.Lat;
-                        lon = data.Géolocalisation_IP.Lon;
-                    }
-                    if (lat && lon) {
-                        showMap(lat, lon);
-                    } else {
-                        document.getElementById('map').style.display = 'none';
-                    }
+                    if (data.Géolocalisation?.Lat) { lat = data.Géolocalisation.Lat; lon = data.Géolocalisation.Lon; }
+                    else if (data.Géolocalisation_IP?.Lat) { lat = data.Géolocalisation_IP.Lat; lon = data.Géolocalisation_IP.Lon; }
+                    if (lat && lon) showMap(lat, lon);
+                    else document.getElementById('map').style.display = 'none';
                 }
-            } catch (err) {
-                resultDiv.innerHTML = `<h3>❌ Erreur réseau</h3><p>${err.message}</p>`;
+            } catch(e) {
+                resultDiv.innerHTML = `<h3 style="color:var(--error)">⚠️ Erreur réseau</h3>`;
                 resultDiv.classList.add('error');
             } finally {
                 scanBtn.disabled = false;
             }
         }
 
-        function formatResult(obj, depth = 0) {
-            if (typeof obj !== 'object' || obj === null) return String(obj);
-            if (Array.isArray(obj)) {
-                return '<ul>' + obj.map(item => '<li>' + formatResult(item, depth+1) + '</li>').join('') + '</ul>';
+        // Render with accordion
+        function renderResult(data) {
+            if (typeof data !== 'object' || data === null) {
+                resultDiv.innerHTML = `<p>${data}</p>`;
+                return;
             }
             let html = '';
-            for (const [key, value] of Object.entries(obj)) {
-                html += `<p><span class="key">${key}</span>: `;
-                if (typeof value === 'object' && value !== null) {
-                    html += formatResult(value, depth+1);
-                } else {
-                    html += value;
-                }
-                html += '</p>';
+            for (let [key, value] of Object.entries(data)) {
+                let badge = '';
+                if (value === 'Existe' || value === true) badge = '<span class="badge badge-success">OK</span>';
+                else if (value === 'Non' || value === false) badge = '<span class="badge badge-error">NON</span>';
+                else if (typeof value === 'string' && value.startsWith('Erreur')) badge = '<span class="badge badge-error">ERR</span>';
+                else if (typeof value === 'string' && value.startsWith('⚠')) badge = '<span class="badge badge-warning">!</span>';
+
+                html += `<div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">${key} ${badge}</div>
+                    <div class="accordion-body">${formatValue(value)}</div>
+                </div>`;
             }
-            return html;
+            resultDiv.innerHTML = `<div class="accordion">${html}</div>`;
+            // Auto-open first item
+            const firstBody = resultDiv.querySelector('.accordion-body');
+            if (firstBody) firstBody.classList.add('show');
+        }
+
+        function toggleAccordion(header) {
+            const body = header.nextElementSibling;
+            body.classList.toggle('show');
+        }
+
+        function formatValue(val, depth=0) {
+            if (typeof val === 'object' && val !== null) {
+                if (Array.isArray(val)) {
+                    return '<ul>' + val.map(item => '<li>' + formatValue(item, depth+1) + '</li>').join('') + '</ul>';
+                } else {
+                    let sub = '';
+                    for (let [k, v] of Object.entries(val)) {
+                        sub += `<p><span class="key">${k}:</span> ${formatValue(v, depth+1)}</p>`;
+                    }
+                    return sub;
+                }
+            } else {
+                return String(val);
+            }
         }
 
         function showMap(lat, lon) {
             const mapDiv = document.getElementById('map');
             mapDiv.style.display = 'block';
-            if (!window.leafletLoaded) {
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
-                document.head.appendChild(link);
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-                script.onload = () => {
-                    window.leafletLoaded = true;
-                    initMap(lat, lon);
-                };
-                document.head.appendChild(script);
+            if (!window.mapInitialized) {
+                const map = L.map(mapDiv).setView([lat, lon], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                L.marker([lat, lon]).addTo(map);
+                window.mapInitialized = true;
+                window.osintMap = map;
             } else {
-                mapDiv.innerHTML = '';
-                initMap(lat, lon);
+                window.osintMap.setView([lat, lon], 10);
+                if (window.osintMap.marker) window.osintMap.marker.remove();
+                window.osintMap.marker = L.marker([lat, lon]).addTo(window.osintMap);
             }
         }
 
-        function initMap(lat, lon) {
-            const mapDiv = document.getElementById('map');
-            const map = L.map(mapDiv).setView([lat, lon], 10);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-            L.marker([lat, lon]).addTo(map);
+        function copyResults() {
+            const text = resultDiv.innerText;
+            navigator.clipboard.writeText(text).then(() => alert('Résultats copiés !'));
         }
+        function printResults() { window.print(); }
     </script>
 </body>
 </html>
