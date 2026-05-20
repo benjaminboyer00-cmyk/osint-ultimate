@@ -374,7 +374,7 @@
         <div id="result" class="result-box"></div>
 
         <div class="upload-area" onclick="document.getElementById('file-input').click()">
-            📎 Cliquez pour analyser un fichier (métadonnées EXIF/PDF/DOCX)
+            📎 Cliquez pour analyser un fichier (métadonnées)
             <input type="file" id="file-input" style="display:none" onchange="uploadFile()">
         </div>
 
@@ -396,7 +396,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // === Particle network (background) ===
@@ -516,10 +515,10 @@
         }
         targetInput.placeholder = getPlaceholder('site');
 
-        // === Socket.IO & Async scan ===
-        const socket = io();
+        // === Polling-based async scan ===
         let currentScanId = null;
         let scanRunning = false;
+        let pollingInterval = null;
 
         async function launchScan() {
             const target = targetInput.value.trim();
@@ -539,35 +538,53 @@
                 const data = await resp.json();
                 if (data.scan_id) {
                     currentScanId = data.scan_id;
+                    // Start progress simulation & polling
                     let progress = 0;
-                    const interval = setInterval(() => {
-                        if (!scanRunning) { clearInterval(interval); return; }
+                    const progressInterval = setInterval(() => {
+                        if (!scanRunning) { clearInterval(progressInterval); return; }
                         progress = Math.min(progress + 5, 90);
                         document.getElementById('progress-bar').style.width = progress + '%';
                     }, 500);
 
-                    socket.on(`scan_${currentScanId}_done`, (result) => {
-                        clearInterval(interval);
-                        scanRunning = false;
-                        document.getElementById('progress-bar').style.width = '100%';
-                        setTimeout(() => document.getElementById('progress').style.display = 'none', 1000);
-                        renderResult(result.result);
-                        exportBar.style.display = 'flex';
-                        document.getElementById('ai-summary-box').style.display = 'block';
-                        // Map if geodata
-                        let lat, lon;
-                        if (result.result.Géolocalisation?.Lat) { lat = result.result.Géolocalisation.Lat; lon = result.result.Géolocalisation.Lon; }
-                        else if (result.result.Géolocalisation_IP?.Lat) { lat = result.result.Géolocalisation_IP.Lat; lon = result.result.Géolocalisation_IP.Lon; }
-                        if (lat && lon) showMap(lat, lon);
-                        else mapDiv.style.display = 'none';
-                    });
-                    socket.on(`scan_${currentScanId}_error`, (err) => {
-                        clearInterval(interval);
-                        scanRunning = false;
-                        document.getElementById('progress').style.display = 'none';
-                        resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${err.error}</h3>`;
-                        resultDiv.classList.add('error');
-                    });
+                    pollingInterval = setInterval(async () => {
+                        try {
+                            const pollResp = await fetch(`/scan/${currentScanId}`);
+                            const pollData = await pollResp.json();
+                            if (pollData.error) {
+                                clearInterval(progressInterval);
+                                clearInterval(pollingInterval);
+                                scanRunning = false;
+                                document.getElementById('progress').style.display = 'none';
+                                resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${pollData.error}</h3>`;
+                                resultDiv.classList.add('error');
+                                return;
+                            }
+                            if (pollData.status === 'completed') {
+                                clearInterval(progressInterval);
+                                clearInterval(pollingInterval);
+                                scanRunning = false;
+                                document.getElementById('progress-bar').style.width = '100%';
+                                setTimeout(() => document.getElementById('progress').style.display = 'none', 1000);
+                                // pollData is the scan result directly (since the backend returns the result_json)
+                                renderResult(pollData);
+                                exportBar.style.display = 'flex';
+                                document.getElementById('ai-summary-box').style.display = 'block';
+                                // Map if geodata
+                                let lat, lon;
+                                if (pollData.Géolocalisation?.Lat) { lat = pollData.Géolocalisation.Lat; lon = pollData.Géolocalisation.Lon; }
+                                else if (pollData.Géolocalisation_IP?.Lat) { lat = pollData.Géolocalisation_IP.Lat; lon = pollData.Géolocalisation_IP.Lon; }
+                                if (lat && lon) showMap(lat, lon);
+                                else mapDiv.style.display = 'none';
+                            }
+                        } catch (e) {
+                            clearInterval(progressInterval);
+                            clearInterval(pollingInterval);
+                            scanRunning = false;
+                            document.getElementById('progress').style.display = 'none';
+                            resultDiv.innerHTML = `<h3 style="color:var(--error)">⚠️ Erreur réseau</h3>`;
+                            resultDiv.classList.add('error');
+                        }
+                    }, 1000);
                 } else {
                     resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${data.error}</h3>`;
                     resultDiv.classList.add('error');
@@ -596,10 +613,10 @@
             fetch('/upload', { method: 'POST', body: formData })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.metadata) {
-                        alert(JSON.stringify(data.metadata, null, 2));
+                    if (data.filename) {
+                        alert(`Fichier uploadé : ${data.filename} (${data.size} octets)`);
                     } else {
-                        alert('Aucune métadonnée trouvée');
+                        alert('Upload échoué');
                     }
                 });
         }
@@ -648,7 +665,8 @@
                     if (status === 'Existe') exists++; else notFound++;
                 }
                 const ctx = document.getElementById('pseudoChart').getContext('2d');
-                new Chart(ctx, {
+                if (window.pseudoChartInstance) window.pseudoChartInstance.destroy();
+                window.pseudoChartInstance = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels: ['Trouvés', 'Non trouvés'],

@@ -1,5 +1,4 @@
 flask
-flask-socketio
 flask-login
 flask-sqlalchemy
 requests
@@ -7,10 +6,3 @@ python-whois
 dnspython
 beautifulsoup4
 phonenumbers
-python-nmap
-Pillow
-python-docx
-PyPDF2
-weasyprint
-cryptography
-selenium  # (si besoin pour certains scraps, à utiliser avec headless)
