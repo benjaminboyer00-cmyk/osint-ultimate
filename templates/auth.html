@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Inscription' if mode == 'register' else 'Connexion' }} – OSINT Ultimate</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --panel-bg: rgba(20, 20, 30, 0.6);
+            --text: #cfcfcf;
+            --accent: #00e676;
+            --error: #ff5555;
+            --border: rgba(255, 255, 255, 0.08);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --glass: blur(16px) saturate(180%);
+            --radius: 16px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .auth-container {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--shadow);
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+            color: var(--accent);
+        }
+        input {
+            width: 100%;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+        input:focus { outline: none; border-color: var(--accent); }
+        button {
+            width: 100%;
+            padding: 0.8rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background 0.3s;
+        }
+        button:hover { background: #00c853; }
+        .error-msg { color: var(--error); margin-bottom: 1rem; }
+        .link { text-align: center; margin-top: 1rem; }
+        .link a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h2>{{ 'Créer un compte' if mode == 'register' else 'Connexion' }}</h2>
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="error-msg">
+              {% for msg in messages %}<p>{{ msg }}</p>{% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        <form method="post">
+            <input type="text" name="username" placeholder="Nom d'utilisateur" required>
+            {% if mode == 'register' %}
+            <input type="email" name="email" placeholder="Email" required>
+            {% endif %}
+            <input type="password" name="password" placeholder="Mot de passe" required>
+            <button type="submit">{{ 'S\'inscrire' if mode == 'register' else 'Se connecter' }}</button>
+        </form>
+        <div class="link">
+            {% if mode == 'login' %}
+                Pas de compte ? <a href="{{ url_for('register') }}">Inscrivez-vous</a>
+            {% else %}
+                Déjà un compte ? <a href="{{ url_for('login') }}">Connectez-vous</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

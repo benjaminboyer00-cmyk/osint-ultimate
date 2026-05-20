@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINT Ultimate V2.1</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <title>OSINT Ultimate V3.0</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
     <style>
         :root {
             --bg: #0a0a0f;
@@ -78,6 +79,8 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         h1 {
             font-size: 2.2rem;
@@ -109,6 +112,27 @@
             transition: transform 0.3s ease;
         }
         body.light .theme-toggle::after { transform: translateX(22px); }
+
+        .auth-area {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .auth-link {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 0.4rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: all var(--transition);
+            font-weight: 600;
+        }
+        .auth-link:hover {
+            background: var(--accent);
+            color: #000;
+        }
 
         .modules {
             display: flex;
@@ -243,7 +267,7 @@
         }
         .profile-card img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--accent); }
 
-        .map { height: 200px; border-radius: var(--radius); margin-top: 1rem; display: none; }
+        .map { height: 250px; border-radius: var(--radius); margin-top: 1rem; display: none; }
 
         .export-bar {
             display: flex;
@@ -262,12 +286,34 @@
         }
         .icon-btn:hover { background: rgba(255,255,255,0.2); }
 
+        .progress-container { width: 100%; background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin: 1rem 0; }
+        .progress-bar { height: 100%; background: var(--accent); border-radius: 10px; width: 0%; transition: width 0.3s; }
+        .upload-area {
+            border: 2px dashed var(--border);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 16px;
+            margin-top: 1rem;
+            transition: border-color var(--transition);
+        }
+        .upload-area:hover { border-color: var(--accent); }
+        .chart-box { width: 300px; height: 300px; margin: 1rem auto; }
+        .ai-box {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 16px;
+            margin-top: 1rem;
+        }
+        .ai-box p { margin-top: 0.5rem; font-style: italic; }
+
         @media (max-width: 600px) {
             body { padding: 1rem 0.5rem; }
             h1 { font-size: 1.8rem; }
             .container { padding: 1.5rem; }
             #scan-btn { width: 100%; }
             .input-area { flex-direction: column; }
+            .auth-area { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -275,8 +321,19 @@
     <canvas id="particles"></canvas>
     <div class="container">
         <div class="header">
-            <h1>⚡ OSINT ULTIMATE V2.1</h1>
-            <div class="theme-toggle" onclick="toggleTheme()" title="Changer le thème"></div>
+            <h1>⚡ OSINT ULTIMATE V3.0</h1>
+            <div style="display: flex; gap:1rem; align-items: center;">
+                <div class="auth-area">
+                    {% if authenticated %}
+                        <span style="margin-right:0.5rem;">👤 {{ username }}</span>
+                        <a href="/logout" class="auth-link">Déconnexion</a>
+                    {% else %}
+                        <a href="/login" class="auth-link">Connexion</a>
+                        <a href="/register" class="auth-link">Inscription</a>
+                    {% endif %}
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()" title="Changer le thème"></div>
+            </div>
         </div>
 
         <div class="modules" id="modules">
@@ -310,28 +367,45 @@
             <label><input type="checkbox" value="all"> Tout</label>
         </div>
 
+        <div id="progress" class="progress-container" style="display: none;">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
         <div id="result" class="result-box"></div>
+
+        <div class="upload-area" onclick="document.getElementById('file-input').click()">
+            📎 Cliquez pour analyser un fichier (métadonnées EXIF/PDF/DOCX)
+            <input type="file" id="file-input" style="display:none" onchange="uploadFile()">
+        </div>
+
+        <div class="chart-box">
+            <canvas id="pseudoChart" style="display:none;"></canvas>
+        </div>
+
+        <div class="ai-box" id="ai-summary-box" style="display:none;">
+            <button class="icon-btn" onclick="getAISummary()">🤖 Résumé IA</button>
+            <p id="ai-summary-text"></p>
+        </div>
+
+        <div id="map" class="map"></div>
+
         <div class="export-bar" id="export-bar" style="display:none;">
             <button class="icon-btn" onclick="copyResults()">📋 Copier</button>
             <button class="icon-btn" onclick="printResults()">🖨️ Imprimer</button>
         </div>
-        <div id="map" class="map"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Particle Network (hacker aesthetic)
+        // === Particle network (background) ===
         const canvas = document.getElementById('particles');
         const ctx = canvas.getContext('2d');
-        let w, h, particles = [];
-        const maxParticles = 80;
-        const connectionDist = 150;
+        let w, h, particles = [], maxParticles = 80, connectionDist = 150;
         const mouse = { x: null, y: null, radius: 100 };
 
-        function resizeCanvas() {
-            w = canvas.width = window.innerWidth;
-            h = canvas.height = window.innerHeight;
-        }
+        function resizeCanvas() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
@@ -349,11 +423,9 @@
                 this.y += this.vy;
                 if (this.x < 0 || this.x > w) this.vx = -this.vx;
                 if (this.y < 0 || this.y > h) this.vy = -this.vy;
-                // Mouse interaction
                 if (mouse.x && mouse.y) {
-                    let dx = this.x - mouse.x;
-                    let dy = this.y - mouse.y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let dx = this.x - mouse.x, dy = this.y - mouse.y;
+                    let dist = Math.sqrt(dx*dx+dy*dy);
                     if (dist < mouse.radius) {
                         let force = (mouse.radius - dist) / mouse.radius;
                         this.x += dx * force * 0.02;
@@ -369,16 +441,13 @@
             }
         }
         for (let i=0; i<maxParticles; i++) particles.push(new Particle());
-
         function animateParticles() {
             ctx.clearRect(0, 0, w, h);
             particles.forEach(p => { p.update(); p.draw(); });
-            // Connections
             for (let i=0; i<particles.length; i++) {
                 for (let j=i+1; j<particles.length; j++) {
-                    let dx = particles[i].x - particles[j].x;
-                    let dy = particles[i].y - particles[j].y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx*dx+dy*dy);
                     if (dist < connectionDist) {
                         ctx.strokeStyle = `rgba(0, 230, 118, ${1 - dist/connectionDist})`;
                         ctx.lineWidth = 0.5;
@@ -395,19 +464,21 @@
         document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
         document.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
 
-        // Theme toggle
+        // === Theme toggle ===
         function toggleTheme() {
             document.body.classList.toggle('light');
             localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
         }
         if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 
-        // Module selection
+        // === Module selection ===
         const moduleBtns = document.querySelectorAll('.module-btn');
         const targetInput = document.getElementById('target');
         const scanBtn = document.getElementById('scan-btn');
         const resultDiv = document.getElementById('result');
         const emailOptions = document.getElementById('email-options');
+        const exportBar = document.getElementById('export-bar');
+        const mapDiv = document.getElementById('map');
         let currentModule = 'site';
 
         moduleBtns.forEach(btn => {
@@ -418,8 +489,11 @@
                 targetInput.placeholder = getPlaceholder(currentModule);
                 emailOptions.style.display = currentModule === 'email' ? 'flex' : 'none';
                 resultDiv.innerHTML = '';
-                document.getElementById('export-bar').style.display = 'none';
-                document.getElementById('map').style.display = 'none';
+                exportBar.style.display = 'none';
+                mapDiv.style.display = 'none';
+                document.getElementById('progress').style.display = 'none';
+                document.getElementById('ai-summary-box').style.display = 'none';
+                document.getElementById('pseudoChart').style.display = 'none';
             });
         });
 
@@ -442,16 +516,19 @@
         }
         targetInput.placeholder = getPlaceholder('site');
 
-        // Scan function
+        // === Socket.IO & Async scan ===
+        const socket = io();
+        let currentScanId = null;
+        let scanRunning = false;
+
         async function launchScan() {
             const target = targetInput.value.trim();
-            if (!target) return;
-            resultDiv.innerHTML = '<div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:40%"></div><div class="skeleton" style="width:90%"></div>';
-            scanBtn.disabled = true;
-            let options = [];
-            if (currentModule === 'email') {
-                document.querySelectorAll('#email-options input[type="checkbox"]:checked').forEach(cb => options.push(cb.value));
-            }
+            if (!target || scanRunning) return;
+            scanRunning = true;
+            resultDiv.innerHTML = '<div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:40%"></div>';
+            document.getElementById('progress').style.display = 'block';
+            document.getElementById('progress-bar').style.width = '0%';
+            const options = currentModule === 'email' ? getEmailOptions() : [];
 
             try {
                 const resp = await fetch('/scan', {
@@ -460,51 +537,128 @@
                     body: JSON.stringify({module: currentModule, target, options})
                 });
                 const data = await resp.json();
-                if (data.error) {
+                if (data.scan_id) {
+                    currentScanId = data.scan_id;
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        if (!scanRunning) { clearInterval(interval); return; }
+                        progress = Math.min(progress + 5, 90);
+                        document.getElementById('progress-bar').style.width = progress + '%';
+                    }, 500);
+
+                    socket.on(`scan_${currentScanId}_done`, (result) => {
+                        clearInterval(interval);
+                        scanRunning = false;
+                        document.getElementById('progress-bar').style.width = '100%';
+                        setTimeout(() => document.getElementById('progress').style.display = 'none', 1000);
+                        renderResult(result.result);
+                        exportBar.style.display = 'flex';
+                        document.getElementById('ai-summary-box').style.display = 'block';
+                        // Map if geodata
+                        let lat, lon;
+                        if (result.result.Géolocalisation?.Lat) { lat = result.result.Géolocalisation.Lat; lon = result.result.Géolocalisation.Lon; }
+                        else if (result.result.Géolocalisation_IP?.Lat) { lat = result.result.Géolocalisation_IP.Lat; lon = result.result.Géolocalisation_IP.Lon; }
+                        if (lat && lon) showMap(lat, lon);
+                        else mapDiv.style.display = 'none';
+                    });
+                    socket.on(`scan_${currentScanId}_error`, (err) => {
+                        clearInterval(interval);
+                        scanRunning = false;
+                        document.getElementById('progress').style.display = 'none';
+                        resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${err.error}</h3>`;
+                        resultDiv.classList.add('error');
+                    });
+                } else {
                     resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${data.error}</h3>`;
                     resultDiv.classList.add('error');
-                } else {
-                    resultDiv.classList.remove('error');
-                    renderResult(data);
-                    document.getElementById('export-bar').style.display = 'flex';
-                    // Map
-                    let lat, lon;
-                    if (data.Géolocalisation?.Lat) { lat = data.Géolocalisation.Lat; lon = data.Géolocalisation.Lon; }
-                    else if (data.Géolocalisation_IP?.Lat) { lat = data.Géolocalisation_IP.Lat; lon = data.Géolocalisation_IP.Lon; }
-                    if (lat && lon) showMap(lat, lon);
-                    else document.getElementById('map').style.display = 'none';
+                    scanRunning = false;
                 }
             } catch(e) {
                 resultDiv.innerHTML = `<h3 style="color:var(--error)">⚠️ Erreur réseau</h3>`;
                 resultDiv.classList.add('error');
-            } finally {
-                scanBtn.disabled = false;
+                scanRunning = false;
             }
         }
 
-        // Render with accordion
+        function getEmailOptions() {
+            const selected = [];
+            document.querySelectorAll('#email-options input[type="checkbox"]:checked').forEach(cb => {
+                selected.push(cb.value);
+            });
+            return selected;
+        }
+
+        function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            if (!fileInput.files.length) return;
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            fetch('/upload', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.metadata) {
+                        alert(JSON.stringify(data.metadata, null, 2));
+                    } else {
+                        alert('Aucune métadonnée trouvée');
+                    }
+                });
+        }
+
+        function getAISummary() {
+            const text = resultDiv.innerText;
+            fetch('/ai-summary', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({result: text})
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('ai-summary-text').innerText = data.summary || data.error;
+            });
+        }
+
+        // === Render result with accordions and chart ===
         function renderResult(data) {
+            resultDiv.classList.remove('error');
             if (typeof data !== 'object' || data === null) {
                 resultDiv.innerHTML = `<p>${data}</p>`;
                 return;
             }
-            let html = '';
+            let html = '<div class="accordion">';
             for (let [key, value] of Object.entries(data)) {
                 let badge = '';
                 if (value === 'Existe' || value === true) badge = '<span class="badge badge-success">OK</span>';
                 else if (value === 'Non' || value === false) badge = '<span class="badge badge-error">NON</span>';
                 else if (typeof value === 'string' && value.startsWith('Erreur')) badge = '<span class="badge badge-error">ERR</span>';
-                else if (typeof value === 'string' && value.startsWith('⚠')) badge = '<span class="badge badge-warning">!</span>';
-
                 html += `<div class="accordion-item">
                     <div class="accordion-header" onclick="toggleAccordion(this)">${key} ${badge}</div>
                     <div class="accordion-body">${formatValue(value)}</div>
                 </div>`;
             }
-            resultDiv.innerHTML = `<div class="accordion">${html}</div>`;
-            // Auto-open first item
+            html += '</div>';
+            resultDiv.innerHTML = html;
+            // Open first item
             const firstBody = resultDiv.querySelector('.accordion-body');
             if (firstBody) firstBody.classList.add('show');
+
+            // Chart for pseudo search
+            if (currentModule === 'pseudo') {
+                let exists = 0, notFound = 0;
+                for (let [site, status] of Object.entries(data)) {
+                    if (status === 'Existe') exists++; else notFound++;
+                }
+                const ctx = document.getElementById('pseudoChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Trouvés', 'Non trouvés'],
+                        datasets: [{ data: [exists, notFound], backgroundColor: ['#00e676', '#ff5555'] }]
+                    }
+                });
+                document.getElementById('pseudoChart').style.display = 'block';
+            } else {
+                document.getElementById('pseudoChart').style.display = 'none';
+            }
         }
 
         function toggleAccordion(header) {
@@ -512,7 +666,7 @@
             body.classList.toggle('show');
         }
 
-        function formatValue(val, depth=0) {
+        function formatValue(val, depth = 0) {
             if (typeof val === 'object' && val !== null) {
                 if (Array.isArray(val)) {
                     return '<ul>' + val.map(item => '<li>' + formatValue(item, depth+1) + '</li>').join('') + '</ul>';
@@ -528,8 +682,8 @@
             }
         }
 
+        // === Map ===
         function showMap(lat, lon) {
-            const mapDiv = document.getElementById('map');
             mapDiv.style.display = 'block';
             if (!window.mapInitialized) {
                 const map = L.map(mapDiv).setView([lat, lon], 10);
@@ -537,8 +691,8 @@
                     attribution: '© OpenStreetMap'
                 }).addTo(map);
                 L.marker([lat, lon]).addTo(map);
-                window.mapInitialized = true;
                 window.osintMap = map;
+                window.mapInitialized = true;
             } else {
                 window.osintMap.setView([lat, lon], 10);
                 if (window.osintMap.marker) window.osintMap.marker.remove();
@@ -547,10 +701,14 @@
         }
 
         function copyResults() {
-            const text = resultDiv.innerText;
-            navigator.clipboard.writeText(text).then(() => alert('Résultats copiés !'));
+            navigator.clipboard.writeText(resultDiv.innerText).then(() => alert('Résultats copiés !'));
         }
         function printResults() { window.print(); }
+
+        // === PWA ===
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
     </script>
 </body>
 </html>
