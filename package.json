@@ -1,0 +1,6 @@
+"scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start", // <-- C'est cette ligne qui doit être présente !
+  "lint": "next lint"
+}
