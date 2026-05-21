@@ -552,7 +552,7 @@ def scan_pseudo(username, options=None):
         'TikTok':     ('https://www.tiktok.com/@{u}',       ["Couldn't find this account",'Page Not Found']),
         'Reddit':     ('https://www.reddit.com/user/{u}',   ['page not found','Sorry, nobody on Reddit']),
         'YouTube':    ('https://www.youtube.com/@{u}',      ['404','This page is not available']),
-        'Twitch':     ('https://www.twitch.tv/{u}',         ['Sorry. Unless you've been', '404']),
+        'Twitch':     ('https://www.twitch.tv/{u}',         ["Sorry. Unless you've been", '404']),
         'Pinterest':  ('https://www.pinterest.com/{u}/',    ["didn't find",'Page Not Found']),
         'Tumblr':     ('https://{u}.tumblr.com',            ["There's nothing here",'404']),
         'Medium':     ('https://medium.com/@{u}',           ['404','Page Not Found']),
