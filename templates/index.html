@@ -5,710 +5,773 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSINT Ultimate V3.0</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         :root {
-            --bg: #0a0a0f;
-            --panel-bg: rgba(20, 20, 30, 0.6);
-            --text: #cfcfcf;
-            --accent: #00e676;
-            --accent2: #00d2ff;
-            --error: #ff5555;
-            --warning: #ffaa00;
-            --info: #4fc3f7;
-            --border: rgba(255, 255, 255, 0.08);
-            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            --glass: blur(16px) saturate(180%);
-            --radius: 16px;
-            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --bg: #07080f;
+            --panel: rgba(14, 17, 28, 0.85);
+            --text: #c8cfe8;
+            --text-dim: #5a6180;
+            --accent: #00e5a0;
+            --accent2: #4d9fff;
+            --accent3: #ff6b9d;
+            --error: #ff4757;
+            --warning: #ffa502;
+            --success: #2ed573;
+            --border: rgba(255,255,255,0.07);
+            --border-lit: rgba(0,229,160,0.25);
+            --shadow: 0 24px 48px rgba(0,0,0,0.6);
+            --glass: blur(20px) saturate(160%);
+            --r: 14px;
+            --tr: 0.2s cubic-bezier(.4,0,.2,1);
         }
         body.light {
-            --bg: #f5f7fa;
-            --panel-bg: rgba(255, 255, 255, 0.7);
-            --text: #2c3e50;
-            --accent: #00a86b;
-            --accent2: #0066cc;
-            --error: #c0392b;
-            --warning: #e67e22;
-            --info: #2471a3;
-            --border: rgba(0, 0, 0, 0.08);
-            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --bg: #eef2f9;
+            --panel: rgba(255,255,255,0.85);
+            --text: #1a2035;
+            --text-dim: #8090b0;
+            --accent: #00a878;
+            --accent2: #0066dd;
+            --border: rgba(0,0,0,0.07);
+            --shadow: 0 12px 40px rgba(0,0,0,0.12);
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 100vh;
-            padding: 2rem 1rem;
-            transition: background var(--transition), color var(--transition);
+            padding: 1.5rem 1rem 4rem;
+            transition: background var(--tr), color var(--tr);
             overflow-x: hidden;
         }
-        canvas#particles {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
-            opacity: 0.4;
+        /* ── Particle canvas ── */
+        canvas#bg {
+            position: fixed; top:0; left:0;
+            width:100%; height:100%;
+            z-index:0; pointer-events:none; opacity:.35;
         }
-        body.light canvas#particles { opacity: 0.15; }
+        body.light canvas#bg { opacity:.12; }
 
-        .container {
-            position: relative;
-            z-index: 1;
-            max-width: 1000px;
-            width: 100%;
+        /* ── Layout ── */
+        .wrap {
+            position: relative; z-index:1;
+            max-width: 960px; width:100%;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem 2.5rem;
+            box-shadow: var(--shadow);
             backdrop-filter: var(--glass);
             -webkit-backdrop-filter: var(--glass);
-            background: var(--panel-bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 2rem;
-            box-shadow: var(--shadow);
-            transition: background var(--transition), border var(--transition), box-shadow var(--transition);
         }
 
-        .header {
-            display: flex;
-            align-items: center;
+        /* ── Header ── */
+        .hdr {
+            display: flex; align-items: center;
             justify-content: space-between;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
+            margin-bottom: 2rem; flex-wrap: wrap; gap: .8rem;
         }
-        h1 {
-            font-size: 2.2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -1px;
-        }
-        .theme-toggle {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid var(--border);
-            border-radius: 40px;
-            width: 48px;
-            height: 26px;
-            position: relative;
-            cursor: pointer;
-            transition: background var(--transition), border var(--transition);
-        }
-        .theme-toggle::after {
-            content: '';
-            width: 20px; height: 20px;
-            background: var(--accent);
-            border-radius: 50%;
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            transition: transform 0.3s ease;
-        }
-        body.light .theme-toggle::after { transform: translateX(22px); }
-
-        .auth-area {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        .auth-link {
-            background: transparent;
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 0.4rem 1.2rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            text-decoration: none;
-            transition: all var(--transition);
-            font-weight: 600;
-        }
-        .auth-link:hover {
-            background: var(--accent);
-            color: #000;
-        }
-
-        .modules {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-        }
-        .module-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 0.5rem 1rem;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.85rem;
-            backdrop-filter: blur(5px);
-            transition: all var(--transition);
-            white-space: nowrap;
-        }
-        .module-btn.active {
-            background: var(--accent);
-            color: #0a0a0f;
-            border-color: var(--accent);
-            box-shadow: 0 0 15px var(--accent);
+        .logo {
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(1.4rem, 4vw, 2rem);
             font-weight: 700;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--accent3) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; letter-spacing: -1px;
         }
-        .module-btn:hover:not(.active) {
-            background: rgba(255,255,255,0.15);
-            border-color: var(--accent2);
+        .hdr-right { display:flex; gap:.7rem; align-items:center; flex-wrap: wrap; }
+        .auth-btn {
+            padding: .38rem 1.1rem; border-radius: 30px; font-size: .82rem;
+            font-weight:600; text-decoration:none; border:1.5px solid var(--accent);
+            color: var(--accent); background: transparent;
+            transition: all var(--tr); white-space: nowrap;
+        }
+        .auth-btn:hover { background: var(--accent); color:#000; }
+        .user-badge { font-size:.82rem; color: var(--text-dim); }
+        .history-link {
+            padding: .38rem 1.1rem; border-radius: 30px; font-size: .82rem;
+            font-weight:600; text-decoration:none; border:1.5px solid var(--accent2);
+            color: var(--accent2); background: transparent; transition: all var(--tr);
+        }
+        .history-link:hover { background: var(--accent2); color:#fff; }
+
+        /* ── Theme toggle ── */
+        .tog {
+            width:46px; height:24px;
+            background: rgba(255,255,255,.08);
+            border:1px solid var(--border); border-radius:30px;
+            position:relative; cursor:pointer;
+            flex-shrink:0; transition: background var(--tr);
+        }
+        .tog::after {
+            content:''; width:18px; height:18px;
+            background: var(--accent); border-radius:50%;
+            position:absolute; top:2px; left:2px;
+            transition: transform .3s ease;
+        }
+        body.light .tog::after { transform: translateX(22px); }
+
+        /* ── Module buttons ── */
+        .modules {
+            display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:1.5rem;
+        }
+        .mod {
+            padding: .42rem .95rem; border-radius:30px; cursor:pointer;
+            font-weight:600; font-size:.82rem; border:1.5px solid var(--border);
+            background: rgba(255,255,255,.04); color: var(--text);
+            transition: all var(--tr); white-space:nowrap;
+        }
+        .mod.active {
+            background: var(--accent); color:#000;
+            border-color: var(--accent);
+            box-shadow: 0 0 18px rgba(0,229,160,.35);
+        }
+        .mod:hover:not(.active) {
+            border-color: var(--accent2); background: rgba(77,159,255,.1);
         }
 
-        .input-area {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
+        /* ── Input area ── */
+        .input-row {
+            display:flex; gap:.8rem; margin-bottom:1.2rem; flex-wrap:wrap;
         }
         #target {
-            flex: 1 1 300px;
-            padding: 0.9rem 1.2rem;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            border-radius: 40px;
-            color: var(--text);
-            font-size: 1rem;
-            backdrop-filter: blur(5px);
-            transition: all var(--transition);
+            flex:1 1 260px; padding:.85rem 1.3rem;
+            background: rgba(255,255,255,.04);
+            border:1.5px solid var(--border); border-radius:40px;
+            color: var(--text); font-size:1rem;
+            font-family:'Inter',sans-serif;
+            transition: all var(--tr);
         }
-        #target:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        #target::placeholder { color: var(--text-dim); }
+        #target:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,160,.15); }
         #scan-btn {
-            background: var(--accent);
-            border: none;
-            color: #0a0a0f;
-            padding: 0.9rem 2.5rem;
-            border-radius: 40px;
-            font-weight: 700;
-            cursor: pointer;
-            letter-spacing: 0.5px;
-            transition: all var(--transition);
-            text-transform: uppercase;
-            box-shadow: 0 0 15px var(--accent);
+            background: var(--accent); border:none; color:#000;
+            padding:.85rem 2.2rem; border-radius:40px;
+            font-weight:700; font-size:.95rem; cursor:pointer;
+            letter-spacing:.5px; text-transform:uppercase;
+            box-shadow: 0 0 20px rgba(0,229,160,.4);
+            transition: all var(--tr); flex-shrink:0;
         }
-        #scan-btn:disabled { opacity: 0.5; box-shadow: none; }
+        #scan-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 24px rgba(0,229,160,.5); }
+        #scan-btn:disabled { opacity:.45; box-shadow:none; cursor:not-allowed; }
 
-        .email-options {
-            display: none;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            background: rgba(255,255,255,0.03);
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
+        /* ── Email options ── */
+        .email-opts {
+            display:none; flex-wrap:wrap; gap:.8rem;
+            padding:1rem 1.2rem; margin-bottom:1.2rem;
+            background: rgba(255,255,255,.03); border:1px solid var(--border);
+            border-radius:var(--r);
         }
-        .email-options label {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            cursor: pointer;
-            font-size: 0.9rem;
+        .email-opts label {
+            display:flex; align-items:center; gap:.4rem;
+            cursor:pointer; font-size:.85rem;
+        }
+        .email-opts input[type=checkbox] { accent-color: var(--accent); }
+
+        /* ── Progress ── */
+        .prog-wrap {
+            display:none; width:100%; height:5px;
+            background: rgba(255,255,255,.07); border-radius:10px;
+            margin-bottom:1.2rem; overflow:hidden;
+        }
+        .prog-bar {
+            height:100%; width:0%; border-radius:10px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            transition: width .4s ease;
+            box-shadow: 0 0 10px var(--accent);
         }
 
+        /* ── Result box ── */
         .result-box {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 1.5rem;
-            min-height: 200px;
-            backdrop-filter: blur(10px);
-            transition: all var(--transition);
+            background: rgba(0,0,0,.25);
+            border:1px solid var(--border);
+            border-radius:var(--r); padding:1.4rem;
+            min-height:180px;
         }
-        .result-box.error { border-color: var(--error); }
-        .skeleton { width: 100%; height: 20px; background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1), rgba(255,255,255,0.05)); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; margin: 0.5rem 0; }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-
-        .accordion { margin-top: 1rem; }
-        .accordion-item { border-bottom: 1px solid var(--border); }
-        .accordion-header {
-            padding: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: background var(--transition);
+        .result-box.has-error { border-color: var(--error); }
+        .skeleton {
+            height:18px; border-radius:6px; margin:.5rem 0;
+            background: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.05) 75%);
+            background-size:200% 100%;
+            animation: shimmer 1.4s infinite;
         }
-        .accordion-header:hover { background: rgba(255,255,255,0.03); }
-        .accordion-body { padding: 0.8rem 1.5rem; display: none; }
-        .accordion-body.show { display: block; }
+        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        .result-placeholder {
+            display:flex; flex-direction:column; align-items:center;
+            justify-content:center; height:140px; gap:.5rem;
+            color: var(--text-dim); font-size:.9rem;
+        }
+        .result-placeholder .ico { font-size:2.5rem; opacity:.4; }
 
+        /* ── Accordion ── */
+        .acc-item { border-bottom:1px solid var(--border); }
+        .acc-item:last-child { border-bottom:none; }
+        .acc-hdr {
+            padding:.75rem .5rem; font-weight:700; font-size:.9rem;
+            cursor:pointer; display:flex; align-items:center; gap:.5rem;
+            transition: color var(--tr);
+            user-select:none;
+        }
+        .acc-hdr:hover { color: var(--accent); }
+        .acc-hdr .chevron { margin-left:auto; transition: transform .25s; font-size:.75rem; color: var(--text-dim); }
+        .acc-hdr.open .chevron { transform: rotate(180deg); }
+        .acc-body { display:none; padding:.5rem .5rem 1rem 1rem; font-size:.88rem; line-height:1.7; }
+        .acc-body.show { display:block; }
+        .acc-body .kv { display:flex; gap:.5rem; margin:.2rem 0; flex-wrap:wrap; }
+        .acc-body .k { color: var(--text-dim); font-size:.82rem; min-width:140px; }
+        .acc-body .v { color: var(--text); word-break:break-all; }
+        .acc-body ul { padding-left:1.2rem; }
+        .acc-body li { margin:.15rem 0; }
+
+        /* ── Badges ── */
         .badge {
-            display: inline-block;
-            padding: 0.2em 0.6em;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            display:inline-block; padding:.15em .55em; border-radius:20px;
+            font-size:.72rem; font-weight:700; white-space:nowrap;
         }
-        .badge-success { background: rgba(0,230,118,0.15); color: var(--accent); }
-        .badge-error { background: rgba(255,85,85,0.15); color: var(--error); }
-        .badge-warning { background: rgba(255,170,0,0.15); color: var(--warning); }
-        .badge-info { background: rgba(79,195,247,0.15); color: var(--info); }
+        .b-ok  { background:rgba(0,229,160,.15); color:var(--accent); }
+        .b-err { background:rgba(255,71,87,.15);  color:var(--error); }
+        .b-warn{ background:rgba(255,165,2,.15);  color:var(--warning); }
+        .b-info{ background:rgba(77,159,255,.15); color:var(--accent2); }
 
-        .profile-card {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: rgba(255,255,255,0.05);
-            border-radius: var(--radius);
-            padding: 1rem;
-            margin: 0.5rem 0;
+        /* ── AI box ── */
+        .ai-box {
+            display:none; margin-top:1.2rem;
+            background: rgba(77,159,255,.06);
+            border:1px solid rgba(77,159,255,.2);
+            border-radius:var(--r); padding:1rem 1.2rem;
         }
-        .profile-card img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--accent); }
+        .ai-btn {
+            background: transparent; border:1.5px solid var(--accent2);
+            color: var(--accent2); padding:.4rem 1rem; border-radius:20px;
+            font-size:.82rem; font-weight:600; cursor:pointer;
+            transition: all var(--tr);
+        }
+        .ai-btn:hover { background: var(--accent2); color:#fff; }
+        #ai-text { margin-top:.7rem; font-size:.88rem; line-height:1.7; font-style:italic; white-space:pre-wrap; }
 
-        .map { height: 250px; border-radius: var(--radius); margin-top: 1rem; display: none; }
-
+        /* ── Export bar ── */
         .export-bar {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            justify-content: flex-end;
+            display:none; justify-content:flex-end;
+            gap:.5rem; margin-top:1rem;
         }
         .icon-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: var(--text);
-            padding: 0.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background var(--transition);
+            background: rgba(255,255,255,.07); border:1px solid var(--border);
+            color: var(--text); padding:.45rem .9rem; border-radius:8px;
+            cursor:pointer; font-size:.82rem; transition: all var(--tr);
         }
-        .icon-btn:hover { background: rgba(255,255,255,0.2); }
+        .icon-btn:hover { background: rgba(255,255,255,.14); }
 
-        .progress-container { width: 100%; background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; margin: 1rem 0; }
-        .progress-bar { height: 100%; background: var(--accent); border-radius: 10px; width: 0%; transition: width 0.3s; }
+        /* ── Map ── */
+        #map { display:none; height:240px; border-radius:var(--r); margin-top:1.2rem; }
+
+        /* ── Chart ── */
+        .chart-wrap { display:none; width:260px; height:260px; margin:1rem auto; }
+
+        /* ── Upload ── */
         .upload-area {
-            border: 2px dashed var(--border);
-            padding: 1rem;
-            text-align: center;
-            cursor: pointer;
-            border-radius: 16px;
-            margin-top: 1rem;
-            transition: border-color var(--transition);
+            margin-top:1.4rem; border:2px dashed var(--border);
+            border-radius:var(--r); padding:.9rem 1rem;
+            text-align:center; cursor:pointer; font-size:.85rem;
+            color: var(--text-dim); transition: border-color var(--tr), color var(--tr);
         }
-        .upload-area:hover { border-color: var(--accent); }
-        .chart-box { width: 300px; height: 300px; margin: 1rem auto; }
-        .ai-box {
-            background: rgba(0,0,0,0.3);
-            padding: 1rem;
-            border-radius: 16px;
-            margin-top: 1rem;
-        }
-        .ai-box p { margin-top: 0.5rem; font-style: italic; }
+        .upload-area:hover { border-color: var(--accent); color: var(--text); }
 
-        @media (max-width: 600px) {
-            body { padding: 1rem 0.5rem; }
-            h1 { font-size: 1.8rem; }
-            .container { padding: 1.5rem; }
-            #scan-btn { width: 100%; }
-            .input-area { flex-direction: column; }
-            .auth-area { width: 100%; justify-content: center; }
+        /* ── Responsive ── */
+        @media(max-width:600px){
+            .wrap { padding:1.4rem 1rem; }
+            .logo { font-size:1.4rem; }
+            #scan-btn { width:100%; }
+            .input-row { flex-direction:column; }
+            .hdr-right { justify-content:center; }
         }
     </style>
 </head>
 <body>
-    <canvas id="particles"></canvas>
-    <div class="container">
-        <div class="header">
-            <h1>⚡ OSINT ULTIMATE V3.0</h1>
-            <div style="display: flex; gap:1rem; align-items: center;">
-                <div class="auth-area">
-                    {% if authenticated %}
-                        <span style="margin-right:0.5rem;">👤 {{ username }}</span>
-                        <a href="/logout" class="auth-link">Déconnexion</a>
-                    {% else %}
-                        <a href="/login" class="auth-link">Connexion</a>
-                        <a href="/register" class="auth-link">Inscription</a>
-                    {% endif %}
-                </div>
-                <div class="theme-toggle" onclick="toggleTheme()" title="Changer le thème"></div>
-            </div>
-        </div>
+<canvas id="bg"></canvas>
+<div class="wrap">
 
-        <div class="modules" id="modules">
-            <button class="module-btn active" data-module="site">🌐 Site</button>
-            <button class="module-btn" data-module="instagram">📸 Insta</button>
-            <button class="module-btn" data-module="email">✉️ Email</button>
-            <button class="module-btn" data-module="phone">📞 Tél</button>
-            <button class="module-btn" data-module="ip">🌍 IP</button>
-            <button class="module-btn" data-module="pseudo">🔍 Pseudo</button>
-            <button class="module-btn" data-module="twitter">🐦 Twitter</button>
-            <button class="module-btn" data-module="tiktok">🎵 TikTok</button>
-            <button class="module-btn" data-module="github">🐙 GitHub</button>
-            <button class="module-btn" data-module="facebook">📘 FB</button>
-            <button class="module-btn" data-module="linkedin">🔗 LinkedIn</button>
-            <button class="module-btn" data-module="snapchat">👻 Snap</button>
-        </div>
-
-        <div class="input-area">
-            <input type="text" id="target" placeholder="Entrez une cible..." />
-            <button id="scan-btn" onclick="launchScan()">Scanner</button>
-        </div>
-
-        <div id="email-options" class="email-options">
-            <label><input type="checkbox" value="mx" checked> MX</label>
-            <label><input type="checkbox" value="spf"> SPF/DMARC</label>
-            <label><input type="checkbox" value="smtp"> Vérif. SMTP</label>
-            <label><input type="checkbox" value="catchall"> Catch-all</label>
-            <label><input type="checkbox" value="breaches"> Fuites (HIBP)</label>
-            <label><input type="checkbox" value="reputation"> Réputation</label>
-            <label><input type="checkbox" value="social"> Profils sociaux</label>
-            <label><input type="checkbox" value="all"> Tout</label>
-        </div>
-
-        <div id="progress" class="progress-container" style="display: none;">
-            <div id="progress-bar" class="progress-bar"></div>
-        </div>
-
-        <div id="result" class="result-box"></div>
-
-        <div class="upload-area" onclick="document.getElementById('file-input').click()">
-            📎 Cliquez pour analyser un fichier (métadonnées EXIF/PDF/DOCX)
-            <input type="file" id="file-input" style="display:none" onchange="uploadFile()">
-        </div>
-
-        <div class="chart-box">
-            <canvas id="pseudoChart" style="display:none;"></canvas>
-        </div>
-
-        <div class="ai-box" id="ai-summary-box" style="display:none;">
-            <button class="icon-btn" onclick="getAISummary()">🤖 Résumé IA</button>
-            <p id="ai-summary-text"></p>
-        </div>
-
-        <div id="map" class="map"></div>
-
-        <div class="export-bar" id="export-bar" style="display:none;">
-            <button class="icon-btn" onclick="copyResults()">📋 Copier</button>
-            <button class="icon-btn" onclick="printResults()">🖨️ Imprimer</button>
+    <!-- Header -->
+    <div class="hdr">
+        <div class="logo">⚡ OSINT ULTIMATE V3</div>
+        <div class="hdr-right">
+            {% if authenticated %}
+                <span class="user-badge">👤 {{ username }}</span>
+                <a href="/history" class="history-link">📋 Historique</a>
+                <a href="/logout" class="auth-btn">Déconnexion</a>
+            {% else %}
+                <a href="/login" class="auth-btn">Connexion</a>
+                <a href="/register" class="auth-btn">Inscription</a>
+            {% endif %}
+            <div class="tog" onclick="toggleTheme()" title="Changer le thème"></div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        // === Particle network (background) ===
-        const canvas = document.getElementById('particles');
-        const ctx = canvas.getContext('2d');
-        let w, h, particles = [], maxParticles = 80, connectionDist = 150;
-        const mouse = { x: null, y: null, radius: 100 };
+    <!-- Module selector -->
+    <div class="modules" id="modules">
+        <button class="mod active" data-m="site">🌐 Site web</button>
+        <button class="mod" data-m="email">✉️ Email</button>
+        <button class="mod" data-m="phone">📞 Téléphone</button>
+        <button class="mod" data-m="ip">🌍 Adresse IP</button>
+        <button class="mod" data-m="pseudo">🔍 Pseudo</button>
+        <button class="mod" data-m="instagram">📸 Instagram</button>
+        <button class="mod" data-m="twitter">🐦 Twitter/X</button>
+        <button class="mod" data-m="tiktok">🎵 TikTok</button>
+        <button class="mod" data-m="github">🐙 GitHub</button>
+        <button class="mod" data-m="facebook">📘 Facebook</button>
+        <button class="mod" data-m="linkedin">🔗 LinkedIn</button>
+        <button class="mod" data-m="snapchat">👻 Snapchat</button>
+    </div>
 
-        function resizeCanvas() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+    <!-- Input -->
+    <div class="input-row">
+        <input type="text" id="target" placeholder="ex: example.com" autocomplete="off" spellcheck="false">
+        <button id="scan-btn" onclick="launchScan()">Scanner</button>
+    </div>
 
-        class Particle {
-            constructor() { this.reset(); }
-            reset() {
-                this.x = Math.random() * w;
-                this.y = Math.random() * h;
-                this.vx = (Math.random() - 0.5) * 0.6;
-                this.vy = (Math.random() - 0.5) * 0.6;
-                this.radius = Math.random() * 2 + 1;
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                if (this.x < 0 || this.x > w) this.vx = -this.vx;
-                if (this.y < 0 || this.y > h) this.vy = -this.vy;
-                if (mouse.x && mouse.y) {
-                    let dx = this.x - mouse.x, dy = this.y - mouse.y;
-                    let dist = Math.sqrt(dx*dx+dy*dy);
-                    if (dist < mouse.radius) {
-                        let force = (mouse.radius - dist) / mouse.radius;
-                        this.x += dx * force * 0.02;
-                        this.y += dy * force * 0.02;
-                    }
-                }
-            }
-            draw() {
-                ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#00e676';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-                ctx.fill();
-            }
+    <!-- Email options -->
+    <div id="email-opts" class="email-opts">
+        <label><input type="checkbox" value="mx" checked> MX</label>
+        <label><input type="checkbox" value="spf" checked> SPF/DMARC</label>
+        <label><input type="checkbox" value="smtp"> Vérif. SMTP</label>
+        <label><input type="checkbox" value="breaches"> Fuites HIBP</label>
+        <label><input type="checkbox" value="gravatar"> Gravatar</label>
+    </div>
+
+    <!-- Progress -->
+    <div id="prog-wrap" class="prog-wrap"><div id="prog-bar" class="prog-bar"></div></div>
+
+    <!-- Results -->
+    <div id="result" class="result-box">
+        <div class="result-placeholder">
+            <div class="ico">🔍</div>
+            <div>Sélectionnez un module et entrez une cible</div>
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="export-bar" id="export-bar">
+        <button class="icon-btn" onclick="copyResults()">📋 Copier</button>
+        <button class="icon-btn" onclick="downloadJSON()">💾 JSON</button>
+        <button class="icon-btn" onclick="window.print()">🖨️ Imprimer</button>
+    </div>
+
+    <!-- AI Summary -->
+    <div class="ai-box" id="ai-box">
+        <button class="ai-btn" onclick="getAI()">🤖 Résumé IA</button>
+        <div id="ai-text"></div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Chart (pseudo) -->
+    <div class="chart-wrap" id="chart-wrap">
+        <canvas id="pseudo-chart"></canvas>
+    </div>
+
+    <!-- File upload -->
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+        📎 Analyser un fichier — EXIF (images), métadonnées PDF, DOCX
+        <input type="file" id="file-input" style="display:none"
+               accept=".jpg,.jpeg,.png,.pdf,.docx,.tiff,.bmp,.webp"
+               onchange="uploadFile(this)">
+    </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+// ── Particle canvas ──────────────────────────────────────────
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let W, H, pts = [];
+const NPTSMAX = 70, CDIST = 140;
+const mouse = {x:null,y:null};
+
+function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+
+class Pt {
+    constructor(){ this.reset(); }
+    reset(){
+        this.x=Math.random()*W; this.y=Math.random()*H;
+        this.vx=(Math.random()-.5)*.5; this.vy=(Math.random()-.5)*.5;
+        this.r=Math.random()*1.5+.5;
+    }
+    tick(){
+        this.x+=this.vx; this.y+=this.vy;
+        if(this.x<0||this.x>W) this.vx=-this.vx;
+        if(this.y<0||this.y>H) this.vy=-this.vy;
+        if(mouse.x){
+            let dx=this.x-mouse.x,dy=this.y-mouse.y,d=Math.hypot(dx,dy);
+            if(d<90){let f=(90-d)/90; this.x+=dx*f*.015; this.y+=dy*f*.015;}
         }
-        for (let i=0; i<maxParticles; i++) particles.push(new Particle());
-        function animateParticles() {
-            ctx.clearRect(0, 0, w, h);
-            particles.forEach(p => { p.update(); p.draw(); });
-            for (let i=0; i<particles.length; i++) {
-                for (let j=i+1; j<particles.length; j++) {
-                    let dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
-                    let dist = Math.sqrt(dx*dx+dy*dy);
-                    if (dist < connectionDist) {
-                        ctx.strokeStyle = `rgba(0, 230, 118, ${1 - dist/connectionDist})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                    }
-                }
+    }
+    draw(){
+        const c=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#00e5a0';
+        ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+        ctx.fillStyle=c; ctx.fill();
+    }
+}
+for(let i=0;i<NPTSMAX;i++) pts.push(new Pt());
+
+function animate(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{p.tick();p.draw();});
+    const c=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#00e5a0';
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+        const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.hypot(dx,dy);
+        if(d<CDIST){
+            ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
+            ctx.strokeStyle=`rgba(0,229,160,${.6*(1-d/CDIST)})`; ctx.lineWidth=.5; ctx.stroke();
+        }
+    }
+    requestAnimationFrame(animate);
+}
+animate();
+document.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+document.addEventListener('mouseleave',()=>{mouse.x=null;mouse.y=null;});
+
+// ── Theme ──────────────────────────────────────────────────
+function toggleTheme(){
+    document.body.classList.toggle('light');
+    localStorage.setItem('theme', document.body.classList.contains('light')?'light':'dark');
+}
+if(localStorage.getItem('theme')==='light') document.body.classList.add('light');
+
+// ── Module selection ───────────────────────────────────────
+const mods = document.querySelectorAll('.mod');
+const targetEl = document.getElementById('target');
+const scanBtn = document.getElementById('scan-btn');
+const resultEl = document.getElementById('result');
+const emailOpts = document.getElementById('email-opts');
+const exportBar = document.getElementById('export-bar');
+const mapEl = document.getElementById('map');
+const aiBox = document.getElementById('ai-box');
+const progWrap = document.getElementById('prog-wrap');
+const progBar = document.getElementById('prog-bar');
+let currentModule = 'site';
+
+const PLACEHOLDERS = {
+    site:'ex: example.com ou https://example.com',
+    email:'ex: contact@example.com',
+    phone:'ex: +33 6 12 34 56 78',
+    ip:'ex: 8.8.8.8',
+    pseudo:'ex: pseudonyme',
+    instagram:'ex: nom_utilisateur (sans @)',
+    twitter:'ex: nom_utilisateur (sans @)',
+    tiktok:'ex: nom_utilisateur (sans @)',
+    github:'ex: nom_utilisateur',
+    facebook:'ex: nom.utilisateur ou ID',
+    linkedin:'ex: identifiant-profil',
+    snapchat:'ex: nom_utilisateur',
+};
+
+mods.forEach(btn => btn.addEventListener('click', ()=>{
+    mods.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentModule = btn.dataset.m;
+    targetEl.placeholder = PLACEHOLDERS[currentModule] || '';
+    emailOpts.style.display = currentModule==='email' ? 'flex' : 'none';
+    resultEl.innerHTML = `<div class="result-placeholder"><div class="ico">🔍</div><div>Entrez une cible et cliquez sur Scanner</div></div>`;
+    resultEl.classList.remove('has-error');
+    exportBar.style.display = 'none';
+    aiBox.style.display = 'none';
+    mapEl.style.display = 'none';
+    document.getElementById('chart-wrap').style.display = 'none';
+    progWrap.style.display = 'none';
+}));
+
+// ── Socket.IO ──────────────────────────────────────────────
+const socket = io({ transports: ['websocket','polling'] });
+let activeScanId = null;
+let scanRunning = false;
+let lastResult = null;
+let progressTimer = null;
+
+socket.on('scan_done', ({ scan_id, result }) => {
+    if(scan_id !== activeScanId) return;
+    clearScanProgress();
+    lastResult = result;
+    renderResult(result);
+    exportBar.style.display = 'flex';
+    aiBox.style.display = 'block';
+    // Map
+    const geo = result.Géolocalisation || result['Géolocalisation IP'] || {};
+    if(geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
+    else mapEl.style.display = 'none';
+});
+
+socket.on('scan_error', ({ scan_id, error }) => {
+    if(scan_id !== activeScanId) return;
+    clearScanProgress();
+    resultEl.innerHTML = `<p style="color:var(--error)">❌ ${error}</p>`;
+    resultEl.classList.add('has-error');
+});
+
+// Fallback polling if socket misses event
+function pollFallback(scan_id){
+    const interval = setInterval(async ()=>{
+        if(scan_id !== activeScanId){ clearInterval(interval); return; }
+        try {
+            const r = await fetch(`/scan/${scan_id}`);
+            const d = await r.json();
+            if(d.status !== 'pending' && d.status !== 'running'){
+                clearInterval(interval);
+                if(!scanRunning) return; // already handled by socket
+                clearScanProgress();
+                lastResult = d;
+                renderResult(d);
+                exportBar.style.display = 'flex';
+                aiBox.style.display = 'block';
             }
-            requestAnimationFrame(animateParticles);
-        }
-        animateParticles();
-        document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        document.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+        } catch(e){}
+    }, 2000);
+    setTimeout(()=>clearInterval(interval), 120000);
+}
 
-        // === Theme toggle ===
-        function toggleTheme() {
-            document.body.classList.toggle('light');
-            localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
-        }
-        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+// ── Launch scan ────────────────────────────────────────────
+async function launchScan(){
+    const target = targetEl.value.trim();
+    if(!target || scanRunning) return;
+    scanRunning = true;
+    activeScanId = null;
+    lastResult = null;
+    resultEl.classList.remove('has-error');
+    resultEl.innerHTML = `<div class="skeleton" style="width:65%"></div><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:45%"></div><div class="skeleton" style="width:70%"></div>`;
+    exportBar.style.display = 'none';
+    aiBox.style.display = 'none';
+    mapEl.style.display = 'none';
+    document.getElementById('chart-wrap').style.display = 'none';
+    document.getElementById('ai-text').textContent = '';
+    progWrap.style.display = 'block';
+    progBar.style.width = '0%';
+    scanBtn.disabled = true; scanBtn.textContent = 'Analyse…';
 
-        // === Module selection ===
-        const moduleBtns = document.querySelectorAll('.module-btn');
-        const targetInput = document.getElementById('target');
-        const scanBtn = document.getElementById('scan-btn');
-        const resultDiv = document.getElementById('result');
-        const emailOptions = document.getElementById('email-options');
-        const exportBar = document.getElementById('export-bar');
-        const mapDiv = document.getElementById('map');
-        let currentModule = 'site';
+    let prog = 0;
+    progressTimer = setInterval(()=>{
+        prog = Math.min(prog + Math.random()*4 + 1, 88);
+        progBar.style.width = prog + '%';
+    }, 600);
 
-        moduleBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                moduleBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentModule = btn.dataset.module;
-                targetInput.placeholder = getPlaceholder(currentModule);
-                emailOptions.style.display = currentModule === 'email' ? 'flex' : 'none';
-                resultDiv.innerHTML = '';
-                exportBar.style.display = 'none';
-                mapDiv.style.display = 'none';
-                document.getElementById('progress').style.display = 'none';
-                document.getElementById('ai-summary-box').style.display = 'none';
-                document.getElementById('pseudoChart').style.display = 'none';
-            });
+    const opts = currentModule === 'email'
+        ? [...document.querySelectorAll('#email-opts input:checked')].map(c=>c.value)
+        : [];
+
+    try {
+        const resp = await fetch('/scan', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({module: currentModule, target, options: opts})
         });
-
-        function getPlaceholder(module) {
-            const map = {
-                site: 'ex: example.com',
-                instagram: 'ex: pseudo (sans @)',
-                email: 'ex: adresse@domaine.com',
-                phone: 'ex: +33 6 12 34 56 78',
-                ip: 'ex: 8.8.8.8',
-                pseudo: 'ex: pseudo',
-                twitter: 'ex: pseudo',
-                tiktok: 'ex: pseudo',
-                github: 'ex: pseudo',
-                facebook: 'ex: pseudo',
-                linkedin: 'ex: identifiant',
-                snapchat: 'ex: pseudo'
-            };
-            return map[module] || '';
+        const data = await resp.json();
+        if(data.scan_id){
+            activeScanId = data.scan_id;
+            pollFallback(data.scan_id);
+        } else {
+            clearScanProgress();
+            resultEl.innerHTML = `<p style="color:var(--error)">❌ ${data.error||'Erreur inconnue'}</p>`;
+            resultEl.classList.add('has-error');
         }
-        targetInput.placeholder = getPlaceholder('site');
+    } catch(e){
+        clearScanProgress();
+        resultEl.innerHTML = `<p style="color:var(--error)">⚠️ Erreur réseau: ${e.message}</p>`;
+        resultEl.classList.add('has-error');
+    }
+}
 
-        // === Socket.IO & Async scan ===
-        const socket = io();
-        let currentScanId = null;
-        let scanRunning = false;
+function clearScanProgress(){
+    scanRunning = false;
+    clearInterval(progressTimer);
+    progBar.style.width = '100%';
+    setTimeout(()=>{ progWrap.style.display='none'; progBar.style.width='0%'; }, 800);
+    scanBtn.disabled = false; scanBtn.textContent = 'Scanner';
+}
 
-        async function launchScan() {
-            const target = targetInput.value.trim();
-            if (!target || scanRunning) return;
-            scanRunning = true;
-            resultDiv.innerHTML = '<div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:40%"></div>';
-            document.getElementById('progress').style.display = 'block';
-            document.getElementById('progress-bar').style.width = '0%';
-            const options = currentModule === 'email' ? getEmailOptions() : [];
+targetEl.addEventListener('keydown', e=>{ if(e.key==='Enter') launchScan(); });
 
-            try {
-                const resp = await fetch('/scan', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({module: currentModule, target, options})
-                });
-                const data = await resp.json();
-                if (data.scan_id) {
-                    currentScanId = data.scan_id;
-                    let progress = 0;
-                    const interval = setInterval(() => {
-                        if (!scanRunning) { clearInterval(interval); return; }
-                        progress = Math.min(progress + 5, 90);
-                        document.getElementById('progress-bar').style.width = progress + '%';
-                    }, 500);
+// ── Render results ─────────────────────────────────────────
+let pseudoChartInst = null;
 
-                    socket.on(`scan_${currentScanId}_done`, (result) => {
-                        clearInterval(interval);
-                        scanRunning = false;
-                        document.getElementById('progress-bar').style.width = '100%';
-                        setTimeout(() => document.getElementById('progress').style.display = 'none', 1000);
-                        renderResult(result.result);
-                        exportBar.style.display = 'flex';
-                        document.getElementById('ai-summary-box').style.display = 'block';
-                        // Map if geodata
-                        let lat, lon;
-                        if (result.result.Géolocalisation?.Lat) { lat = result.result.Géolocalisation.Lat; lon = result.result.Géolocalisation.Lon; }
-                        else if (result.result.Géolocalisation_IP?.Lat) { lat = result.result.Géolocalisation_IP.Lat; lon = result.result.Géolocalisation_IP.Lon; }
-                        if (lat && lon) showMap(lat, lon);
-                        else mapDiv.style.display = 'none';
-                    });
-                    socket.on(`scan_${currentScanId}_error`, (err) => {
-                        clearInterval(interval);
-                        scanRunning = false;
-                        document.getElementById('progress').style.display = 'none';
-                        resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${err.error}</h3>`;
-                        resultDiv.classList.add('error');
-                    });
-                } else {
-                    resultDiv.innerHTML = `<h3 style="color:var(--error)">❌ ${data.error}</h3>`;
-                    resultDiv.classList.add('error');
-                    scanRunning = false;
-                }
-            } catch(e) {
-                resultDiv.innerHTML = `<h3 style="color:var(--error)">⚠️ Erreur réseau</h3>`;
-                resultDiv.classList.add('error');
-                scanRunning = false;
+function renderResult(data){
+    resultEl.classList.remove('has-error');
+    if(!data || typeof data !== 'object'){
+        resultEl.innerHTML = `<p>${data}</p>`; return;
+    }
+    if(data.error){
+        resultEl.innerHTML = `<p style="color:var(--error)">❌ ${data.error}</p>`;
+        resultEl.classList.add('has-error'); return;
+    }
+
+    let html = '';
+    for(const [key, value] of Object.entries(data)){
+        const badge = getBadge(key, value);
+        html += `<div class="acc-item">
+            <div class="acc-hdr" onclick="toggleAcc(this)">
+                <span>${getIcon(key)} ${key}</span>${badge}
+                <span class="chevron">▾</span>
+            </div>
+            <div class="acc-body">${renderValue(value)}</div>
+        </div>`;
+    }
+    resultEl.innerHTML = `<div>${html}</div>`;
+    // Open first
+    const first = resultEl.querySelector('.acc-body');
+    if(first){ first.classList.add('show'); resultEl.querySelector('.acc-hdr').classList.add('open'); }
+
+    // Pseudo chart
+    if(currentModule === 'pseudo'){
+        let ok=0, nope=0;
+        Object.values(data).forEach(v=>{ if(String(v).includes('Existe')) ok++; else nope++; });
+        const wrap = document.getElementById('chart-wrap');
+        wrap.style.display = 'block';
+        if(pseudoChartInst){ pseudoChartInst.destroy(); pseudoChartInst=null; }
+        pseudoChartInst = new Chart(document.getElementById('pseudo-chart').getContext('2d'),{
+            type:'doughnut',
+            data:{labels:['Trouvés','Non trouvés'],
+                  datasets:[{data:[ok,nope],backgroundColor:['#00e5a0','#ff4757'],
+                             borderWidth:0,hoverOffset:6}]},
+            options:{plugins:{legend:{labels:{color:'#c8cfe8',font:{size:13}}}}}
+        });
+    } else {
+        document.getElementById('chart-wrap').style.display = 'none';
+    }
+}
+
+function toggleAcc(hdr){
+    const body = hdr.nextElementSibling;
+    body.classList.toggle('show');
+    hdr.classList.toggle('open');
+}
+
+function getBadge(key, value){
+    const s = String(value || '');
+    if(s.includes('✓') || s === 'true' || s.includes('Valide') || s.includes('Existe'))
+        return '<span class="badge b-ok">OK</span>';
+    if(s.includes('❌') || s.includes('Erreur') || s.includes('Non trouvé') || s.includes('Absent'))
+        return '<span class="badge b-err">—</span>';
+    if(s.includes('⚠️') || s.includes('Proxy') || s.includes('Surtaxé'))
+        return '<span class="badge b-warn">⚠</span>';
+    return '';
+}
+
+function getIcon(key){
+    const icons = {
+        'WHOIS':'📄','DNS':'🔗','HTTP':'🌐','IP':'🖥️','Géolocalisation':'📍',
+        'Ports ouverts':'🔓','Ports':'🔒','Technologies':'⚙️','SSL/TLS':'🔐',
+        'En-têtes sécurité':'🛡️','Wayback Machine':'🕰️','Shodan':'👁️',
+        'MX':'📬','SPF':'✅','DMARC':'📋','DKIM':'🔑','Gravatar':'🖼️',
+        'Fuites (HIBP)':'💥','SMTP':'📧','Followers':'👥','Following':'👣',
+        'Repos récents':'📦','GitHub':'🐙',
+    };
+    for(const [k, ico] of Object.entries(icons)){
+        if(key.includes(k)) return ico;
+    }
+    return '▸';
+}
+
+function renderValue(val, depth=0){
+    if(val === null || val === undefined) return '<span style="color:var(--text-dim)">N/A</span>';
+    if(typeof val === 'object'){
+        if(Array.isArray(val)){
+            if(val.length === 0) return '<span style="color:var(--text-dim)">Vide</span>';
+            // Array of objects → table-like
+            if(typeof val[0] === 'object'){
+                return val.map(item=>`<div style="margin:.4rem 0;padding:.5rem;background:rgba(255,255,255,.03);border-radius:8px">${renderValue(item,depth+1)}</div>`).join('');
             }
+            return `<ul>${val.map(v=>`<li>${renderValue(v,depth+1)}</li>`).join('')}</ul>`;
         }
-
-        function getEmailOptions() {
-            const selected = [];
-            document.querySelectorAll('#email-options input[type="checkbox"]:checked').forEach(cb => {
-                selected.push(cb.value);
-            });
-            return selected;
+        let html='';
+        for(const [k,v] of Object.entries(val)){
+            html+=`<div class="kv"><span class="k">${k}:</span><span class="v">${renderValue(v,depth+1)}</span></div>`;
         }
+        return html;
+    }
+    const s = String(val);
+    if(s.startsWith('http')) return `<a href="${s}" target="_blank" rel="noopener" style="color:var(--accent2)">${s}</a>`;
+    if(s.includes('⚠️')) return `<span style="color:var(--warning)">${s}</span>`;
+    if(s.includes('✓')) return `<span style="color:var(--accent)">${s}</span>`;
+    if(s.includes('❌') || s.toLowerCase().includes('erreur')) return `<span style="color:var(--error)">${s}</span>`;
+    return s;
+}
 
-        function uploadFile() {
-            const fileInput = document.getElementById('file-input');
-            if (!fileInput.files.length) return;
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            fetch('/upload', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.metadata) {
-                        alert(JSON.stringify(data.metadata, null, 2));
-                    } else {
-                        alert('Aucune métadonnée trouvée');
-                    }
-                });
-        }
+// ── Map ────────────────────────────────────────────────────
+let leafletMap = null;
+function showMap(lat, lon){
+    mapEl.style.display = 'block';
+    if(!leafletMap){
+        leafletMap = L.map('map').setView([lat,lon],10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {attribution:'© OpenStreetMap contributors'}).addTo(leafletMap);
+    } else {
+        leafletMap.setView([lat,lon],10);
+        leafletMap.eachLayer(l=>{ if(l instanceof L.Marker) leafletMap.removeLayer(l); });
+    }
+    L.marker([lat,lon]).addTo(leafletMap);
+    setTimeout(()=>leafletMap.invalidateSize(),200);
+}
 
-        function getAISummary() {
-            const text = resultDiv.innerText;
-            fetch('/ai-summary', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({result: text})
-            })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('ai-summary-text').innerText = data.summary || data.error;
-            });
-        }
+// ── Upload ─────────────────────────────────────────────────
+async function uploadFile(input){
+    if(!input.files.length) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    resultEl.innerHTML = `<div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:75%"></div>`;
+    try {
+        const r = await fetch('/upload',{method:'POST',body:fd});
+        const d = await r.json();
+        if(d.metadata){ renderResult(d.metadata); exportBar.style.display='flex'; }
+        else resultEl.innerHTML = `<p style="color:var(--error)">Erreur: ${d.error||'Inconnue'}</p>`;
+    } catch(e){
+        resultEl.innerHTML = `<p style="color:var(--error)">Erreur upload: ${e.message}</p>`;
+    }
+    input.value='';
+}
 
-        // === Render result with accordions and chart ===
-        function renderResult(data) {
-            resultDiv.classList.remove('error');
-            if (typeof data !== 'object' || data === null) {
-                resultDiv.innerHTML = `<p>${data}</p>`;
-                return;
-            }
-            let html = '<div class="accordion">';
-            for (let [key, value] of Object.entries(data)) {
-                let badge = '';
-                if (value === 'Existe' || value === true) badge = '<span class="badge badge-success">OK</span>';
-                else if (value === 'Non' || value === false) badge = '<span class="badge badge-error">NON</span>';
-                else if (typeof value === 'string' && value.startsWith('Erreur')) badge = '<span class="badge badge-error">ERR</span>';
-                html += `<div class="accordion-item">
-                    <div class="accordion-header" onclick="toggleAccordion(this)">${key} ${badge}</div>
-                    <div class="accordion-body">${formatValue(value)}</div>
-                </div>`;
-            }
-            html += '</div>';
-            resultDiv.innerHTML = html;
-            // Open first item
-            const firstBody = resultDiv.querySelector('.accordion-body');
-            if (firstBody) firstBody.classList.add('show');
+// ── AI Summary ─────────────────────────────────────────────
+async function getAI(){
+    const aiText = document.getElementById('ai-text');
+    aiText.textContent = '⏳ Analyse en cours…';
+    try {
+        const r = await fetch('/ai-summary',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({result: lastResult})
+        });
+        const d = await r.json();
+        aiText.textContent = d.summary || ('Erreur: ' + (d.error||'?'));
+    } catch(e){
+        aiText.textContent = `Erreur: ${e.message}`;
+    }
+}
 
-            // Chart for pseudo search
-            if (currentModule === 'pseudo') {
-                let exists = 0, notFound = 0;
-                for (let [site, status] of Object.entries(data)) {
-                    if (status === 'Existe') exists++; else notFound++;
-                }
-                const ctx = document.getElementById('pseudoChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Trouvés', 'Non trouvés'],
-                        datasets: [{ data: [exists, notFound], backgroundColor: ['#00e676', '#ff5555'] }]
-                    }
-                });
-                document.getElementById('pseudoChart').style.display = 'block';
-            } else {
-                document.getElementById('pseudoChart').style.display = 'none';
-            }
-        }
+// ── Export ─────────────────────────────────────────────────
+function copyResults(){
+    const text = resultEl.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+        const btn = event.target; btn.textContent='✓ Copié';
+        setTimeout(()=>btn.textContent='📋 Copier',2000);
+    });
+}
+function downloadJSON(){
+    if(!lastResult) return;
+    const blob = new Blob([JSON.stringify(lastResult,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`osint_${currentModule}_${Date.now()}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+}
 
-        function toggleAccordion(header) {
-            const body = header.nextElementSibling;
-            body.classList.toggle('show');
-        }
-
-        function formatValue(val, depth = 0) {
-            if (typeof val === 'object' && val !== null) {
-                if (Array.isArray(val)) {
-                    return '<ul>' + val.map(item => '<li>' + formatValue(item, depth+1) + '</li>').join('') + '</ul>';
-                } else {
-                    let sub = '';
-                    for (let [k, v] of Object.entries(val)) {
-                        sub += `<p><span class="key">${k}:</span> ${formatValue(v, depth+1)}</p>`;
-                    }
-                    return sub;
-                }
-            } else {
-                return String(val);
-            }
-        }
-
-        // === Map ===
-        function showMap(lat, lon) {
-            mapDiv.style.display = 'block';
-            if (!window.mapInitialized) {
-                const map = L.map(mapDiv).setView([lat, lon], 10);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
-                }).addTo(map);
-                L.marker([lat, lon]).addTo(map);
-                window.osintMap = map;
-                window.mapInitialized = true;
-            } else {
-                window.osintMap.setView([lat, lon], 10);
-                if (window.osintMap.marker) window.osintMap.marker.remove();
-                window.osintMap.marker = L.marker([lat, lon]).addTo(window.osintMap);
-            }
-        }
-
-        function copyResults() {
-            navigator.clipboard.writeText(resultDiv.innerText).then(() => alert('Résultats copiés !'));
-        }
-        function printResults() { window.print(); }
-
-        // === PWA ===
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-        }
-    </script>
+// ── PWA ────────────────────────────────────────────────────
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+</script>
 </body>
 </html>
