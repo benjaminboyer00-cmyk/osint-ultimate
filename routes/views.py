@@ -255,15 +255,22 @@ def dossier_narrative_pdf(entity_id):
         )
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        current_app.logger.exception('narrative PDF entity=%s', entity_id)
+        return jsonify({'error': f'Échec génération PDF : {e}'}), 500
     graph_image = request.args.get('graph', '')
-    _, response, err = generate_pdf_response(
-        scan, raw,
-        investigator=current_user.username,
-        classification=request.args.get('classification', 'CONFIDENTIEL'),
-        graph_image=graph_image or None,
-        narrative_html=nar_html,
-        narrative_markdown=nar_md,
-    )
+    try:
+        _, response, err = generate_pdf_response(
+            scan, raw,
+            investigator=current_user.username,
+            classification=request.args.get('classification', 'CONFIDENTIEL'),
+            graph_image=graph_image or None,
+            narrative_html=nar_html,
+            narrative_markdown=nar_md,
+        )
+    except Exception as e:
+        current_app.logger.exception('WeasyPrint narrative PDF')
+        return jsonify({'error': f'Export PDF : {e}'}), 500
     if err:
         return err
     return response
@@ -401,7 +408,12 @@ def map_view():
 @login_required
 def map_data(entity_id):
     from services.geo import build_map_markers
-    data = build_map_markers(entity_id, current_user.id)
+    geocode = request.args.get('geocode', '').lower() in ('1', 'true', 'yes')
+    data = build_map_markers(
+        entity_id, current_user.id,
+        geocode_missing=geocode,
+        max_geocode_calls=8,
+    )
     if data.get('root_entity_id') is None:
         return jsonify({'error': 'Entité non trouvée'}), 404
     try:
@@ -497,9 +509,11 @@ def graph_scan_node():
         return jsonify({'error': f'Aucun module pour le type {etype}'}), 400
 
     root_entity_id = data.get('root_entity_id')
-    opts = {}
+    opts = {'_graph_pivot_notify': str(current_user.id)}
     if root_entity_id:
         opts['_root_entity_id'] = int(root_entity_id)
+    if etype == 'domain' and module == 'site':
+        module = 'whois'
 
     scan_id = run_scan_async(module, value, options=opts, user_id=current_user.id)
     if not scan_id:
@@ -511,6 +525,16 @@ def graph_scan_node():
         'status': 'started',
         'poll_url': f'/scan/{scan_id}',
     })
+
+
+@views_bp.route('/graph/entity/<int:entity_id>/intel')
+@login_required
+def graph_entity_intel(entity_id):
+    from services.graph_entity_intel import build_entity_intel
+    ent = Entity.query.filter_by(id=entity_id, user_id=current_user.id).first()
+    if not ent:
+        return jsonify({'error': 'Entité non trouvée'}), 404
+    return jsonify(build_entity_intel(ent.id, current_user.id, ent.value, ent.entity_type))
 
 
 @views_bp.route('/graph/links/<int:entity_id>')

@@ -68,6 +68,7 @@ def launch_pivot(
         '_root_entity_id': root,
         '_graph_pivot': True,
         '_graph_pivot_notify': str(user_id),
+        '_from_graph': True,
     }
     if deep_dorking:
         opts['_deep_dorking'] = True
@@ -94,9 +95,6 @@ def emit_graph_update_after_scan(scan, socketio, opts: dict):
     """Après un pivot terminé : pousse le graphe mis à jour via Socket.IO."""
     if not socketio or not scan or not scan.user_id:
         return
-    if not opts.get('_graph_pivot'):
-        return
-
     root_id = opts.get('_root_entity_id')
     if not root_id:
         return

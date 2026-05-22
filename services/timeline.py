@@ -90,7 +90,7 @@ def _collect_dated_events(scan_id: int, payload: dict, _id: list) -> list[dict]:
                     'start': dt,
                     'title': f'{block.get("Registrar", "")} — scan #{scan_id}',
                     'scan_id': scan_id,
-                    'type': 'whois',
+                    'event_kind': 'whois',
                     'className': 'evt-whois',
                 })
 
@@ -115,7 +115,7 @@ def _collect_dated_events(scan_id: int, payload: dict, _id: list) -> list[dict]:
                 'start': dt,
                 'title': (snap.get('URL') or '')[:120],
                 'scan_id': scan_id,
-                'type': 'wayback',
+                'event_kind': 'wayback',
                 'className': 'evt-wayback',
                 'archive': snap.get('Lien archive'),
             })
@@ -139,7 +139,7 @@ def _collect_dated_events(scan_id: int, payload: dict, _id: list) -> list[dict]:
                 'start': dt,
                 'title': row.get('Email') or row.get('Username') or base,
                 'scan_id': scan_id,
-                'type': 'breach',
+                'event_kind': 'breach',
                 'className': 'evt-breach',
             })
 
@@ -155,7 +155,7 @@ def _collect_dated_events(scan_id: int, payload: dict, _id: list) -> list[dict]:
                 'start': None,
                 'title': str(name),
                 'scan_id': scan_id,
-                'type': 'hibp',
+                'event_kind': 'hibp',
                 'className': 'evt-breach',
             })
 
@@ -203,7 +203,7 @@ def build_timeline(entity_id: int, user_id: int, *, max_items: int = 120) -> dic
                 'start': start,
                 'title': f'#{s.id} — {s.target}'[:200],
                 'scan_id': s.id,
-                'type': 'scan',
+                'event_kind': 'scan',
                 'className': 'evt-scan',
             })
         try:
@@ -226,7 +226,7 @@ def build_timeline(entity_id: int, user_id: int, *, max_items: int = 120) -> dic
                 'start': dt,
                 'title': ent.value[:120],
                 'entity_id': ent.id,
-                'type': 'entity',
+                'event_kind': 'entity',
                 'className': 'evt-entity',
             })
 
@@ -249,11 +249,11 @@ def build_timeline(entity_id: int, user_id: int, *, max_items: int = 120) -> dic
             'title': (link.source_proof or '')[:120],
             'entity_id': other_id,
             'scan_id': link.scan_id,
-            'type': 'link',
+            'event_kind': 'link',
             'className': 'evt-link',
         })
 
-    scan_starts = {it['scan_id']: it['start'] for it in items if it.get('type') == 'scan' and it.get('scan_id')}
+    scan_starts = {it['scan_id']: it['start'] for it in items if it.get('event_kind') == 'scan' and it.get('scan_id')}
     for it in items:
         if not it.get('start') and it.get('scan_id') in scan_starts:
             it['start'] = scan_starts[it['scan_id']]
@@ -281,17 +281,36 @@ def build_timeline(entity_id: int, user_id: int, *, max_items: int = 120) -> dic
             'start': _parse_date(root.created_at),
             'title': root.value,
             'entity_id': root.id,
-            'type': 'entity',
+            'event_kind': 'entity',
             'className': 'evt-root',
         })
 
     return {
         'groups': GROUPS,
-        'items': unique,
+        'items': [_vis_item(it) for it in unique],
         'root_entity_id': entity_id,
         'root_value': root.value,
         'count': len(unique),
     }
+
+
+def _vis_item(it: dict) -> dict:
+    """Format compatible vis-timeline (pas de clé ``type`` réservée)."""
+    out = {
+        'id': it['id'],
+        'group': it['group'],
+        'content': it.get('content', ''),
+        'start': it.get('start'),
+        'title': it.get('title', ''),
+        'className': it.get('className', ''),
+    }
+    if it.get('entity_id'):
+        out['entity_id'] = it['entity_id']
+    if it.get('scan_id'):
+        out['scan_id'] = it['scan_id']
+    if it.get('archive'):
+        out['archive'] = it['archive']
+    return out
 
 
 def emit_timeline_update_after_scan(scan, socketio, opts: dict):

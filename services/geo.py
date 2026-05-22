@@ -100,7 +100,7 @@ def apply_geo_to_entity(entity: Entity, lat: float, lon: float, label: str = '',
     return True
 
 
-def geolocate_entity(entity: Entity, *, force: bool = False) -> dict | None:
+def geolocate_entity(entity: Entity, *, force: bool = False, allow_network: bool = True) -> dict | None:
     """Résout et persiste les coordonnées d'une entité."""
     if not force and entity.latitude is not None and entity.longitude is not None:
         return {
@@ -109,6 +109,8 @@ def geolocate_entity(entity: Entity, *, force: bool = False) -> dict | None:
             'label': entity.geo_label or entity.value,
             'source': entity.geo_source or 'stored',
         }
+    if not allow_network:
+        return None
     if entity.entity_type == 'ip' or IP_RE.match(entity.value or ''):
         loc = fetch_ip_geolocation(entity.value)
         if loc:
@@ -148,7 +150,12 @@ def enrich_geo_from_scan(scan: Scan, result: dict, user_id: int | None):
                     apply_geo_to_entity(ent, g['lat'], g['lon'], g.get('label', ''), 'scan')
 
 
-def build_map_markers(entity_id: int, user_id: int, *, max_markers: int = 80) -> dict:
+def build_map_markers(
+    entity_id: int, user_id: int, *,
+    max_markers: int = 80,
+    geocode_missing: bool = False,
+    max_geocode_calls: int = 8,
+) -> dict:
     """Marqueurs Leaflet pour le sous-graphe d'une entité racine."""
     from services.correlation import build_graph_json
 
@@ -160,18 +167,26 @@ def build_map_markers(entity_id: int, user_id: int, *, max_markers: int = 80) ->
     node_ids = [int(n['id']) for n in graph.get('nodes', []) if n.get('id')][:max_markers]
     markers = []
 
+    geocode_budget = max_geocode_calls if geocode_missing else 0
     for nid in node_ids:
         ent = db.session.get(Entity, nid)
         if not ent or ent.user_id != user_id:
             continue
-        loc = geolocate_entity(ent)
-        if not loc and ent.latitude is not None:
+        loc = None
+        if ent.latitude is not None and ent.longitude is not None:
             loc = {
                 'lat': ent.latitude,
                 'lon': ent.longitude,
                 'label': ent.geo_label or ent.value,
                 'source': ent.geo_source or 'stored',
             }
+        elif geocode_budget > 0 and (ent.entity_type == 'ip' or IP_RE.match(ent.value or '')):
+            loc = geolocate_entity(ent, allow_network=True)
+            geocode_budget -= 1
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         if not loc or not _valid_coords(loc.get('lat'), loc.get('lon')):
             continue
         markers.append({

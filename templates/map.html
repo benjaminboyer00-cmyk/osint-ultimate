@@ -147,7 +147,7 @@ async function loadMap(entityId) {
     document.getElementById('graph-link').href = `/graph?entity_id=${rootEntityId}`;
     document.getElementById('dossier-link').style.display = 'inline';
     document.getElementById('dossier-link').href = `/expert/dossier/${rootEntityId}`;
-    document.getElementById('status').textContent = '⏳ Chargement…';
+        document.getElementById('status').textContent = '⏳ Chargement (coordonnées en cache)…';
     cluster.clearLayers();
     Object.keys(markerByEntity).forEach(k => delete markerByEntity[k]);
     try {

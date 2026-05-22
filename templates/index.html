@@ -442,7 +442,7 @@
 
     <!-- Input -->
     <div class="input-row">
-        <input type="text" id="target" placeholder="ex: example.com" autocomplete="off" spellcheck="false">
+        <input type="text" id="target" placeholder="exemple.com" autocomplete="off" spellcheck="false">
         <button id="scan-btn" onclick="launchScan()">Scanner</button>
     </div>
     <div id="stealth-opts" style="margin:.5rem 0;font-size:.82rem;color:var(--dim)">
@@ -612,18 +612,26 @@ const progBar = document.getElementById('prog-bar');
 let currentModule = 'site';
 
 const PLACEHOLDERS = {
-    site:'ex: example.com ou https://example.com',
-    email:'ex: contact@example.com',
-    phone:'ex: +33 6 12 34 56 78',
-    ip:'ex: 8.8.8.8',
-    pseudo:'ex: pseudonyme',
-    instagram:'ex: nom_utilisateur (sans @)',
-    twitter:'ex: nom_utilisateur (sans @)',
-    tiktok:'ex: nom_utilisateur (sans @)',
-    github:'ex: nom_utilisateur',
-    facebook:'ex: nom.utilisateur ou ID',
-    linkedin:'ex: identifiant-profil',
-    snapchat:'ex: nom_utilisateur',
+    site:'exemple.com',
+    email:'contact@exemple.com',
+    phone:'+33 6 12 34 56 78',
+    ip:'8.8.8.8',
+    pseudo:'pseudonyme',
+    whois:'exemple.com',
+    hunter:'exemple.com',
+    dehashed:'email@exemple.com',
+    wayback:'exemple.com',
+    sherlock:'pseudonyme',
+    github:'utilisateur',
+    otx:'8.8.8.8',
+    urlhaus:'exemple.com',
+    dorking:'cible@exemple.com',
+    instagram:'nom_utilisateur',
+    twitter:'nom_utilisateur',
+    tiktok:'nom_utilisateur',
+    facebook:'nom.utilisateur',
+    linkedin:'identifiant-profil',
+    snapchat:'nom_utilisateur',
 };
 
 mods.forEach(btn => btn.addEventListener('click', ()=>{

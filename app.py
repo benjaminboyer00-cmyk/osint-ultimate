@@ -206,18 +206,10 @@ def scan_site(target, options=None):
     results = {}
     http_resp = None
 
-    # ── WHOIS ──
+    # ── WHOIS (RDAP + repli, timeouts courts) ──
     try:
-        w = whois.whois(domain)
-        cd = w.creation_date;  cd = cd[0] if isinstance(cd, list) else cd
-        ed = w.expiration_date; ed = ed[0] if isinstance(ed, list) else ed
-        results['WHOIS'] = {
-            'Registrar':   str(w.registrar  or 'N/A'),
-            'Création':    str(cd  or 'N/A'),
-            'Expiration':  str(ed  or 'N/A'),
-            'Pays':        str(w.country    or 'N/A'),
-            'Statut':      str(w.status     or 'N/A'),
-        }
+        from connectors.whois_domain import lookup as whois_lookup
+        results['WHOIS'] = whois_lookup(domain, options)
     except Exception as e:
         results['WHOIS'] = {'Erreur': str(e)}
 
@@ -396,14 +388,9 @@ def scan_email(email, options=None):
             pass
     results['DKIM (sélecteurs trouvés)'] = dkim_found or 'Aucun sélecteur courant détecté'
 
-    # WHOIS domaine
     try:
-        w = whois.whois(domain)
-        cd = w.creation_date; cd = cd[0] if isinstance(cd, list) else cd
-        results['Domaine WHOIS'] = {
-            'Registrar': str(w.registrar or 'N/A'),
-            'Création': str(cd or 'N/A'),
-        }
+        from connectors.whois_domain import lookup as whois_lookup
+        results['Domaine WHOIS'] = whois_lookup(domain, options)
     except Exception:
         pass
 

@@ -176,13 +176,38 @@ cy.on('tap', evt => {
     if (evt.target === cy) hideCtxMenu();
 });
 
+async function showNodeIntel(entityId) {
+    const desc = document.getElementById('panel-desc');
+    try {
+        const r = await fetch(`/graph/entity/${entityId}/intel`);
+        const d = await r.json();
+        if (!r.ok) { desc.textContent = d.error || 'Erreur'; return; }
+        let html = `<strong>${d.entity_type}</strong> : ${d.value}<br><small>ID ${d.entity_id}</small>`;
+        if (d.highlights?.length) {
+            html += '<ul style="margin:.5rem 0;padding-left:1.1rem;font-size:.78rem">';
+            d.highlights.forEach(h => { html += `<li>${h}</li>`; });
+            html += '</ul>';
+        } else if (d.hint) {
+            html += `<p style="color:var(--dim);font-size:.78rem">${d.hint}</p>`;
+        }
+        if (d.scans?.length) {
+            html += '<p style="font-size:.75rem;color:var(--dim)">Scans : ';
+            html += d.scans.map(s => `#${s.scan_id} ${s.module}`).join(', ');
+            html += '</p>';
+        }
+        desc.innerHTML = html;
+    } catch (e) {
+        desc.textContent = 'ID entité ' + entityId;
+    }
+}
+
 cy.on('tap', 'node', evt => {
     const n = evt.target.data();
     selectedNode = n;
     cy.$('node:selected').unselect();
     evt.target.select();
     document.getElementById('panel-title').textContent = n.type + ' : ' + (n.value || n.label);
-    document.getElementById('panel-desc').textContent = 'ID entité ' + n.id;
+    showNodeIntel(n.id);
     document.getElementById('btn-scan').style.display = 'block';
     document.getElementById('btn-dossier').style.display = 'block';
     document.getElementById('dossier-link').style.display = 'inline';
@@ -354,7 +379,8 @@ graphSocket.on('scan_done', ({ scan_id }) => {
     scanStatusEl.style.display = 'block';
     scanStatusEl.textContent = `✅ Scan #${scan_id} terminé — actualisation du graphe…`;
     const rootId = graphData?.root_id || document.getElementById('entity-select').value;
-    if (rootId && activePivotScanId !== scan_id) loadGraph(rootId);
+    if (rootId) loadGraph(rootId);
+    if (selectedNode) showNodeIntel(selectedNode.id);
     document.getElementById('btn-scan').disabled = false;
     activeGraphScanId = null;
     if (activePivotScanId === scan_id) activePivotScanId = null;

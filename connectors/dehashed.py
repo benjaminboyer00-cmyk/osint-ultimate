@@ -21,13 +21,19 @@ def search(query: str, api_key: str, email: str = '', options=None) -> dict:
     else:
         headers['Authorization'] = f'Bearer {api_key}'
 
+    opts = dict(options or {})
+    opts['_retry'] = True
     r = safe_get(
         f'https://api.dehashed.com/v2/search?query={q}&size=20',
         headers=headers,
-        options=options,
+        options=opts,
+        timeout=25,
     )
     if not r:
-        return {'Erreur': 'Requête Dehashed échouée'}
+        return {
+            'Erreur': 'Dehashed inaccessible (timeout réseau ou API). Vérifiez la clé et le quota.',
+            '_timeout': True,
+        }
     if r.status_code == 401:
         return {'Erreur': 'Identifiants Dehashed invalides (email + clé API)'}
     if r.status_code == 429:

@@ -29,14 +29,14 @@ def test_collect_wayback_snapshots():
     }
     seq = [0]
     evs = _collect_dated_events(1, payload, seq)
-    assert any(e['type'] == 'wayback' for e in evs)
+    assert any(e['event_kind'] == 'wayback' for e in evs)
 
 
 def test_collect_whois():
     payload = {'WHOIS': {'Création': '2020-01-15', 'Registrar': 'Test'}}
     seq = [0]
     evs = _collect_dated_events(2, payload, seq)
-    assert any(e['type'] == 'whois' for e in evs)
+    assert any(e['event_kind'] == 'whois' for e in evs)
 
 
 def test_build_timeline_none():
