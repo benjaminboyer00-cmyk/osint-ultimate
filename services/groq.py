@@ -155,15 +155,18 @@ def markdown_to_html(md: str) -> str:
     """Convertit le Markdown narratif en HTML pour WeasyPrint."""
     if not md:
         return ''
+    import html as html_module
+    text = str(md).encode('utf-8', errors='replace').decode('utf-8')
     try:
         import markdown2
         return markdown2.markdown(
-            md,
-            extras=['fenced-code-blocks', 'tables', 'header-ids', 'strike'],
+            text,
+            extras=['fenced-code-blocks', 'tables'],
         )
     except ImportError:
-        import html
-        return f'<pre>{html.escape(md)}</pre>'
+        return f'<pre>{html_module.escape(text)}</pre>'
+    except Exception:
+        return f'<pre>{html_module.escape(text)}</pre>'
 
 
 def fallback_explain(card: dict, result: dict) -> str:

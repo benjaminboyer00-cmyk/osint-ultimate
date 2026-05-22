@@ -212,7 +212,13 @@ def process_multi_correlations(
 
 def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
     """Actions de corrélation suggérées pour une entité."""
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    if ctx:
+        user_id = ctx['owner_user_id']
+        ent = ctx['entity']
+    else:
+        ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
     if not ent:
         return []
     suggestions = []
@@ -235,7 +241,13 @@ def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
 
 def build_graph_json(entity_id: int, user_id: int) -> dict:
     """Retourne nœuds et arêtes pour Cytoscape / vis-network."""
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    if ctx:
+        user_id = ctx['owner_user_id']
+        ent = ctx['entity']
+    else:
+        ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
     if not ent:
         return {'nodes': [], 'edges': []}
 
@@ -286,7 +298,13 @@ def build_graph_json(entity_id: int, user_id: int) -> dict:
 
 def build_entity_links_json(entity_id: int, user_id: int) -> dict | None:
     """Expose les relations déduites pour une entité (API / graphe)."""
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    if ctx:
+        user_id = ctx['owner_user_id']
+        ent = ctx['entity']
+    else:
+        ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
     if not ent:
         return None
 

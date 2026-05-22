@@ -1351,9 +1351,26 @@ def manifest():
     return app.send_static_file('manifest.json')
 
 
+@app.errorhandler(500)
+def handle_500(err):
+    """Évite la page HTML 500 sur les API dossier (toujours du JSON)."""
+    path = request.path or ''
+    if '/narrative' in path or path.startswith('/api/v1') or path.startswith('/dossier/'):
+        from services.narrative_report import FALLBACK_NARRATIVE_MD, markdown_to_html
+        return jsonify({
+            'error': 'Erreur serveur interne',
+            'detail': str(getattr(err, 'description', err)),
+            'markdown': FALLBACK_NARRATIVE_MD,
+            'html': markdown_to_html(FALLBACK_NARRATIVE_MD),
+            'partial': True,
+        }), 200
+    return err
+
+
 from routes.views import views_bp
 from routes.api_v1 import api_bp
 from routes.collaboration import collab_bp
+
 app.register_blueprint(views_bp)
 app.register_blueprint(collab_bp)
 app.register_blueprint(api_bp, url_prefix='/api/v1')

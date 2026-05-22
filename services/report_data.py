@@ -176,7 +176,7 @@ def pick_anchor_scan(entity_id: int, user_id: int) -> Scan | None:
             Scan.status == 'completed',
             or_(Scan.user_id == owner_id, Scan.root_entity_id == entity_id),
         )
-        .order_by(Scan.completed_at.desc().nullslast(), Scan.timestamp.desc())
+        .order_by(Scan.timestamp.desc())
         .limit(80)
         .all()
     )

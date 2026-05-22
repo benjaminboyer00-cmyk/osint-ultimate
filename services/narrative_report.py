@@ -80,12 +80,22 @@ def _build_narrative_for_entity_impl(
         raise ValueError('Dossier non trouvé ou données indisponibles')
 
     anchor = pick_anchor_scan(entity_id, user_id)
+    anchor_id = None
+    anchor_summary = None
+    if anchor is not None:
+        try:
+            anchor_id = int(anchor.id)
+            anchor_summary = getattr(anchor, 'ai_summary', None)
+        except Exception:
+            anchor_id = None
+            anchor_summary = None
+
     markdown = None
     cached = False
     groq_note = None
 
-    if cache_on_scan and anchor and getattr(anchor, 'ai_summary', None):
-        stored = (anchor.ai_summary or '').strip()
+    if cache_on_scan and anchor_id and anchor_summary:
+        stored = (anchor_summary or '').strip()
         if (
             stored.startswith('## Synthèse exécutive')
             or stored.startswith('## Profil de la cible')
@@ -114,24 +124,19 @@ def _build_narrative_for_entity_impl(
                 markdown = FALLBACK_NARRATIVE_MD + f'\n\n_Détail technique : {e}_\n'
                 groq_note = str(e)
         if (
-            cache_on_scan and anchor and markdown
+            cache_on_scan and anchor_id and markdown
             and '## Introduction' in markdown
             and 'indisponible' not in markdown.lower()
         ):
             try:
-                anchor.ai_summary = markdown
-                db.session.commit()
+                row = db.session.get(Scan, anchor_id)
+                if row:
+                    row.ai_summary = markdown
+                    db.session.commit()
             except Exception:
                 db.session.rollback()
 
     html = markdown_to_html(markdown or FALLBACK_NARRATIVE_MD)
-
-    anchor_id = None
-    if anchor is not None:
-        try:
-            anchor_id = int(anchor.id)
-        except Exception:
-            anchor_id = None
 
     out = {
         'entity_id': entity_id,

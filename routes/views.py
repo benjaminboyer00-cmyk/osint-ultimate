@@ -257,35 +257,27 @@ def dossier_launch_scan(entity_id):
 @views_bp.route('/expert/dossier/<int:entity_id>/narrative', methods=['POST'])
 @login_required
 def dossier_narrative(entity_id):
-    """Génère le rapport narratif IA (JSON)."""
-    from services.narrative_report import build_narrative_for_entity
-    from services.dossier_access import get_dossier_context
+    """Génère le rapport narratif IA (JSON) — ne renvoie jamais de page HTML 500."""
+    from services.narrative_api import flask_narrative_response
 
-    if not get_dossier_context(entity_id, current_user.id, min_role='reader'):
-        return jsonify({'error': 'Dossier non accessible'}), 403
-
-    body = request.json or {}
-    style = body.get('style', 'executive')
-    length = body.get('length', 'medium')
-    use_cache = body.get('use_cache', True)
+    body = request.get_json(silent=True) or {}
     try:
-        out = build_narrative_for_entity(
-            entity_id, current_user.id,
-            style=style, length=length, cache_on_scan=use_cache,
+        return flask_narrative_response(
+            entity_id,
+            current_user.id,
+            style=body.get('style') or 'executive',
+            length=body.get('length') or 'medium',
+            use_cache=body.get('use_cache', True) is not False,
         )
-        return jsonify(out)
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 404
     except Exception as e:
-        current_app.logger.exception('narrative entity=%s', entity_id)
+        current_app.logger.exception('narrative route entity=%s', entity_id)
         from services.narrative_report import FALLBACK_NARRATIVE_MD, markdown_to_html
-        md = FALLBACK_NARRATIVE_MD + f'\n\n_Détail : {e}_\n'
         return jsonify({
             'error': str(e),
-            'markdown': md,
-            'html': markdown_to_html(md),
-            'partial': True,
             'entity_id': entity_id,
+            'markdown': FALLBACK_NARRATIVE_MD,
+            'html': markdown_to_html(FALLBACK_NARRATIVE_MD),
+            'partial': True,
         }), 200
 
 
