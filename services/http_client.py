@@ -4,6 +4,12 @@ import random
 import time
 import requests
 
+try:
+    import certifi
+    SSL_VERIFY = certifi.where()
+except ImportError:
+    SSL_VERIFY = True
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
@@ -36,7 +42,7 @@ def safe_get(url, timeout=15, options=None, **kwargs):
         if proxies:
             p = random.choice(proxies)
             s.proxies = {'http': p, 'https': p}
-        return s.get(url, timeout=timeout, verify=False, **kwargs)
+        return s.get(url, timeout=timeout, verify=SSL_VERIFY, **kwargs)
     except requests.Timeout:
         return None
     except Exception:

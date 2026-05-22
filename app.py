@@ -80,7 +80,8 @@ def make_http_session():
 def safe_get(url, timeout=15, **kwargs):
     try:
         s = make_http_session()
-        return s.get(url, timeout=timeout, verify=False, **kwargs)
+        from services.http_client import SSL_VERIFY
+        return s.get(url, timeout=timeout, verify=SSL_VERIFY, **kwargs)
     except Exception:
         return None
 

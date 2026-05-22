@@ -1,6 +1,9 @@
 """API REST v1 — auth token, corrélation, scans programmés."""
 import json
+import logging
 from flask import Blueprint, request, jsonify, send_file, abort
+
+logger = logging.getLogger(__name__)
 from io import BytesIO
 from datetime import datetime, timedelta
 
@@ -181,8 +184,9 @@ def api_entity_map(entity_id):
         return jsonify({'error': 'entité non trouvée'}), 404
     try:
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        logger.error('Erreur commit map entity %s: %s', entity_id, e)
     return jsonify(data)
 
 

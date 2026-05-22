@@ -19,9 +19,9 @@ def test_report_data_structure():
         'timeline': [],
         'web_history': [],
     }
-    with patch('services.report_data.build_dossier', return_value=dossier):
-        with patch('services.report_data.Entity') as Ent:
-            Ent.query.filter_by.return_value.first.return_value = ent
+    ctx = {'entity': ent, 'owner_user_id': 10}
+    with patch('services.dossier_access.get_dossier_context', return_value=ctx):
+        with patch('services.report_data.build_dossier', return_value=dossier):
             with patch('services.report_data.build_graph_json', return_value={
                 'nodes': [{'id': '1', 'type': 'email', 'value': 'test@example.com'}],
                 'edges': [],
@@ -61,6 +61,5 @@ def test_narrative_styles_keys():
 
 
 def test_pick_anchor_scan_none():
-    with patch('services.report_data.Entity') as Ent:
-        Ent.query.filter_by.return_value.first.return_value = None
+    with patch('services.dossier_access.get_dossier_context', return_value=None):
         assert pick_anchor_scan(99, 10) is None

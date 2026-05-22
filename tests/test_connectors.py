@@ -77,21 +77,34 @@ def test_quota_error_detection():
 
 def test_graph_enquiry_suggestions():
     """Suggestion du nœud le plus prometteur (faible confiance = priorité)."""
-    with patch('services.graph_enquiry.Entity') as Ent, \
-         patch('services.graph_enquiry.EntityLink') as Link, \
-         patch('services.graph_enquiry.db') as db:
-
+    with patch('services.graph_enquiry.db') as db:
         root = MagicMock(id=1, entity_type='email', value='a@test.com')
         other = MagicMock(id=2, entity_type='domain', value='test.com')
-        Ent.query.filter_by.return_value.first.return_value = root
         db.session.get.return_value = other
 
-        link = MagicMock(
-            source_id=1, target_id=2, confidence=0.2,
-            link_type='same_domain', user_id=10,
-        )
-        Link.query.filter.return_value.all.return_value = [link]
-        Link.query.filter.return_value.count.return_value = 0
+        link = MagicMock()
+        link.source_id = 1
+        link.target_id = 2
+        link.confidence = 0.2
+        link.link_type = 'same_domain'
+        link.user_id = 10
+
+        ent_q = MagicMock()
+        ent_q.filter_by.return_value.first.return_value = root
+
+        links_q = MagicMock()
+        links_q.filter.return_value.all.return_value = [link]
+        links_q.filter.return_value.count.return_value = 0
+
+        def query_side_effect(model):
+            from models import Entity, EntityLink
+            if model is Entity:
+                return ent_q
+            if model is EntityLink:
+                return links_q
+            return MagicMock()
+
+        db.session.query.side_effect = query_side_effect
 
         from services.graph_enquiry import suggest_next_node
         sug = suggest_next_node(1, 10)

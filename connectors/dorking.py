@@ -155,13 +155,14 @@ class DorkingConnector(BaseConnector):
         opts = options or {}
         logger.info('Dork search: %s', query[:100])
         try:
+            from services.http_client import SSL_VERIFY
             r = requests.post(
                 DDG_HTML,
                 headers=self._ddg_headers(opts),
                 data={'q': query},
                 timeout=SEARCH_TIMEOUT,
                 proxies=self._proxies(opts),
-                verify=False,
+                verify=SSL_VERIFY,
             )
             r.raise_for_status()
         except Exception as e:

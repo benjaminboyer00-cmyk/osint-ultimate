@@ -52,7 +52,8 @@ class BaseConnector:
                 from services.http_client import USER_AGENTS
                 time.sleep(__import__('random').uniform(0.2, 1.2))
                 headers.setdefault('User-Agent', random.choice(USER_AGENTS))
-            resp = fn(url, timeout=timeout, headers=headers, verify=False, **kwargs)
+            from services.http_client import SSL_VERIFY
+            resp = fn(url, timeout=timeout, headers=headers, verify=SSL_VERIFY, **kwargs)
             resp.raise_for_status()
             return resp
         except requests.Timeout:

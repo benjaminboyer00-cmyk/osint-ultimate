@@ -11,15 +11,17 @@ import time
 
 import requests
 from bs4 import BeautifulSoup
+from cachetools import TTLCache
 
-from services.http_client import USER_AGENTS
+from services.http_client import USER_AGENTS, SSL_VERIFY
 from services.scrape_policy import cloudflare_scrape_allowed
 
 logger = logging.getLogger(__name__)
 
 DDG_HTML_URL = 'https://html.duckduckgo.com/html/'
 SCRAPE_TIMEOUT = 10
-_scraper_cache = {}
+# Max 50 sessions cloudscraper, TTL 2 h — évite fuite mémoire sur long uptime
+_scraper_cache = TTLCache(maxsize=50, ttl=7200)
 
 
 def _scraper_cache_key(options=None) -> str:
@@ -63,7 +65,7 @@ def fetch_url_protected(url: str, options=None):
             url,
             timeout=SCRAPE_TIMEOUT + 5,
             proxies=_proxy_dict(options),
-            verify=False,
+            verify=SSL_VERIFY,
         )
     except Exception as e:
         logger.warning('cloudscraper %s: %s', url[:60], e)
@@ -103,7 +105,7 @@ def _ddg_search(query: str, options=None) -> str:
             data={'q': query},
             timeout=SCRAPE_TIMEOUT,
             proxies=_proxy_dict(options),
-            verify=False,
+            verify=SSL_VERIFY,
         )
         r.raise_for_status()
         logger.info('DDG scrape: OK (%s octets)', len(r.text))

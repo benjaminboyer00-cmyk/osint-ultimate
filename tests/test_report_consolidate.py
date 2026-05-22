@@ -1,4 +1,6 @@
 """Tests consolidation rapport et faits techniques."""
+from unittest.mock import MagicMock
+
 from services.report_consolidate import (
     consolidate_scan_payloads,
     extract_technical_facts,
@@ -44,9 +46,13 @@ def test_consolidate_dedup_whois():
         timestamp=None, completed_at=None,
         result_json='{"WHOIS": {"Registrar": "B", "Pays": "FR", "Création": "2020"}}',
     )
-    with patch('services.report_consolidate.Scan') as Scan:
-        Scan.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = [s1, s2]
-        out = consolidate_scan_payloads(1, 10, 'example.com')
+    ctx = {'owner_user_id': 10, 'entity': MagicMock(id=1)}
+    q = MagicMock()
+    q.order_by.return_value.limit.return_value.all.return_value = [s1, s2]
+    with patch('services.dossier_access.get_dossier_context', return_value=ctx):
+        with patch('services.report_consolidate.Scan') as Scan:
+            Scan.query.filter.return_value = q
+            out = consolidate_scan_payloads(1, 10, 'example.com')
     assert 'WHOIS' in out
     assert 'WHOIS (scan' not in ''.join(out.keys())
     whois = out['WHOIS']
