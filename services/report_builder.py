@@ -109,6 +109,8 @@ def build_report_context(
     classification: str = 'CONFIDENTIEL',
     graph_image: str | None = None,
     generated_at: str | None = None,
+    narrative_html: str | None = None,
+    narrative_markdown: str | None = None,
 ) -> dict:
     """Contexte Jinja unifié pour report.html et report_pro.html."""
     generated_at = generated_at or datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
@@ -130,6 +132,9 @@ def build_report_context(
         'report_hash': hashes['content_hash_short'],
         'integrity_json': hashes['integrity_json'],
         'executive_summary': build_executive_summary(scan, raw_data, scan.ai_summary),
+        'narrative_content': narrative_html or '',
+        'narrative_markdown': narrative_markdown or '',
+        'has_narrative': bool(narrative_html),
         'traceability': traceability,
         'methodology': {
             'platform': 'OSINT Ultimate V5',

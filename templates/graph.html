@@ -33,6 +33,17 @@
         .legend-item{display:flex;align-items:center;gap:.5rem;margin:.35rem 0;font-size:.75rem}
         .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
         .edge-sample{width:24px;height:2px;background:var(--accent2)}
+        #ctx-menu{
+            display:none;position:fixed;z-index:9999;min-width:200px;
+            background:#14171c;border:1px solid var(--border);border-radius:10px;
+            box-shadow:0 8px 24px rgba(0,0,0,.5);padding:.35rem 0;
+        }
+        #ctx-menu button{
+            display:block;width:100%;text-align:left;padding:.55rem 1rem;
+            background:transparent;border:none;color:var(--text);cursor:pointer;font-size:.85rem;
+        }
+        #ctx-menu button:hover{background:rgba(77,159,255,.15);color:var(--accent2)}
+        #ctx-menu hr{border:none;border-top:1px solid var(--border);margin:.25rem 0}
         @media(max-width:768px){
             .main{flex-direction:column}
             aside{width:100%;max-width:none;border-left:none;border-top:1px solid var(--border)}
@@ -61,6 +72,13 @@
         <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
     </div>
 </header>
+<div id="ctx-menu" role="menu">
+    <button type="button" id="ctx-pivot">🎯 Pivoter / Étendre l'enquête</button>
+    <button type="button" id="ctx-scan">🔍 Analyser (module unique)</button>
+    <button type="button" id="ctx-dossier">📁 Ouvrir le dossier</button>
+    <hr>
+    <button type="button" id="ctx-copy">📋 Copier la valeur</button>
+</div>
 <div class="main">
     <div id="cy"></div>
     <aside id="panel" class="open">
@@ -97,7 +115,9 @@ const MODULE_FOR_TYPE = {
 let selectedNode = null;
 let graphData = null;
 let activeGraphScanId = null;
+let activePivotScanId = null;
 const graphSocket = io({ transports: ['websocket', 'polling'] });
+graphSocket.on('connect', () => graphSocket.emit('join_graph', {}));
 const scanStatusEl = document.getElementById('scan-status');
 
 const cy = cytoscape({
@@ -135,12 +155,24 @@ const cy = cytoscape({
             'border-color': '#ffd700',
             'border-width': 4,
         }},
+        { selector: 'node.pivot-new', style: {
+            'border-color': '#00e5a0',
+            'border-width': 3,
+        }},
     ],
     layout: { name: 'cose', animate: false, padding: 60 },
 });
 
 let hiddenNodesData = null;
 const MAX_NODES_INIT = 50;
+
+const ctxMenu = document.getElementById('ctx-menu');
+
+function hideCtxMenu(){ ctxMenu.style.display = 'none'; }
+
+cy.on('tap', evt => {
+    if (evt.target === cy) hideCtxMenu();
+});
 
 cy.on('tap', 'node', evt => {
     const n = evt.target.data();
@@ -153,6 +185,100 @@ cy.on('tap', 'node', evt => {
     document.getElementById('btn-dossier').style.display = 'block';
     document.getElementById('dossier-link').style.display = 'inline';
     document.getElementById('dossier-link').href = '/expert/dossier/' + n.id;
+    hideCtxMenu();
+});
+
+cy.on('cxttap', 'node', evt => {
+    const n = evt.target.data();
+    selectedNode = n;
+    cy.$('node:selected').unselect();
+    evt.target.select();
+    const pos = evt.originalEvent || evt.renderedPosition;
+    ctxMenu.style.left = (pos.clientX || pos.x || 100) + 'px';
+    ctxMenu.style.top = (pos.clientY || pos.y || 100) + 'px';
+    ctxMenu.style.display = 'block';
+});
+
+document.getElementById('ctx-pivot').onclick = () => { hideCtxMenu(); runPivot(); };
+document.getElementById('ctx-scan').onclick = () => { hideCtxMenu(); document.getElementById('btn-scan').click(); };
+document.getElementById('ctx-dossier').onclick = () => { hideCtxMenu(); document.getElementById('btn-dossier').click(); };
+document.getElementById('ctx-copy').onclick = () => {
+    hideCtxMenu();
+    if (selectedNode?.value) navigator.clipboard.writeText(selectedNode.value);
+};
+
+async function runPivot(){
+    if (!selectedNode) return;
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = '⏳ Pivot multi-modules en cours…';
+    try {
+        const r = await fetch('/graph/pivot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                entity_id: parseInt(selectedNode.id, 10),
+                root_entity_id: graphData?.root_id
+                    ? parseInt(graphData.root_id, 10)
+                    : parseInt(selectedNode.id, 10),
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok) {
+            scanStatusEl.textContent = '❌ ' + (d.error || 'Erreur pivot');
+            return;
+        }
+        activePivotScanId = d.scan_id;
+        activeGraphScanId = d.scan_id;
+        scanStatusEl.textContent = `⏳ Pivot #${d.scan_id} — ${(d.modules || []).join(', ')}…`;
+        pollGraphScan(d.scan_id);
+    } catch (e) {
+        scanStatusEl.textContent = '❌ ' + e.message;
+    }
+}
+
+function mergeGraphUpdate(payload){
+    if (!payload?.nodes?.length) return;
+    const existingIds = new Set(cy.nodes().map(n => n.id()));
+    const toAdd = [];
+    payload.nodes.forEach(n => {
+        const id = String(n.id);
+        if (existingIds.has(id)) return;
+        toAdd.push({
+            group: 'nodes',
+            data: {
+                id, label: (n.type || '') + '\n' + (n.value || '').slice(0, 24),
+                type: n.type, value: n.value,
+                color: NODE_COLORS[n.type] || NODE_COLORS.unknown,
+            },
+            classes: 'pivot-new',
+        });
+    });
+    (payload.edges || []).forEach(e => {
+        if (cy.getElementById(e.id).length) return;
+        const conf = e.confidence != null ? e.confidence : 0.5;
+        toAdd.push({
+            group: 'edges',
+            data: {
+                id: e.id, source: String(e.source), target: String(e.target),
+                label: e.label || '', width: e.width || 3, opacity: 0.5 + conf * 0.5,
+            },
+        });
+    });
+    if (toAdd.length) {
+        cy.add(toAdd);
+        applyGraphLayout();
+        scanStatusEl.textContent = `✅ +${toAdd.filter(x => x.group === 'nodes').length} nœud(s) ajouté(s)`;
+    }
+}
+
+graphSocket.on('graph_update', payload => {
+    if (activePivotScanId && payload.scan_id !== activePivotScanId) return;
+    mergeGraphUpdate(payload);
+    const rootId = payload.root_entity_id || graphData?.root_id;
+    if (rootId) {
+        graphData = graphData || {};
+        graphData.root_id = String(rootId);
+    }
 });
 
 document.getElementById('btn-scan').onclick = async () => {
@@ -191,7 +317,7 @@ document.getElementById('btn-scan').onclick = async () => {
 
 function pollGraphScan(scanId){
     const iv = setInterval(async () => {
-        if (activeGraphScanId !== scanId) { clearInterval(iv); return; }
+        if (activeGraphScanId !== scanId && activePivotScanId !== scanId) { clearInterval(iv); return; }
         try {
             const r = await fetch(`/scan/${scanId}`);
             const d = await r.json();
@@ -211,13 +337,14 @@ function pollGraphScan(scanId){
 }
 
 graphSocket.on('scan_done', ({ scan_id }) => {
-    if (activeGraphScanId !== scan_id) return;
+    if (activeGraphScanId !== scan_id && activePivotScanId !== scan_id) return;
     scanStatusEl.style.display = 'block';
     scanStatusEl.textContent = `✅ Scan #${scan_id} terminé — actualisation du graphe…`;
     const rootId = graphData?.root_id || document.getElementById('entity-select').value;
-    if (rootId) loadGraph(rootId);
+    if (rootId && activePivotScanId !== scan_id) loadGraph(rootId);
     document.getElementById('btn-scan').disabled = false;
     activeGraphScanId = null;
+    if (activePivotScanId === scan_id) activePivotScanId = null;
 });
 
 graphSocket.on('scan_error', ({ scan_id, error }) => {

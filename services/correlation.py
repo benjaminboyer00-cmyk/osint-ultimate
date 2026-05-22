@@ -68,7 +68,7 @@ def process_scan_correlations(
     target = (target or '').strip()
     root = _get_or_create_entity(
         {'email': 'email', 'phone': 'phone', 'ip': 'ip', 'site': 'domain',
-         'sherlock': 'username', 'pseudo': 'username'}.get(module, 'unknown'),
+         'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown'}.get(module, 'unknown'),
         target,
         user_id,
         scan_id,
@@ -128,6 +128,22 @@ def process_scan_correlations(
             de = _get_or_create_entity('domain', dom.lower(), user_id, scan_id)
             if de.id != root.id:
                 _link(root, de, 'DOMAINE', module, scan_id, user_id)
+
+    elif module == 'dorking':
+        type_map = {
+            'email': 'email', 'username': 'username', 'platform': 'platform',
+            'domain': 'domain', 'url': 'platform', 'document': 'platform',
+        }
+        for item in (result.get('Entités') or []):
+            if not isinstance(item, dict):
+                continue
+            etype = type_map.get(item.get('type', ''), 'platform')
+            val = (item.get('value') or item.get('url') or '').strip()
+            if not val or len(val) > 500:
+                continue
+            child = _get_or_create_entity(etype, val.lower() if etype != 'phone' else val, user_id, scan_id)
+            proof = (item.get('snippet') or item.get('platform') or 'dorking')[:200]
+            _link(root, child, 'DORKING', proof, scan_id, user_id, module='dorking')
 
     # Rebond email → pseudo local (déduction)
     if module == 'email' and '@' in target:

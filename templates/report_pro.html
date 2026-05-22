@@ -120,6 +120,18 @@
             padding-top: 10px;
         }
         .ai { background: #eef6ff; padding: 12px; border-left: 4px solid #0066cc; white-space: pre-wrap; font-size: 10px; }
+        .narrative {
+            font-size: 10px;
+            line-height: 1.55;
+            margin: 1em 0;
+            page-break-inside: avoid;
+        }
+        .narrative h2 { font-size: 13px; color: #006644; border-bottom: 1px solid #ccc; margin-top: 1.2em; }
+        .narrative h3 { font-size: 11px; color: #333; }
+        .narrative ul, .narrative ol { margin: .4em 0 .8em 1.2em; }
+        .narrative table { width: 100%; border-collapse: collapse; font-size: 8.5px; margin: .8em 0; }
+        .narrative th, .narrative td { border: 1px solid #ddd; padding: 4px 6px; }
+        .narrative th { background: #f0f7f4; }
     </style>
 </head>
 <body>
@@ -142,6 +154,15 @@
 
     <h2>Résumé exécutif</h2>
     <div class="exec">{{ executive_summary }}</div>
+
+    {% if has_narrative %}
+    <h2>Rapport d'enquête narratif (IA)</h2>
+    <p style="font-size:9px;color:#666;margin-bottom:8px">
+        Document généré automatiquement à partir des entités, liens et scans du dossier.
+        Les faits cités proviennent des sources listées en annexe.
+    </p>
+    <div class="narrative">{{ narrative_content | safe }}</div>
+    {% endif %}
 
     <h2>Méthodologie</h2>
     <div class="meta-box">

@@ -163,6 +163,28 @@ def api_graph(entity_id):
     return jsonify(g)
 
 
+@api_bp.route('/graph/pivot', methods=['POST'])
+@require_api_key
+def api_graph_pivot():
+    """Pivot OSINT multi-modules depuis une entité du graphe."""
+    from services.graph_pivot import launch_pivot
+    data = request.json or {}
+    entity_id = data.get('entity_id')
+    if not entity_id:
+        return jsonify({'error': 'entity_id requis'}), 400
+    try:
+        out = launch_pivot(
+            request.api_user.id,
+            int(entity_id),
+            root_entity_id=data.get('root_entity_id'),
+            deep_dorking=bool(data.get('deep_dorking')),
+            stealth=bool(data.get('stealth')),
+        )
+        return jsonify(out), 202
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
 @api_bp.route('/export/<int:scan_id>/pdf')
 @require_api_key
 def api_export_pdf(scan_id):

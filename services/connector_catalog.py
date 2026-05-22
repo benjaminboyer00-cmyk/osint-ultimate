@@ -94,6 +94,11 @@ CATALOG = [
         'inputs': ['domain', 'url'], 'api_key': None, 'status': 'active', 'ttl_h': 6,
     },
     {
+        'id': 'dorking', 'name': 'Dorking OSINT', 'category': 'recherche',
+        'description': 'Dorks DuckDuckGo : profils sociaux, emails, documents PDF — sans API payante.',
+        'inputs': ['email', 'pseudo', 'domain', 'username'], 'api_key': None, 'status': 'active', 'ttl_h': 12,
+    },
+    {
         'id': 'multi', 'name': 'Multi-scan', 'category': 'orchestration',
         'description': 'Orchestration parallèle de plusieurs modules.',
         'inputs': ['*'], 'api_key': None, 'status': 'active', 'ttl_h': 0,

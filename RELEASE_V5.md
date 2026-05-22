@@ -49,6 +49,30 @@ USE_CELERY_BEAT=true ./scripts/run_celery_beat.sh
 - **Paramètres → OPSEC** : case « Fallback scraping » (`user.scrape_fallback_enabled`, migration 007).
 - Env : `SCRAPE_FALLBACK_ENABLED`, `CLOUDSCRAPER_ENABLED` (désactivation globale admin).
 
+## Phase 3 V7 — Rapport narratif IA
+
+- **`services/report_data.py`** : `build_report_data(entity_id)` — entités, liens, scans, sources.
+- **`services/groq.py`** : `generate_narrative_report()` (Markdown structuré), `markdown_to_html()`.
+- **`services/narrative_report.py`** : orchestration + PDF dossier.
+- **Dossier** : boutons « Générer le texte » et « PDF narratif » (`POST /expert/dossier/<id>/narrative`, `GET …/narrative/pdf`).
+- **`report_pro.html`** : section « Rapport d'enquête narratif (IA) ».
+- Dépendance **`markdown2`** pour WeasyPrint.
+
+## Phase 2 V7 — Pivot graphe
+
+- **`services/graph_pivot.py`** : modules par type d'entité, `launch_pivot`, `graph_update` Socket.IO.
+- **`POST /graph/pivot`** et **`POST /api/v1/graph/pivot`**.
+- **`graph.html`** : menu contextuel (clic droit) → Pivoter, Analyser, Dossier, Copier.
+- Fusion dynamique des nœuds/arêtes après scan (`graph_update`).
+- **pypdf** remplace PyPDF2 (plus d'avertissement pytest).
+
+## Phase 1 V7 — Dorking avancé
+
+- **`connectors/dorking.py`** : `DorkingConnector` (dorks LinkedIn, Twitter, GitHub, documents, emails).
+- Moteur **DuckDuckGo HTML** + cache 12h ; extraction profils/URLs/emails.
+- Expert : case **« Recherche profonde (Dorking) »** + module **🔎 Dorking**.
+- Multi-scan : ajout automatique du module si `deep_dorking=true`.
+
 ## Phase 8 — Recettes & marketplace (V5.2)
 
 - **`/recipes`** : 6 recettes officielles + création / partage communautaire + lancement scan multi.

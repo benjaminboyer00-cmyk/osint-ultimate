@@ -46,6 +46,88 @@ def chat_completion(prompt: str, api_key: str | None = None, system: str | None 
     return _groq_request(messages, api_key)
 
 
+NARRATIVE_STYLES = {
+    'executive': (
+        'Style exécutif : phrases courtes, conclusions en tête, vocabulaire accessible '
+        'pour un décideur non technique.'
+    ),
+    'technical': (
+        'Style technique : précision des IOC, modules, preuves et limites méthodologiques.'
+    ),
+    'legal': (
+        'Style juridique / conformité : neutralité, sources, chaîne de preuve, '
+        'réserves sur l\'usage des données personnelles (RGPD).'
+    ),
+}
+
+NARRATIVE_LENGTHS = {
+    'short': 'Longueur : environ 400 à 600 mots.',
+    'medium': 'Longueur : environ 800 à 1200 mots.',
+    'long': 'Longueur : environ 1500 à 2000 mots.',
+}
+
+
+def generate_narrative_report(
+    data: dict,
+    *,
+    style: str = 'executive',
+    length: str = 'medium',
+    api_key: str | None = None,
+) -> str:
+    """
+    Rapport d'enquête en Markdown à partir du JSON dossier (Groq).
+    """
+    style_hint = NARRATIVE_STYLES.get(style, NARRATIVE_STYLES['executive'])
+    length_hint = NARRATIVE_LENGTHS.get(length, NARRATIVE_LENGTHS['medium'])
+    payload = json.dumps(data, ensure_ascii=False, default=str)[:14000]
+
+    system = (
+        'Tu es un analyste en renseignement cyber et investigations numériques. '
+        'Tu rédiges en français un rapport d\'enquête professionnel à partir de données OSINT structurées. '
+        'Réponds UNIQUEMENT en Markdown (titres ##, listes, tableaux si utile). '
+        'Structure obligatoire :\n'
+        '## Introduction\n'
+        '## Méthodologie\n'
+        '## Chronologie des faits\n'
+        '## Corrélations et relations clés\n'
+        '## Analyse et hypothèses\n'
+        '## Recommandations\n'
+        '## Conclusion\n'
+        f'{style_hint} {length_hint} '
+        'Ne invente pas de faits absents des données ; signale les lacunes.'
+    )
+    user = (
+        'Voici le dossier d\'investigation (entités, liens, scans, sources). '
+        'Rédige le rapport narratif complet :\n\n'
+        f'{payload}'
+    )
+    messages = [
+        {'role': 'system', 'content': system},
+        {'role': 'user', 'content': user},
+    ]
+    try:
+        return _groq_request(messages, api_key)
+    except ValueError as e:
+        return f'## Rapport narratif\n\n_Rapport IA indisponible : {e}_'
+    except RuntimeError as e:
+        return f'## Rapport narratif\n\n_Erreur Groq : {e}_'
+
+
+def markdown_to_html(md: str) -> str:
+    """Convertit le Markdown narratif en HTML pour WeasyPrint."""
+    if not md:
+        return ''
+    try:
+        import markdown2
+        return markdown2.markdown(
+            md,
+            extras=['fenced-code-blocks', 'tables', 'header-ids', 'strike'],
+        )
+    except ImportError:
+        import html
+        return f'<pre>{html.escape(md)}</pre>'
+
+
 def fallback_explain(card: dict, result: dict) -> str:
     """Explication locale si Groq indisponible."""
     lines = [

@@ -111,6 +111,9 @@ def launch_multi_scan(
     from app import SCAN_FUNCTIONS
     module_list = [m for m in module_list if m in SCAN_FUNCTIONS]
 
+    if options.get('_deep_dorking') and 'dorking' in SCAN_FUNCTIONS and 'dorking' not in module_list:
+        module_list.append('dorking')
+
     if not module_list:
         module_list = [detect_target_type(target)]
 

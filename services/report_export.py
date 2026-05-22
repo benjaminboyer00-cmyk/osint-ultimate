@@ -7,6 +7,7 @@ from flask import send_file, jsonify
 
 
 def generate_pdf_response(scan, raw_data: dict, **kwargs):
+    """kwargs: investigator, classification, graph_image, narrative_html, narrative_markdown, …"""
     """
     Génère le PDF et retourne une réponse Flask avec en-têtes X-Document-*.
     kwargs: investigator, classification, graph_image, generated_at

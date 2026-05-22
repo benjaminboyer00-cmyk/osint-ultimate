@@ -180,6 +180,56 @@ def dossier(entity_id):
     return render_template('dossier.html', dossier=d, username=current_user.username)
 
 
+@views_bp.route('/expert/dossier/<int:entity_id>/narrative', methods=['POST'])
+@login_required
+def dossier_narrative(entity_id):
+    """Génère le rapport narratif IA (JSON)."""
+    from services.narrative_report import build_narrative_for_entity
+    body = request.json or {}
+    style = body.get('style', 'executive')
+    length = body.get('length', 'medium')
+    use_cache = body.get('use_cache', True)
+    try:
+        out = build_narrative_for_entity(
+            entity_id, current_user.id,
+            style=style, length=length, cache_on_scan=use_cache,
+        )
+        return jsonify(out)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@views_bp.route('/expert/dossier/<int:entity_id>/narrative/pdf', methods=['GET'])
+@login_required
+def dossier_narrative_pdf(entity_id):
+    """PDF professionnel avec section rapport narratif IA."""
+    from services.narrative_report import narrative_pdf_context
+    from services.report_export import generate_pdf_response
+    style = request.args.get('style', 'executive')
+    length = request.args.get('length', 'medium')
+    try:
+        scan, raw, nar_html, nar_md = narrative_pdf_context(
+            entity_id, current_user.id,
+            style=style, length=length,
+        )
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    graph_image = request.args.get('graph', '')
+    _, response, err = generate_pdf_response(
+        scan, raw,
+        investigator=current_user.username,
+        classification=request.args.get('classification', 'CONFIDENTIEL'),
+        graph_image=graph_image or None,
+        narrative_html=nar_html,
+        narrative_markdown=nar_md,
+    )
+    if err:
+        return err
+    return response
+
+
 @views_bp.route('/expert/dossier/<int:entity_id>/add-entity', methods=['POST'])
 @login_required
 def dossier_add_entity(entity_id):
@@ -293,6 +343,28 @@ def graph_data(entity_id):
         g['links_detail'] = links.get('links', [])
         g['entity'] = links.get('entity')
     return jsonify(g)
+
+
+@views_bp.route('/graph/pivot', methods=['POST'])
+@login_required
+def graph_pivot():
+    """Pivot : scan multi-modules depuis un nœud du graphe."""
+    from services.graph_pivot import launch_pivot
+    data = request.json or {}
+    entity_id = data.get('entity_id')
+    if not entity_id:
+        return jsonify({'error': 'entity_id requis'}), 400
+    try:
+        out = launch_pivot(
+            current_user.id,
+            int(entity_id),
+            root_entity_id=data.get('root_entity_id'),
+            deep_dorking=bool(data.get('deep_dorking')),
+            stealth=bool(data.get('stealth')),
+        )
+        return jsonify(out)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
 
 @views_bp.route('/graph/scan-node', methods=['POST'])

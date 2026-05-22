@@ -1,0 +1,5 @@
+Collecting pypdf
+  Downloading pypdf-6.12.1-py3-none-any.whl.metadata (7.2 kB)
+Downloading pypdf-6.12.1-py3-none-any.whl (343 kB)
+Installing collected packages: pypdf
+Successfully installed pypdf-6.12.1

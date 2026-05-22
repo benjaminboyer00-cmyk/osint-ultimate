@@ -58,6 +58,12 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
             db.session.commit()
 
             _run_correlation(scan, result, opts)
+            if opts.get('_graph_pivot'):
+                try:
+                    from services.graph_pivot import emit_graph_update_after_scan
+                    emit_graph_update_after_scan(scan, socketio, opts)
+                except Exception as e:
+                    logger.warning('Pivot graph_update #%s: %s', scan_id, e)
             _emit(socketio, 'scan_done', {'scan_id': scan_id, 'result': result})
             logger.info('Scan #%s terminé (%s)', scan_id, scan.module)
 

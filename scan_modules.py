@@ -7,6 +7,7 @@ from connectors.whois_domain import lookup as whois_lookup
 from connectors.messaging import check_phone_presence
 from connectors.otx import search as otx_search
 from connectors.urlhaus import search as urlhaus_search
+from connectors.dorking import search as dorking_search
 
 
 def _opt(options, key, env_name=''):
@@ -124,6 +125,11 @@ def scan_messaging(target, options=None):
     return check_phone_presence(phone, options)
 
 
+def scan_dorking(target, options=None):
+    """Recherche profonde par dorks (DuckDuckGo HTML)."""
+    return dorking_search(target, options or {})
+
+
 def scan_multi(target, options=None):
     """Scan parallèle multi-modules (Expert / Express)."""
     from services.scanner import launch_multi_scan
@@ -146,5 +152,6 @@ EXTRA_SCAN_FUNCTIONS = {
     'messaging': scan_messaging,
     'otx': scan_otx,
     'urlhaus': scan_urlhaus,
+    'dorking': scan_dorking,
     'multi': scan_multi,
 }

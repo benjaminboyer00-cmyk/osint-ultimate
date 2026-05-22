@@ -20,7 +20,7 @@ from phonenumbers import timezone as ph_timezone
 from PIL import Image
 from PIL.ExifTags import TAGS
 import docx
-import PyPDF2
+from pypdf import PdfReader
 from cryptography.fernet import Fernet
 from sqlalchemy import text as sa_text
 from flask import (Flask, render_template, request, jsonify,
@@ -969,6 +969,8 @@ def scan_start():
         options = {'email_checks': raw_opts} if raw_opts else {}
     if data.get('stealth'):
         options['_stealth_mode'] = True
+    if data.get('deep_dorking'):
+        options['_deep_dorking'] = True
     mode = data.get('mode', 'expert')
     if data.get('multi') or module == 'multi':
         module = 'multi'
@@ -1170,7 +1172,7 @@ def upload():
             else:
                 metadata['EXIF'] = 'Aucune métadonnée EXIF trouvée'
         elif ext == 'pdf':
-            reader = PyPDF2.PdfReader(filepath)
+            reader = PdfReader(filepath)
             meta = reader.metadata or {}
             for k, v in meta.items():
                 metadata[k.lstrip('/')] = str(v)
@@ -1238,6 +1240,14 @@ def on_connect():
 @socketio.on('join_investigation')
 def on_join_investigation(data=None):
     """Salle Socket.IO par utilisateur pour l'enquête guidée."""
+    from flask_socketio import join_room
+    if current_user.is_authenticated:
+        join_room(str(current_user.id))
+
+
+@socketio.on('join_graph')
+def on_join_graph(data=None):
+    """Salle Socket.IO pour mises à jour graphe (pivot)."""
     from flask_socketio import join_room
     if current_user.is_authenticated:
         join_room(str(current_user.id))

@@ -17,6 +17,7 @@ PROVIDER_TTL = {
     'shodan': 24,
     'groq': 0,
     'hibp': 48,
+    'dorking': 12,
 }
 
 

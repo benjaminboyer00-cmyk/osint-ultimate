@@ -23,6 +23,33 @@
         <small>{{ dossier.scans_count }} scans · {{ dossier.links_count }} liens</small>
     </div>
 
+    <h2>📜 Rapport narratif IA</h2>
+    <div class="card" id="narrative-panel">
+        <p style="font-size:.88rem;color:#8a92b0;margin-top:0">
+            Rédaction automatique (Groq) : introduction, chronologie, corrélations, hypothèses et recommandations.
+        </p>
+        <label style="font-size:.85rem">Style
+            <select id="narr-style" style="margin-left:.4rem">
+                <option value="executive">Exécutif</option>
+                <option value="technical">Technique</option>
+                <option value="legal">Juridique</option>
+            </select>
+        </label>
+        <label style="font-size:.85rem;margin-left:1rem">Longueur
+            <select id="narr-length" style="margin-left:.4rem">
+                <option value="medium" selected>Moyen</option>
+                <option value="short">Court</option>
+                <option value="long">Long</option>
+            </select>
+        </label>
+        <div style="margin-top:.8rem;display:flex;gap:.5rem;flex-wrap:wrap">
+            <button type="button" id="btn-narrative">Générer le texte</button>
+            <button type="button" id="btn-narrative-pdf" style="background:#4d9fff;color:#fff">📄 PDF narratif</button>
+        </div>
+        <pre id="narrative-out" style="display:none;margin-top:1rem;max-height:320px;overflow:auto;font-size:.78rem;white-space:pre-wrap;background:#0d1018;padding:1rem;border-radius:8px"></pre>
+        <p id="narrative-status" style="font-size:.85rem;color:#5a6180;margin-top:.6rem"></p>
+    </div>
+
     <h2>🔗 Corrélations suggérées</h2>
     {% for s in dossier.rebound_suggestions %}
     <div class="sug">
@@ -75,6 +102,41 @@
         {% endfor %}
     </div>
 <script>
+const ENTITY_ID = {{ dossier.entity.id }};
+
+document.getElementById('btn-narrative').onclick = async () => {
+    const status = document.getElementById('narrative-status');
+    const out = document.getElementById('narrative-out');
+    status.textContent = '⏳ Génération en cours (Groq)…';
+    out.style.display = 'none';
+    try {
+        const r = await fetch(`/expert/dossier/${ENTITY_ID}/narrative`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                style: document.getElementById('narr-style').value,
+                length: document.getElementById('narr-length').value,
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok) {
+            status.textContent = '❌ ' + (d.error || 'Erreur');
+            return;
+        }
+        out.textContent = d.markdown || '';
+        out.style.display = 'block';
+        status.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
+    } catch (e) {
+        status.textContent = '❌ ' + e.message;
+    }
+};
+
+document.getElementById('btn-narrative-pdf').onclick = () => {
+    const style = document.getElementById('narr-style').value;
+    const length = document.getElementById('narr-length').value;
+    window.open(`/expert/dossier/${ENTITY_ID}/narrative/pdf?style=${style}&length=${length}`, '_blank');
+};
+
 async function launchRebound(module, target){
     const r = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({module,target})});

@@ -419,6 +419,7 @@
         <button class="mod" data-m="ip">🌍 Adresse IP</button>
         <button class="mod" data-m="pseudo">🔍 Pseudo</button>
         <button class="mod" data-m="sherlock" title="Recherche pseudo sur 100+ sites">🕵️ Sherlock</button>
+        <button class="mod" data-m="dorking" title="Dorks OSINT (LinkedIn, docs, mentions)">🔎 Dorking</button>
         <button class="mod" data-m="hunter" title="Emails professionnels par domaine">🎯 Hunter</button>
         <button class="mod" data-m="dehashed" title="Fuites de données">💥 Dehashed</button>
         <button class="mod" data-m="epieos" title="Email / pseudo avancé">🔎 Epieos</button>
@@ -442,6 +443,9 @@
     <div id="stealth-opts" style="margin:.5rem 0;font-size:.82rem;color:var(--dim)">
         <label><input type="checkbox" id="stealth-scan"> Mode furtif (délais aléatoires, rotation User-Agent{% if not authenticated %}, proxy si configuré après connexion{% endif %})</label>
         <label style="margin-left:1rem"><input type="checkbox" id="multi-scan"> Analyse complète (multi-modules)</label>
+        <label style="margin-left:1rem" title="Dorks DuckDuckGo : profils, emails, documents publics">
+            <input type="checkbox" id="deep-dorking"> Recherche profonde (Dorking)
+        </label>
     </div>
 
     <!-- Email options -->
@@ -714,6 +718,9 @@ async function launchScan(){
         const stealth = document.getElementById('stealth-scan')?.checked;
         const multi = document.getElementById('multi-scan')?.checked;
         const payload = {target, options: opts, stealth, mode: 'expert'};
+        if (document.getElementById('deep-dorking')?.checked) {
+            payload.deep_dorking = true;
+        }
         if (multi) {
             payload.module = 'multi';
             payload.multi = true;
@@ -905,6 +912,7 @@ function getBadge(key, value){
 }
 
 function getIcon(key){
+    if(key.startsWith('Module:') && key.toLowerCase().includes('dorking')) return '🔎';
     if(key.startsWith('Module:')) return '🔌';
     if(key.includes('Wayback') || key.includes('Historique')) return '🕰️';
     const icons = {
