@@ -79,9 +79,18 @@
             <td>{{ j.module }}</td>
             <td>{{ j.frequency_label }}</td>
             <td>{{ j.next_run_at.strftime('%d/%m/%Y %H:%M') if j.next_run_at else '—' }}</td>
-            <td>{% if j.last_scan_id %}<a href="{{ url_for('views.expert') }}?scan_id={{ j.last_scan_id }}">#{{ j.last_scan_id }}</a>{% else %}—{% endif %}</td>
+            <td>
+                {% if j.last_scan_id %}
+                <a href="{{ url_for('views.expert') }}?scan_id={{ j.last_scan_id }}">#{{ j.last_scan_id }}</a>
+                {% else %}—{% endif %}
+            </td>
             <td><span class="badge {{ 'pause' if not j.enabled else '' }}">{{ 'Actif' if j.enabled else 'Pause' }}</span></td>
             <td class="actions">
+                {% if j.entity_id %}
+                <a href="{{ url_for('views.graph_view', entity_id=j.entity_id) }}" style="font-size:.75rem;margin-right:.35rem" title="Graphe avec historique">🕸️</a>
+                {% else %}
+                <a href="{{ url_for('views.graph_view', target=j.target) }}" style="font-size:.75rem;margin-right:.35rem;color:var(--dim)" title="Graphe (après 1er scan)">🕸️</a>
+                {% endif %}
                 <form method="post" action="{{ url_for('views.monitoring_toggle', job_id=j.id) }}">
                     <button type="submit">{{ 'Pause' if j.enabled else 'Reprendre' }}</button>
                 </form>

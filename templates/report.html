@@ -78,6 +78,9 @@
 
     <h2>Données collectées</h2>
     <p class="sources">Sources publiques interrogées — réponses brutes ci-dessous.</p>
+    {% if data.get('_note_pdf') %}
+    <p class="sources" style="color:#a60"><strong>Note :</strong> {{ data._note_pdf }}</p>
+    {% endif %}
 
     {% for section, content in data.items() %}
     {% if not section.startswith('_') %}

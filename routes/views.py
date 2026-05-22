@@ -217,13 +217,21 @@ def investigate_chat():
 @views_bp.route('/graph')
 @login_required
 def graph_view():
+    from services.entity_resolve import find_entity_for_target
     entity_id = request.args.get('entity_id', type=int)
+    target_q = (request.args.get('target') or '').strip()
+    if not entity_id and target_q:
+        ent = find_entity_for_target(current_user.id, target_q)
+        if ent:
+            entity_id = ent.id
     entities = Entity.query.filter_by(user_id=current_user.id).order_by(Entity.created_at.desc()).limit(50).all()
     return render_template(
         'graph.html',
         entity_id=entity_id,
         entities=entities,
         username=current_user.username,
+        graph_hint='historique surveillance' if target_q and entity_id else None,
+        target_query=target_q,
     )
 
 
@@ -296,10 +304,13 @@ def regenerate_token():
 
 def _jobs_for_user(user_id: int):
     from services.monitoring import frequency_label
+    from services.entity_resolve import find_entity_for_target
     jobs = ScheduledScan.query.filter_by(user_id=user_id)\
         .order_by(ScheduledScan.next_run_at.asc()).all()
     for j in jobs:
         j.frequency_label = frequency_label(j.interval_hours or 24)
+        ent = find_entity_for_target(user_id, j.target, j.module)
+        j.entity_id = ent.id if ent else None
     return jobs
 
 

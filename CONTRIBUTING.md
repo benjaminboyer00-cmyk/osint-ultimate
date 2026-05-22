@@ -1,6 +1,6 @@
 # Contribuer à OSINT Ultimate
 
-Merci de votre intérêt pour le projet. Ce guide décrit comment ajouter un connecteur, proposer une correction ou préparer une pull request.
+Merci de votre intérêt pour le projet. Ce guide décrit comment ajouter un connecteur avec le **patron BaseConnector**, proposer une correction ou préparer une pull request.
 
 ## Prérequis
 
@@ -10,122 +10,126 @@ cd osint-ultimate
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export FLASK_APP=app:app
-export DATABASE_URL="sqlite:///osint.db"   # ou Supabase en prod
+export DATABASE_URL="sqlite:///osint.db"
 flask db upgrade
 python app.py
 ```
 
-## Ajouter un connecteur en 5 étapes
+---
 
-### Étape 1 — Créer le fichier connecteur
+## Patron BaseConnector (recommandé)
 
-Créez `connectors/mon_service.py` :
+Tous les nouveaux connecteurs devraient hériter de `connectors/base.py` pour bénéficier de :
+
+- **Timeout** configurable par service  
+- **Retry** HTTP (429, 5xx)  
+- **Cache** via `db.session.query(ApiCache)` — **ne jamais** utiliser `ApiCache.query` (conflit avec la colonne SQL `query`)  
+- Retour structuré : `(data, source)` avec `source` ∈ `cache | live | cache_expired | timeout | failed`
+
+### Exemple minimal
 
 ```python
-"""Mon Service — description courte."""
-from services.cache import get_cached, set_cached, get_ttl_hours
-from services.http_client import safe_get
+# connectors/mon_reseau.py
+from connectors.base import BaseConnector
+
+
+class MonReseauConnector(BaseConnector):
+    name = 'mon_reseau'
+    default_timeout = 10
+    cache_ttl_hours = 48
+
+    def search(self, target: str, api_key: str, options=None) -> dict:
+        if not api_key:
+            return {'Erreur': 'Clé API non configurée'}
+
+        def fetch():
+            r = self._request(
+                f'https://api.example.com/user/{target}',
+                timeout=12,
+                options=options,
+                headers={'Authorization': f'Bearer {api_key}'},
+            )
+            if not r:
+                return {'_timeout': True, 'Message': 'Service lent ou indisponible'}
+            d = r.json()
+            return {'Pseudo': target, 'Profil': d.get('url', 'N/A')}
+
+        data, source = self.get_cached_or_fetch(target, fetch, provider=self.name)
+        if source == 'timeout':
+            data['_status'] = 'timeout'
+        if source == 'cache':
+            data['_cached'] = True
+        return data
+
+
+# Instance singleton pour scan_modules
+_connector = MonReseauConnector()
 
 
 def search(target: str, api_key: str, options=None) -> dict:
-    """
-    Retourne un dict {section: valeur}.
-    Ne jamais laisser remonter une exception non gérée.
-    """
-    if not api_key:
-        return {'Erreur': 'Clé API non configurée (MON_API_KEY ou /settings)'}
-
-    target = (target or '').strip()
-    cached = get_cached('mon_service', target)
-    if cached:
-        cached['_cached'] = True
-        return cached
-
-    r = safe_get(
-        f'https://api.example.com/v1/lookup?q={target}&key={api_key}',
-        options=options,
-    )
-    if not r:
-        return {'Erreur': 'Requête échouée'}
-    if r.status_code == 401:
-        return {'Erreur': 'Clé API invalide'}
-    if r.status_code != 200:
-        return {'Erreur': f'HTTP {r.status_code}'}
-
-    data = r.json()
-    out = {
-        'Cible': target,
-        'Résultat principal': data.get('result', 'N/A'),
-    }
-    set_cached('mon_service', target, out, ttl_hours=get_ttl_hours('mon_service'))
-    return out
+    return _connector.search(target, api_key, options)
 ```
 
-> **Cache** : utilisez toujours `get_cached` / `set_cached` — ne pas appeler `ApiCache.query` (conflit avec la colonne `query`).
+### Enregistrer le module (5 étapes)
 
-### Étape 2 — Enregistrer dans `scan_modules.py`
+| Étape | Fichier | Action |
+|-------|---------|--------|
+| 1 | `connectors/mon_reseau.py` | Classe + fonction `search()` |
+| 2 | `scan_modules.py` | `scan_mon_reseau()` + `EXTRA_SCAN_FUNCTIONS['mon_reseau']` |
+| 3 | `services/scanner.py` | Ajouter dans `SCAN_STRATEGIES` si pertinent (ex. `pseudo`) |
+| 4 | `services/cache.py` | TTL dans `PROVIDER_TTL` (ex. `'mon_reseau': 48`) |
+| 5 | `SECRETS.md`, `settings.html`, `index.html` | Clé API + bouton module |
 
 ```python
-def scan_mon_service(target, options=None):
-    key = _opt(options, '_mon_service_key', 'MON_API_KEY')
-    from connectors.mon_service import search
+# scan_modules.py
+def scan_mon_reseau(target, options=None):
+    key = _opt(options, '_mon_reseau_key', 'MON_RESEAU_API_KEY')
+    from connectors.mon_reseau import search
     return search(target, key, options)
 
-
-EXTRA_SCAN_FUNCTIONS['mon_service'] = scan_mon_service
+EXTRA_SCAN_FUNCTIONS['mon_reseau'] = scan_mon_reseau
 ```
 
-Ajoutez aussi la clé dans `app.py` → `SCAN_FUNCTIONS` si le module doit apparaître dans la liste principale (souvent via `EXTRA_SCAN_FUNCTIONS.update`).
+### Gestion des timeouts (non bloquant)
 
-### Étape 3 — Bouton dans l’interface Expert
+- Retourner `{'_timeout': True, 'Message': '…'}` plutôt qu'une exception.  
+- Le scanner multi (`services/scanner.py`) classera le module dans `_meta.timeouts`.  
+- L’UI Expert affiche un avertissement + bouton **Réessayer**.
 
-Dans `templates/index.html`, ajoutez un bouton module :
+### Corrélation graphe (optionnel)
 
-```html
-<button class="mod" data-m="mon_service" title="Description">🔌 Mon Service</button>
-```
+Dans `services/correlation.py`, extraire emails / pseudos / domaines du résultat pour alimenter `/graph`.
 
-Et un `placeholder` dans le JS `placeholders` si besoin.
+---
 
-### Étape 4 — Corrélation (optionnel)
+## Scans multi-modules
 
-Dans `services/correlation.py`, extrayez des entités depuis le résultat (emails, domaines, pseudos) pour alimenter le graphe `/graph`.
+- Stratégies : `SCAN_STRATEGIES` (Expert), `EXPRESS_STRATEGIES` (Express).  
+- Lancement : `POST /scan` avec `{ "multi": true, "target": "…" }`.  
+- Retry : `POST /scan/<id>/retry-timeouts`.
 
-### Étape 5 — Documentation & tests
-
-| Fichier | Action |
-|---------|--------|
-| `SECRETS.md` | Documenter `MON_API_KEY` |
-| `templates/settings.html` | Champ clé utilisateur chiffrée |
-| `services/cache.py` | Ajouter TTL dans `PROVIDER_TTL` si besoin |
-| `tests/test_mon_service.py` | Test minimal avec mock HTTP |
-
-Exemple de test :
-
-```python
-def test_mon_service_no_key():
-    from connectors.mon_service import search
-    out = search('test@example.com', '')
-    assert 'Erreur' in out
-```
+---
 
 ## Structure du dépôt
 
 | Dossier | Rôle |
 |---------|------|
-| `connectors/` | Sources externes (Hunter, Dehashed, …) |
-| `services/` | Métier : cache, corrélation, IA, monitoring, PDF |
-| `routes/` | Blueprints Flask (`views`, `api_v1`) |
-| `scan_modules.py` | Enregistrement des modules de scan |
+| `connectors/` | Sources externes + `base.py` |
+| `services/` | scanner, cache, corrélation, PDF, monitoring |
+| `routes/` | Flask views + API v1 |
+| `scan_modules.py` | Enregistrement des modules |
 | `migrations/` | Alembic / Supabase |
-| `templates/` | Express, Expert, monitoring, graphe |
 
-## Migrations base de données
+---
+
+## Migrations
 
 ```bash
 flask db revision -m "description"
 flask db upgrade
 ```
+
+---
 
 ## Tests
 
@@ -133,27 +137,27 @@ flask db upgrade
 pytest tests/ -v
 ```
 
+---
+
 ## Checklist pull request
 
-- [ ] Connecteur avec gestion d'erreur et cache TTL
-- [ ] Aucun secret en dur dans le code
-- [ ] `SECRETS.md` et `CONTRIBUTING.md` à jour si nouveau connecteur
-- [ ] `ROADMAP.md` statut mis à jour si fonctionnalité majeure
-- [ ] Pas de fichiers binaires (PNG) dans le dépôt — Hugging Face les rejette
+- [ ] Connecteur basé sur `BaseConnector` (ou migration documentée)
+- [ ] Pas de `ApiCache.query` — uniquement `db.session.query(ApiCache)`
+- [ ] Timeouts non bloquants (`_timeout`)
+- [ ] Cache TTL + entrée `PROVIDER_TTL`
+- [ ] Aucun secret en dur
+- [ ] `SECRETS.md` mis à jour
+- [ ] Pas de fichiers binaires (PNG) dans le dépôt
 
-## Scans multi-modules
+---
 
-- Stratégies dans `services/scanner.py` (`SCAN_STRATEGIES`, `EXPRESS_STRATEGIES`).
-- Lancement Expert : `POST /scan` avec `{ "multi": true, "target": "…" }`.
-- Express : lance automatiquement `multi` en mode allégé (3–4 modules max).
-- Timeouts : section `_meta.timeouts` + `POST /scan/<id>/retry-timeouts`.
-- Classe de base : `connectors/base.py` (timeout, retry, cache via `db.session.query(ApiCache)`).
+## Surveillance & Celery
 
-## Surveillance continue & Celery
+- UI : `/monitoring` — graphe lié via `entity_id` ou `?target=`  
+- Backend : APScheduler (5 min) ; Celery optionnel si `REDIS_URL`
 
-- Surveillance UI : `/monitoring` (APScheduler toutes les 5 min)
-- File optionnelle : `REDIS_URL` + `celery_app.py` / `tasks.py`
+---
 
 ## Contact
 
-Ouvrez une issue GitHub avec le label `enhancement` ou `bug` et décrivez le cas d’usage OSINT visé.
+Issue GitHub avec label `enhancement` ou `bug` et le cas d’usage OSINT visé.

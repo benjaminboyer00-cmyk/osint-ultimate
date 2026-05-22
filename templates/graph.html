@@ -38,6 +38,7 @@
 <header>
     <a href="{{ url_for('views.expert') }}">← Expert</a>
     <strong>Graphe OSINT</strong>
+    {% if graph_hint %}<span style="font-size:.75rem;color:var(--dim)"> — corrélation surveillance</span>{% endif %}
     <div class="toolbar">
         <select id="entity-select" onchange="loadGraph(this.value)">
             <option value="">— Entité —</option>
@@ -210,6 +211,8 @@ async function loadLinksPanel(){
 
 {% if entity_id %}
 loadGraph('{{ entity_id }}');
+{% elif target_query %}
+document.getElementById('panel-desc').textContent = 'Aucune entité pour « {{ target_query[:50] }} » — lancez un scan ou attendez la prochaine surveillance.';
 {% endif %}
 </script>
 </body>

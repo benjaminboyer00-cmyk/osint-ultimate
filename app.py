@@ -1152,9 +1152,11 @@ def report_pdf(scan_id):
     try:
         from weasyprint import HTML as WeasyHTML
         from services.report_signing import build_report_hashes
-        data = json.loads(scan.result_json or '{}')
+        from services.report_pdf import prepare_report_data
+        raw_data = json.loads(scan.result_json or '{}')
+        data = prepare_report_data(raw_data)
         generated_at = datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
-        hashes = build_report_hashes(scan, data, generated_at)
+        hashes = build_report_hashes(scan, raw_data, generated_at)
         html_str = render_template(
             'report.html', scan=scan, data=data,
             ai_summary=scan.ai_summary,

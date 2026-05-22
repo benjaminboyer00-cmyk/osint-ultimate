@@ -323,6 +323,33 @@
         }
         .upload-area:hover { border-color: var(--accent); color: var(--text); }
 
+        /* ── Tutoriel Expert (3 étapes) ── */
+        #tutorial-overlay {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,.75); align-items: center; justify-content: center;
+            padding: 1rem;
+        }
+        #tutorial-overlay.open { display: flex; }
+        .tutorial-box {
+            max-width: 420px; background: var(--panel); border: 1px solid var(--border-lit);
+            border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow);
+        }
+        .tutorial-box h3 { color: var(--accent); margin-bottom: .5rem; font-size: 1.1rem; }
+        .tutorial-box p { color: var(--text-dim); font-size: .88rem; line-height: 1.5; margin-bottom: 1rem; }
+        .tutorial-dots { display: flex; gap: .4rem; margin-bottom: 1rem; }
+        .tutorial-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+        .tutorial-dots span.on { background: var(--accent); }
+        .tutorial-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+        .tutorial-actions button {
+            padding: .5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600;
+        }
+        .tut-skip { background: transparent; color: var(--text-dim); border: 1px solid var(--border)!important; }
+        .tut-next { background: var(--accent); color: #000; }
+        .tut-help {
+            font-size: .75rem; color: var(--accent2); cursor: pointer; margin-left: auto;
+            text-decoration: underline; background: none; border: none;
+        }
+
         /* ── Responsive ── */
         @media(max-width:600px){
             .wrap { padding:1.4rem 1rem; }
@@ -348,6 +375,7 @@
                 <a href="{{ url_for('views.express') }}">Express</a>
                 <a href="{{ url_for('views.expert') }}" class="active" aria-current="page">Expert</a>
             </div>
+            <button type="button" class="tut-help" onclick="openTutorial()" title="Guide 3 étapes">❓ Guide</button>
             {% if authenticated %}
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
@@ -471,6 +499,18 @@
                onchange="uploadFile(this)">
     </div>
 
+</div>
+
+<div id="tutorial-overlay" role="dialog" aria-labelledby="tut-title">
+    <div class="tutorial-box">
+        <div class="tutorial-dots" id="tut-dots"><span class="on"></span><span></span><span></span></div>
+        <h3 id="tut-title">Bienvenue en mode Expert</h3>
+        <p id="tut-text"></p>
+        <div class="tutorial-actions">
+            <button type="button" class="tut-skip" onclick="closeTutorial(true)">Passer</button>
+            <button type="button" class="tut-next" id="tut-next" onclick="tutorialNext()">Suivant</button>
+        </div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1011,19 +1051,55 @@ if(_preload) loadScanFromHistory(_preload);
 
 const _autoMod = _urlParams.get('module');
 const _autoMulti = _urlParams.get('multi');
+const _autoLaunch = _urlParams.get('autolaunch') === '1';
 const _autoTarget = _urlParams.get('target') || _urlParams.get('query') || _urlParams.get('auto');
+
+function scheduleAutoLaunch(){
+    if(!_autoTarget || scanRunning) return;
+    setTimeout(() => { if(!scanRunning) launchScan(); }, 500);
+}
+
 if(_autoTarget){
     targetEl.value = decodeURIComponent(_autoTarget);
     if(_autoMulti === '1' || _autoMod === 'multi'){
         const multiCb = document.getElementById('multi-scan');
         if(multiCb) multiCb.checked = true;
-        setTimeout(() => { if(!scanRunning) launchScan(); }, 400);
+        if(_autoLaunch) scheduleAutoLaunch();
     } else if(_autoMod){
         const modBtn = document.querySelector(`.mod[data-m="${_autoMod}"]`);
         if(modBtn) modBtn.click();
-        setTimeout(() => { if(!scanRunning) launchScan(); }, 400);
+        if(_autoLaunch) scheduleAutoLaunch();
+    } else if(_autoLaunch){
+        scheduleAutoLaunch();
     }
 }
+
+const TUTORIAL_STEPS = [
+    { title: '1 — Choisir un module', text: 'Sélectionnez un type d\'analyse (email, Sherlock, Hunter…) ou cochez « Analyse complète » pour lancer plusieurs outils en parallèle.' },
+    { title: '2 — Lancer un scan', text: 'Entrez votre cible (email, domaine, pseudo…) et cliquez sur Scanner. Les timeouts s\'affichent en avertissement, pas en erreur bloquante.' },
+    { title: '3 — Dossier & graphe', text: 'Après le scan, ouvrez le Graphe 🕸️ pour voir les corrélations. Depuis /monitoring, le graphe charge l\'historique de la cible surveillée.' },
+];
+let tutStep = 0;
+function openTutorial(){ tutStep = 0; renderTutorialStep(); document.getElementById('tutorial-overlay').classList.add('open'); }
+function closeTutorial(persist){
+    document.getElementById('tutorial-overlay').classList.remove('open');
+    if(persist) try { localStorage.setItem('osint_expert_tutorial_done', '1'); } catch(e){}
+}
+function renderTutorialStep(){
+    const s = TUTORIAL_STEPS[tutStep];
+    document.getElementById('tut-title').textContent = s.title;
+    document.getElementById('tut-text').textContent = s.text;
+    document.getElementById('tut-next').textContent = tutStep < TUTORIAL_STEPS.length - 1 ? 'Suivant' : 'Terminer';
+    document.querySelectorAll('#tut-dots span').forEach((el,i)=> el.classList.toggle('on', i === tutStep));
+}
+function tutorialNext(){
+    if(tutStep < TUTORIAL_STEPS.length - 1){ tutStep++; renderTutorialStep(); }
+    else closeTutorial(true);
+}
+try {
+    if(!localStorage.getItem('osint_expert_tutorial_done') && !(_autoTarget && _autoLaunch))
+        setTimeout(openTutorial, 800);
+} catch(e){}
 
 // ── PWA ────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

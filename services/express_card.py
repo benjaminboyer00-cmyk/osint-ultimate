@@ -1,4 +1,6 @@
 """Formatage des résultats pour la vue Express (langage simple)."""
+from urllib.parse import quote
+
 from services.target_detector import express_label
 
 
@@ -25,7 +27,7 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
                 f'{len(meta["timeouts"])} service(s) en timeout — réessayez ou passez en Expert.'
             )
         next_steps.append(
-            f'Analyse complète en Expert : /expert?multi=1&target={target}'
+            f'Analyse complète en Expert : /expert?multi=1&target={quote(target)}&autolaunch=1'
         )
         if ok_mods:
             next_steps.append(f'Modules OK : {", ".join(ok_mods)}')
@@ -39,7 +41,7 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
             'risks': risks[:8],
             'next_steps': next_steps,
             'timeouts': meta.get('timeouts', []),
-            'expert_url': f'/expert?multi=1&target={target}',
+            'expert_url': f'/expert?multi=1&target={quote(target)}&autolaunch=1',
         }
 
     if not result or result.get('error') or result.get('Erreur'):

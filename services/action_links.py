@@ -78,7 +78,7 @@ def build_action_links(
             'label': label,
             'module': mod,
             'target': t,
-            'url': f'/expert?module={mod}&target={quote(t)}',
+            'url': f'/expert?module={mod}&target={quote(t)}&autolaunch=1',
             'launch': True,
         })
     return links[:6]
