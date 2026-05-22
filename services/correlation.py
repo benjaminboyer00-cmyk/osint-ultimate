@@ -134,12 +134,23 @@ def process_scan_correlations(
             'email': 'email', 'username': 'username', 'platform': 'platform',
             'domain': 'domain', 'url': 'platform', 'document': 'platform',
         }
+        from services.dorking_filter import is_relevant_entity
         for item in (result.get('Entités') or []):
             if not isinstance(item, dict):
                 continue
             etype = type_map.get(item.get('type', ''), 'platform')
             val = (item.get('value') or item.get('url') or '').strip()
             if not val or len(val) > 500:
+                continue
+            tt = root.entity_type
+            if tt == 'unknown':
+                tt = 'email' if '@' in target else (
+                    'domain' if '.' in target and ' ' not in target else 'username'
+                )
+            if not is_relevant_entity(
+                val, etype, target, tt,
+                confidence=float(item.get('confidence') or 0.5),
+            ):
                 continue
             child = _get_or_create_entity(etype, val.lower() if etype != 'phone' else val, user_id, scan_id)
             proof = (item.get('snippet') or item.get('platform') or 'dorking')[:200]

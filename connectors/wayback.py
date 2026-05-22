@@ -1,4 +1,6 @@
 """Archive.org Wayback Machine."""
+from urllib.parse import quote
+
 from services.cache import get_cached, set_cached, get_ttl_hours
 from services.http_client import safe_get
 
@@ -7,19 +9,22 @@ def search_url(url: str, options=None, limit: int = 10) -> dict:
     target = url.strip()
     if not target.startswith('http'):
         target = f'https://{target}'
-    domain = target.split('//')[-1].split('/')[0]
+    domain = target.split('//')[-1].split('/')[0].lower().replace('www.', '')
 
     cached = get_cached('wayback', domain)
     if cached:
         cached['_cached'] = True
         return cached
 
-    snaps = safe_get(
-        f'https://web.archive.org/cdx/search/cdx?url={domain}/*&output=json&limit={limit}'
-        f'&fl=timestamp,original,statuscode&collapse=urlkey',
-        timeout=25,
-        options=options,
+    opts = dict(options or {})
+    opts['_retry'] = True
+    cdx_url = (
+        'https://web.archive.org/cdx/search/cdx'
+        f'?url={quote(domain + "/*", safe="")}'
+        f'&output=json&limit={limit}'
+        '&fl=timestamp,original,statuscode&collapse=urlkey'
     )
+    snaps = safe_get(cdx_url, timeout=30, options=opts)
     results = {'URL': target, 'Domaine': domain}
     if snaps and snaps.status_code == 200:
         try:
@@ -39,8 +44,14 @@ def search_url(url: str, options=None, limit: int = 10) -> dict:
                 results['Snapshots'] = 'Aucun snapshot trouvé'
         except Exception as e:
             results['Erreur'] = str(e)
+    elif snaps and snaps.status_code == 429:
+        results['Erreur'] = 'Wayback — trop de requêtes (429). Réessayez plus tard.'
+        results['_timeout'] = True
     else:
-        results['Erreur'] = 'Wayback Machine inaccessible'
+        code = snaps.status_code if snaps else 'timeout'
+        results['Erreur'] = f'Wayback inaccessible ({code}). Vérifiez le domaine ou réessayez.'
+        results['_timeout'] = True
 
-    set_cached('wayback', domain, results, ttl_hours=get_ttl_hours('wayback'))
+    if not results.get('Erreur'):
+        set_cached('wayback', domain, results, ttl_hours=get_ttl_hours('wayback'))
     return results

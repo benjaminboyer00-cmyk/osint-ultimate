@@ -248,20 +248,7 @@ class DorkingConnector(BaseConnector):
                 seen.add(key)
                 entities.append(ent)
 
-        for h in hits:
-            url = h.get('url', '')
-            if not url or url.lower() in seen:
-                continue
-            seen.add(url.lower())
-            entities.append({
-                'type': 'url',
-                'value': url,
-                'source': 'dorking',
-                'confidence': 0.4,
-                'url': url,
-                'snippet': (h.get('snippet') or '')[:200],
-                'title': h.get('title', ''),
-            })
+        # URLs brutes : uniquement si déjà validées via extract_profiles
         return entities[:40]
 
     def run(self, options=None) -> dict:
@@ -296,6 +283,10 @@ class DorkingConnector(BaseConnector):
                 time.sleep(random.uniform(0.4, 1.0) if opts.get('_stealth_mode') else 0.2)
 
             all_entities = self._hits_to_entities(all_hits)
+            from services.dorking_filter import filter_dorking_entities
+            all_entities = filter_dorking_entities(
+                all_entities, self.target_value, self.target_type,
+            )
             profiles = [e for e in all_entities if e['type'] in ('platform', 'url')]
             emails = [e['value'] for e in all_entities if e['type'] == 'email']
             docs = [e['value'] for e in all_entities if e['type'] == 'document']

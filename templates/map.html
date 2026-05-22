@@ -104,8 +104,24 @@ function popupHtml(m) {
     </div>`;
 }
 
+function ensureCluster() {
+    if (!map) initMap({ lat: 48.8566, lng: 2.3522 });
+    if (!cluster && map) {
+        cluster = L.markerClusterGroup({ maxClusterRadius: 50 });
+        map.addLayer(cluster);
+    }
+    return cluster;
+}
+
+function clearMapMarkers() {
+    ensureCluster();
+    if (cluster) cluster.clearLayers();
+    Object.keys(markerByEntity).forEach(k => delete markerByEntity[k]);
+}
+
 function addMarker(m, fly) {
     if (markerByEntity[m.entity_id]) return;
+    if (!ensureCluster()) return;
     const color = TYPE_COLORS[m.type] || TYPE_COLORS.unknown;
     const icon = L.divIcon({
         className: '',
@@ -148,8 +164,7 @@ async function loadMap(entityId) {
     document.getElementById('dossier-link').style.display = 'inline';
     document.getElementById('dossier-link').href = `/expert/dossier/${rootEntityId}`;
         document.getElementById('status').textContent = '⏳ Chargement (coordonnées en cache)…';
-    cluster.clearLayers();
-    Object.keys(markerByEntity).forEach(k => delete markerByEntity[k]);
+    clearMapMarkers();
     try {
         const r = await fetch(`/map/data/${rootEntityId}`);
         const d = await r.json();
@@ -159,7 +174,7 @@ async function loadMap(entityId) {
         }
         initMap(d.center);
         (d.markers || []).forEach(m => addMarker(m, false));
-        if (d.markers && d.markers.length) {
+        if (d.markers && d.markers.length && map) {
             const bounds = L.latLngBounds(d.markers.map(m => [m.lat, m.lng]));
             map.fitBounds(bounds.pad(0.2));
             document.getElementById('status').textContent =

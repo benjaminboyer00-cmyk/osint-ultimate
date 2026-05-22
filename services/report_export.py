@@ -13,8 +13,17 @@ def generate_pdf_response(scan, raw_data: dict, **kwargs):
     try:
         from weasyprint import HTML as WeasyHTML
         from services.report_builder import build_report_context, render_report_html
-    except ImportError:
-        return None, None, jsonify({'error': 'WeasyPrint non disponible'}), 500
+    except (ImportError, OSError) as e:
+        msg = (
+            'WeasyPrint indisponible (dépendances système manquantes, ex. libgobject). '
+            'Reconstruisez l’image Docker avec les paquets GTK/Pango/Cairo.'
+        )
+        if 'libgobject' in str(e).lower() or 'cannot load library' in str(e).lower():
+            msg = (
+                'PDF impossible : bibliothèques GTK manquantes (libgobject). '
+                'Ajoutez les paquets WeasyPrint au Dockerfile et redéployez.'
+            )
+        return None, None, jsonify({'error': msg, 'detail': str(e)[:200]}), 503
 
     try:
         from services.report_seal import public_base_url

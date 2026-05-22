@@ -1,18 +1,30 @@
 FROM python:3.10-slim
-# Définir le répertoire de travail
+
 WORKDIR /code
-# Installer les dépendances système nécessaires si besoin
+
+# Dépendances système : build + WeasyPrint (GTK/Pango/Cairo)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-build-essential \
-&& rm -rf /var/lib/apt/lists/*
-# Copier le fichier des modules requis
+    build-essential \
+    libgobject-2.0-0 \
+    libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libffi-dev \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    fonts-dejavu-core \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
-# Installer les paquets Python
 RUN pip install --no-cache-dir --upgrade pip && \
-pip install --no-cache-dir -r requirements.txt
-# Copier le reste du code de l'application
+    pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-# Hugging Face Spaces utilise le port 7860 par défaut
+
 EXPOSE 7860
+
 RUN chmod +x /code/entrypoint.sh
 ENTRYPOINT ["/code/entrypoint.sh"]
