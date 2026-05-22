@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 from extensions import db
 from models import User, Scan, ScheduledScan
 from services.target_detector import detect_target_type
-from services.api_auth import require_api_key, resolve_api_user
+from services.api_auth import require_api_key
+from services.correlation import get_rebound_suggestions
 from services.correlation import build_graph_json, build_entity_links_json
 
 api_bp = Blueprint('api_v1', __name__)
@@ -34,7 +35,12 @@ def openapi_docs():
             '/search': {'post': {'summary': 'Lancer une recherche', 'security': [{'ApiKeyAuth': []}]}},
             '/results/{scan_id}': {'get': {'summary': 'Récupérer un résultat'}},
             '/entity/{entity_id}/links': {'get': {'summary': 'Relations déduites (corrélation)'}},
+            '/entity/{entity_id}/links': {'get': {'summary': 'Relations déduites'}},
+            '/entity/{entity_id}/rebound': {'get': {'summary': 'Scans suggérés'}},
             '/entity/{entity_id}/graph': {'get': {'summary': 'Graphe de corrélation'}},
+            '/export/{scan_id}/csv': {'get': {'summary': 'Export CSV'}},
+            '/webhooks': {'get': {'summary': 'Webhooks'}, 'post': {'summary': 'Ajouter webhook'}},
+            '/examples': {'get': {'summary': 'Exemples curl'}},
             '/export/{scan_id}/pdf': {'get': {'summary': 'Exporter en PDF'}},
             '/scheduled': {'get': {'summary': 'Lister surveillances'}, 'post': {'summary': 'Créer surveillance'}},
             '/scheduled/{job_id}': {'delete': {'summary': 'Supprimer surveillance'}},
@@ -182,6 +188,65 @@ def api_scheduled_one(job_id):
         job.interval_hours = max(1, min(168, int(data['interval_hours'])))
     db.session.commit()
     return jsonify(_job_json(job))
+
+
+@api_bp.route('/entity/<int:entity_id>/rebound')
+@require_api_key
+def api_rebound(entity_id):
+    suggestions = get_rebound_suggestions(entity_id, request.api_user.id)
+    return jsonify({'entity_id': entity_id, 'suggestions': suggestions})
+
+
+@api_bp.route('/export/<int:scan_id>/csv')
+@require_api_key
+def api_export_csv(scan_id):
+    import csv
+    scan = db.session.get(Scan, scan_id)
+    if not scan or scan.user_id != request.api_user.id:
+        return jsonify({'error': 'non trouvé'}), 404
+    data = json.loads(scan.result_json or '{}')
+    buf = BytesIO()
+    w = csv.writer(buf)
+    w.writerow(['section', 'key', 'value'])
+    for section, content in data.items():
+        if isinstance(content, dict):
+            for k, v in content.items():
+                w.writerow([section, k, str(v)[:500]])
+        else:
+            w.writerow([section, '', str(content)[:500]])
+    buf.seek(0)
+    return send_file(buf, mimetype='text/csv', as_attachment=True,
+                     download_name=f'osint_{scan_id}.csv')
+
+
+@api_bp.route('/webhooks', methods=['GET', 'POST'])
+@require_api_key
+def api_webhooks():
+    from models import Webhook
+    if request.method == 'GET':
+        hooks = Webhook.query.filter_by(user_id=request.api_user.id).all()
+        return jsonify({'webhooks': [{'id': h.id, 'url': h.url, 'enabled': h.enabled} for h in hooks]})
+    url = (request.json or {}).get('url', '').strip()
+    if not url.startswith('http'):
+        return jsonify({'error': 'url HTTP(S) requise'}), 400
+    h = Webhook(user_id=request.api_user.id, url=url)
+    db.session.add(h)
+    db.session.commit()
+    return jsonify({'id': h.id, 'url': h.url}), 201
+
+
+@api_bp.route('/examples')
+def api_examples():
+    base = request.host_url.rstrip('/') + '/api/v1'
+    return jsonify({
+        'examples': [
+            {'desc': 'Vérifier token', 'curl': f'curl -H "X-API-Key: TOKEN" {base}/me'},
+            {'desc': 'Lancer scan', 'curl': f'curl -X POST -H "X-API-Key: TOKEN" -H "Content-Type: application/json" -d \'{{"target":"example.com","module":"whois"}}\' {base}/search'},
+            {'desc': 'Résultat', 'curl': f'curl -H "X-API-Key: TOKEN" {base}/results/1'},
+            {'desc': 'Liens entité', 'curl': f'curl -H "X-API-Key: TOKEN" {base}/entity/1/links'},
+            {'desc': 'PDF', 'curl': f'curl -H "X-API-Key: TOKEN" -o report.pdf {base}/export/1/pdf'},
+        ],
+    })
 
 
 def _job_json(job: ScheduledScan) -> dict:

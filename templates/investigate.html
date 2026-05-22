@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Enquête IA – OSINT Ultimate</title>
+    <style>
+        body{font-family:Inter,sans-serif;background:#07080f;color:#c8cfe8;display:flex;flex-direction:column;height:100vh;margin:0}
+        header{padding:1rem;border-bottom:1px solid rgba(255,255,255,.08)}
+        #chat{flex:1;overflow-y:auto;padding:1rem}
+        .msg{margin:.8rem 0;padding:.8rem;border-radius:10px;max-width:85%}
+        .user{background:rgba(77,159,255,.15);margin-left:auto}
+        .bot{background:rgba(255,255,255,.05)}
+        .actions{font-size:.82rem;color:#00e5a0;margin-top:.5rem}
+        footer{display:flex;gap:.5rem;padding:1rem;border-top:1px solid rgba(255,255,255,.08)}
+        #input{flex:1;padding:.8rem;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:#14171c;color:#c8cfe8}
+        button{background:#00e5a0;color:#000;border:none;padding:.8rem 1.5rem;border-radius:20px;font-weight:700;cursor:pointer}
+        a{color:#4d9fff}
+    </style>
+</head>
+<body>
+<header>
+    <a href="{{ url_for('views.expert') }}">← Expert</a> · <strong>Enquête guidée IA</strong> — {{ username }}
+</header>
+<div id="chat">
+    {% for m in history|reverse %}
+    <div class="msg {{ 'user' if m.role == 'user' else 'bot' }}">{{ m.content[:2000] }}</div>
+    {% endfor %}
+</div>
+<footer>
+    <input id="input" placeholder="Posez votre question OSINT…" onkeydown="if(event.key==='Enter')send()">
+    <button onclick="send()">Envoyer</button>
+</footer>
+<script>
+let ctx = {};
+async function send(){
+    const input = document.getElementById('input');
+    const msg = input.value.trim();
+    if(!msg) return;
+    input.value = '';
+    addMsg(msg, 'user');
+    const r = await fetch('/investigate',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:msg,context:ctx})});
+    const d = await r.json();
+    addMsg(d.reply||d.error, 'bot', d.actions);
+    if(d.suggested_module) ctx.last_module = d.suggested_module;
+}
+function addMsg(text, role, actions){
+    const chat = document.getElementById('chat');
+    const d = document.createElement('div');
+    d.className = 'msg '+role;
+    d.textContent = text;
+    if(actions?.length){
+        const a = document.createElement('div');
+        a.className = 'actions';
+        actions.forEach(act => {
+            const btn = document.createElement('button');
+            btn.textContent = act;
+            btn.style.cssText='display:block;margin:.3rem 0;background:transparent;color:#4d9fff;border:1px solid #4d9fff;cursor:pointer;padding:.3rem .6rem;border-radius:6px';
+            btn.onclick = () => { window.location = '/expert?auto='+encodeURIComponent(act); };
+            a.appendChild(btn);
+        });
+        d.appendChild(a);
+    }
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+}
+</script>
+</body>
+</html>

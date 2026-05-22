@@ -18,3 +18,4 @@ PyPDF2
 weasyprint
 cryptography
 APScheduler>=3.10.0
+pytest>=7.0.0

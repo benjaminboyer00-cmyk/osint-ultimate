@@ -5,49 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paramètres – OSINT Ultimate</title>
     <style>
-        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:2rem;max-width:560px;margin:0 auto}
-        h1{color:#00e5a0;font-size:1.4rem}
-        label{display:block;margin:1rem 0 .3rem;font-size:.85rem;color:#5a6180}
-        input{width:100%;padding:.7rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:2rem;max-width:600px;margin:0 auto}
+        h1{color:#00e5a0} h2{font-size:1rem;color:#4d9fff;margin-top:1.5rem}
+        label{display:block;margin:.8rem 0 .3rem;font-size:.85rem;color:#5a6180}
+        input,textarea{width:100%;padding:.7rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);
                background:rgba(255,255,255,.05);color:#c8cfe8}
         button{margin-top:1rem;padding:.8rem 1.5rem;background:#00e5a0;color:#000;border:none;
                border-radius:8px;font-weight:700;cursor:pointer}
-        .token{background:rgba(77,159,255,.1);padding:1rem;border-radius:8px;margin:1.5rem 0;
-               font-family:monospace;font-size:.8rem;word-break:break-all}
-        a{color:#4d9fff;margin-right:1rem}
-        .ok{color:#00e5a0;margin-bottom:1rem}
+        .token{background:rgba(77,159,255,.1);padding:1rem;border-radius:8px;font-family:monospace;font-size:.8rem;word-break:break-all}
+        a{color:#4d9fff;margin-right:1rem} .ok{color:#00e5a0}
     </style>
 </head>
 <body>
-    <p><a href="{{ url_for('views.expert') }}">← Expert</a> <a href="{{ url_for('views.express') }}">Express</a></p>
+    <p><a href="{{ url_for('views.expert') }}">Expert</a> <a href="{{ url_for('views.express') }}">Express</a>
+       <a href="{{ url_for('views.investigate_chat') }}">Enquête IA</a></p>
     <h1>Paramètres — {{ username }}</h1>
     {% with messages = get_flashed_messages() %}
       {% if messages %}<p class="ok">{{ messages[0] }}</p>{% endif %}
     {% endwith %}
 
-    <h2 style="font-size:1rem;margin-top:1.5rem;color:#4d9fff">Clé API REST</h2>
-    <p style="font-size:.85rem;color:#5a6180">Header : <code>X-API-Key</code> — Doc : <a href="/api/v1/docs">/api/v1/docs</a></p>
+    <h2>Clé API REST</h2>
+    <p style="font-size:.85rem;color:#5a6180"><a href="/api/v1/docs">OpenAPI</a> · <a href="/api/v1/examples">Exemples curl</a></p>
     <div class="token">{{ api_token }}</div>
-    <form method="post" action="{{ url_for('views.regenerate_token') }}" style="margin-top:.5rem">
-        <button type="submit" style="background:#4d9fff;color:#fff">🔄 Régénérer la clé API</button>
+    <form method="post" action="{{ url_for('views.regenerate_token') }}">
+        <button type="submit" style="background:#4d9fff;color:#fff">Régénérer clé API</button>
     </form>
-    <p style="font-size:.8rem;color:#5a6180;margin-top:.5rem">Authentification : <code>X-API-Key: …</code> ou <code>Authorization: Bearer …</code></p>
 
-    <p style="margin-top:1.5rem"><a href="{{ url_for('views.scheduled_page') }}">⏱️ Gérer les scans programmés</a></p>
+    <p><a href="{{ url_for('views.scheduled_page') }}">Scans programmés</a></p>
 
-    <h2 style="font-size:1rem;margin-top:1rem;color:#4d9fff">Vos clés API (chiffrées)</h2>
+    <h2>OPSEC</h2>
     <form method="post">
-        <label>Shodan</label>
-        <input type="password" name="shodan" value="{{ user_keys.get('shodan','') }}" placeholder="Clé Shodan">
-        <label>HIBP (fuites email)</label>
-        <input type="password" name="hibp" value="{{ user_keys.get('hibp','') }}" placeholder="Clé HIBP">
-        <label>Hunter.io</label>
-        <input type="password" name="hunter" value="{{ user_keys.get('hunter','') }}" placeholder="Clé Hunter">
-        <label>Numverify</label>
-        <input type="password" name="numverify" value="{{ user_keys.get('numverify','') }}" placeholder="Clé Numverify">
-        <label>GitHub Token</label>
-        <input type="password" name="github" value="{{ user_keys.get('github','') }}" placeholder="ghp_…">
-        <button type="submit">Enregistrer</button>
+        <label>Proxies (séparés par virgule)</label>
+        <textarea name="proxy_list" rows="2" placeholder="http://proxy:8080">{{ proxy_list }}</textarea>
+        <label><input type="checkbox" name="stealth_mode" {% if stealth_mode %}checked{% endif %}> Mode furtif (délais + User-Agent aléatoire)</label>
+        <label>Webhook URL (notification fin de scan)</label>
+        <input type="url" name="webhook_url" value="{{ webhook_url }}" placeholder="https://…">
+
+        <h2>Clés API (chiffrées Fernet)</h2>
+        <label>Shodan</label><input type="password" name="shodan" value="{{ user_keys.get('shodan','') }}">
+        <label>HIBP</label><input type="password" name="hibp" value="{{ user_keys.get('hibp','') }}">
+        <label>Hunter.io</label><input type="password" name="hunter" value="{{ user_keys.get('hunter','') }}">
+        <label>Dehashed API key</label><input type="password" name="dehashed" value="{{ user_keys.get('dehashed','') }}">
+        <label>Dehashed email (compte API)</label><input type="text" name="dehashed_email" value="{{ user_keys.get('dehashed_email','') }}">
+        <label>Epieos</label><input type="password" name="epieos" value="{{ user_keys.get('epieos','') }}">
+        <label>Numverify</label><input type="password" name="numverify" value="{{ user_keys.get('numverify','') }}">
+        <label>GitHub</label><input type="password" name="github" value="{{ user_keys.get('github','') }}">
+        <button type="submit">Enregistrer tout</button>
     </form>
+    <p style="margin-top:2rem;font-size:.8rem"><a href="{{ url_for('views.privacy') }}">Politique de confidentialité</a></p>
 </body>
 </html>

@@ -28,8 +28,10 @@ Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
 | `HIBP_API_KEY` | Email (fuites) | https://haveibeenpwned.com/API/Key |
 | `GITHUB_TOKEN` | GitHub / pseudo | https://github.com/settings/tokens |
 | `NUMVERIFY_KEY` | Téléphone | https://apilayer.com/ |
-| `HUNTER_API_KEY` | Email pro (domaine) — *Phase 4* | https://hunter.io/api |
-| `DEHASHED_API_KEY` | Fuites — *Phase 4* | https://dehashed.com/ |
+| `HUNTER_API_KEY` | Emails pro par domaine | https://hunter.io/api |
+| `DEHASHED_API_KEY` | Fuites (avec `DEHASHED_EMAIL`) | https://dehashed.com/ |
+| `DEHASHED_EMAIL` | Email compte Dehashed API | — |
+| `EPIEOS_API_KEY` | Email / pseudo Epieos | https://epieos.com/ |
 | `PROXY_LIST` | Tous (HTTP) | `http://proxy1:8080,http://proxy2:8080` |
 
 ## Clés par utilisateur (interface `/settings`)

@@ -32,6 +32,7 @@
     <pre>{{ content | tojson(indent=2) }}</pre>
     {% endif %}
     {% endfor %}
-    <p class="footer">Document généré par OSINT Ultimate — sources publiques uniquement. Usage conforme au RGPD.</p>
+    <p class="footer">Document généré par OSINT Ultimate — sources publiques uniquement. Usage conforme au RGPD.
+    {% if report_hash %}<br>Empreinte SHA-256 (tronquée) : {{ report_hash }}{% endif %}</p>
 </body>
 </html>

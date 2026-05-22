@@ -35,5 +35,5 @@ def build_config():
         ).lower() == 'true',
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
-        'APP_VERSION': '4.2',
+        'APP_VERSION': '5.0',
     }

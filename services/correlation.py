@@ -84,7 +84,67 @@ def process_scan_correlations(scan_id: int, module: str, target: str, result: di
             he = _get_or_create_entity('domain', h.lower(), user_id, scan_id)
             _link(root, he, 'HOSTNAME', 'Shodan', scan_id, user_id)
 
+    elif module == 'hunter':
+        for row in (result.get('Liste') or []):
+            if isinstance(row, dict) and row.get('Email'):
+                em = _get_or_create_entity('email', row['Email'].lower(), user_id, scan_id)
+                _link(root, em, 'EMAIL_PRO', f"Hunter — {row.get('Poste', '')}", scan_id, user_id)
+
+    elif module == 'dehashed':
+        for row in (result.get('Entrées') or []):
+            if isinstance(row, dict):
+                if row.get('Email'):
+                    em = _get_or_create_entity('email', row['Email'].lower(), user_id, scan_id)
+                    _link(root, em, 'FUITES', row.get('Base', ''), scan_id, user_id)
+                if row.get('Username'):
+                    un = _get_or_create_entity('username', row['Username'].lower(), user_id, scan_id)
+                    _link(root, un, 'FUITES_PSEUDO', row.get('Base', ''), scan_id, user_id)
+
+    elif module in ('whois', 'site', 'wayback'):
+        dom = target
+        if '@' not in dom:
+            dom = dom.replace('http://', '').replace('https://', '').split('/')[0]
+            de = _get_or_create_entity('domain', dom.lower(), user_id, scan_id)
+            if de.id != root.id:
+                _link(root, de, 'DOMAINE', module, scan_id, user_id)
+
+    # Rebond email → pseudo local (déduction)
+    if module == 'email' and '@' in target:
+        local = target.split('@')[0]
+        if re.match(r'^[\w\.\-]{2,32}$', local):
+            _link(
+                root,
+                _get_or_create_entity('username', local.lower(), user_id, scan_id),
+                'REBOND_SHERLOCK',
+                'Suggestion: lancer scan sherlock sur ce pseudo',
+                scan_id,
+                user_id,
+            )
+
     db.session.commit()
+
+
+def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
+    """Actions de corrélation suggérées pour une entité."""
+    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    if not ent:
+        return []
+    suggestions = []
+    if ent.entity_type == 'email' and '@' in ent.value:
+        local = ent.value.split('@')[0]
+        suggestions.append({'module': 'sherlock', 'target': local, 'reason': 'Pseudo déduit de l\'email'})
+        suggestions.append({'module': 'dehashed', 'target': ent.value, 'reason': 'Fuites associées'})
+        suggestions.append({'module': 'epieos', 'target': ent.value, 'reason': 'Enrichissement Epieos'})
+    elif ent.entity_type == 'username':
+        suggestions.append({'module': 'sherlock', 'target': ent.value, 'reason': 'Recherche multi-plateformes'})
+    elif ent.entity_type == 'domain':
+        suggestions.append({'module': 'hunter', 'target': ent.value, 'reason': 'Emails professionnels'})
+        suggestions.append({'module': 'wayback', 'target': ent.value, 'reason': 'Historique web'})
+        suggestions.append({'module': 'whois', 'target': ent.value, 'reason': 'WHOIS'})
+    elif ent.entity_type == 'phone':
+        suggestions.append({'module': 'messaging', 'target': ent.value, 'reason': 'Messageries'})
+        suggestions.append({'module': 'phone', 'target': ent.value, 'reason': 'Analyse téléphone'})
+    return suggestions
 
 
 def build_graph_json(entity_id: int, user_id: int) -> dict:

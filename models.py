@@ -16,6 +16,9 @@ class User(UserMixin, db.Model):
     created_at    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_login    = db.Column(db.DateTime)
     api_token     = db.Column(db.String(64), unique=True, index=True)
+    proxy_list    = db.Column(db.Text)
+    stealth_mode  = db.Column(db.Boolean, default=False)
+    locale        = db.Column(db.String(5), default='fr')
 
     scans = db.relationship('Scan', backref='owner', lazy='dynamic')
     entities = db.relationship('Entity', backref='owner', lazy='dynamic')
@@ -105,4 +108,51 @@ class ScheduledScan(db.Model):
     next_run_at   = db.Column(db.DateTime, index=True)
     last_scan_id  = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
     notify_on_change = db.Column(db.Boolean, default=False)
+    webhook_url   = db.Column(db.String(500))
     created_at    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ApiCache(db.Model):
+    __tablename__ = 'api_cache'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    provider   = db.Column(db.String(40), nullable=False, index=True)
+    cache_key  = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    query      = db.Column(db.String(500))
+    payload    = db.Column(db.Text, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Webhook(db.Model):
+    __tablename__ = 'webhook'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    url        = db.Column(db.String(500), nullable=False)
+    enabled    = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Investigation(db.Model):
+    """Dossier d'investigation."""
+    __tablename__ = 'investigation'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    title          = db.Column(db.String(200), nullable=False)
+    root_entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=True)
+    notes          = db.Column(db.Text)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class InvestigationMessage(db.Model):
+    __tablename__ = 'investigation_message'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    user_id           = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    role              = db.Column(db.String(20), nullable=False)
+    content           = db.Column(db.Text, nullable=False)
+    suggested_actions = db.Column(db.Text)
+    created_at        = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

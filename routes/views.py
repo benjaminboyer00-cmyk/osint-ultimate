@@ -2,7 +2,7 @@
 import json
 import os
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app, abort
 from flask_login import login_required, current_user
 
 from extensions import db
@@ -24,7 +24,7 @@ def express():
         'express.html',
         authenticated=current_user.is_authenticated,
         username=current_user.username if current_user.is_authenticated else None,
-        version='4.2',
+        version='5.0',
     )
 
 
@@ -34,7 +34,7 @@ def expert():
         'index.html',
         authenticated=current_user.is_authenticated,
         username=current_user.username if current_user.is_authenticated else None,
-        version='4.2',
+        version='5.0',
         expert_mode=True,
     )
 
@@ -68,14 +68,22 @@ def express_assist():
     prompt_ctx = json.dumps({'carte': card, 'donnees': result}, ensure_ascii=False)[:3500]
     system = (
         'Tu es un assistant OSINT pédagogique. Réponds en français simple, sans jargon. '
-        'Structure : 1) Ce que signifient les résultats 2) Risques éventuels 3) 2-3 prochaines étapes concrètes.'
+        'Structure : 1) Ce que signifient les résultats 2) Risques éventuels 3) Prochaines étapes. '
+        'Termine par "ACTIONS:" puis une ligne par action avec → (ex: → Rechercher ce pseudo sur Sherlock).'
     )
     try:
         summary = chat_completion(
             f'Explique ces résultats de recherche OSINT:\n\n{prompt_ctx}',
             system=system,
         )
-        return jsonify({'assistant': summary, 'source': 'openrouter'})
+        from services.investigation_ai import parse_suggested_actions
+        parts = summary.split('ACTIONS:')
+        actions = parse_suggested_actions(parts[1] if len(parts) > 1 else summary)
+        return jsonify({
+            'assistant': parts[0].strip(),
+            'actions': actions,
+            'source': 'openrouter',
+        })
     except Exception as e:
         current_app.logger.warning('Express assist OpenRouter: %s', e)
         fallback = fallback_explain(card, result)
@@ -94,26 +102,98 @@ def settings():
             'shodan': request.form.get('shodan', '').strip(),
             'hibp': request.form.get('hibp', '').strip(),
             'hunter': request.form.get('hunter', '').strip(),
+            'dehashed': request.form.get('dehashed', '').strip(),
+            'dehashed_email': request.form.get('dehashed_email', '').strip(),
+            'epieos': request.form.get('epieos', '').strip(),
             'numverify': request.form.get('numverify', '').strip(),
             'github': request.form.get('github', '').strip(),
         }
         keys = {k: v for k, v in keys.items() if v}
         from app import fernet
         current_user.set_api_keys(keys, fernet)
+        current_user.proxy_list = request.form.get('proxy_list', '').strip() or None
+        current_user.stealth_mode = request.form.get('stealth_mode') == 'on'
+        wh = request.form.get('webhook_url', '').strip()
+        if wh:
+            from models import Webhook
+            existing = Webhook.query.filter_by(user_id=current_user.id).first()
+            if existing:
+                existing.url = wh
+            else:
+                db.session.add(Webhook(user_id=current_user.id, url=wh))
         db.session.commit()
-        flash('Clés API enregistrées (chiffrées).', 'success')
+        flash('Paramètres enregistrés (chiffrés).', 'success')
         return redirect(url_for('views.settings'))
 
     from app import fernet
     user_keys = current_user.get_api_keys(fernet)
     token = current_user.ensure_api_token()
     db.session.commit()
+    from models import Webhook
+    wh = Webhook.query.filter_by(user_id=current_user.id).first()
     return render_template(
         'settings.html',
         user_keys=user_keys,
         api_token=token,
         username=current_user.username,
+        proxy_list=current_user.proxy_list or '',
+        stealth_mode=current_user.stealth_mode,
+        webhook_url=wh.url if wh else '',
     )
+
+
+@views_bp.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
+@views_bp.route('/expert/dossier/<int:entity_id>')
+@login_required
+def dossier(entity_id):
+    from services.dossier import build_dossier
+    from services.correlation import get_rebound_suggestions
+    d = build_dossier(entity_id, current_user.id)
+    if not d:
+        abort(404)
+    d['rebound_suggestions'] = get_rebound_suggestions(entity_id, current_user.id)
+    return render_template('dossier.html', dossier=d, username=current_user.username)
+
+
+@views_bp.route('/expert/dossier/<int:entity_id>/add-entity', methods=['POST'])
+@login_required
+def dossier_add_entity(entity_id):
+    from app import run_scan_async
+    target = request.form.get('target', '').strip()
+    module = request.form.get('module') or detect_target_type(target)
+    if target:
+        run_scan_async(module, target, user_id=current_user.id)
+        flash(f'Scan {module} lancé pour {target}', 'success')
+    return redirect(url_for('views.dossier', entity_id=entity_id))
+
+
+@views_bp.route('/investigate', methods=['GET', 'POST'])
+@login_required
+def investigate_chat():
+    from models import InvestigationMessage
+    from services.investigation_ai import investigate_step
+    if request.method == 'POST':
+        data = request.json or {}
+        msg = (data.get('message') or '').strip()
+        if not msg:
+            return jsonify({'error': 'message vide'}), 400
+        out = investigate_step(msg, data.get('context', {}))
+        db.session.add(InvestigationMessage(user_id=current_user.id, role='user', content=msg))
+        db.session.add(InvestigationMessage(
+            user_id=current_user.id, role='assistant', content=out['reply'],
+            suggested_actions=json.dumps(out.get('actions', [])),
+        ))
+        db.session.commit()
+        return jsonify(out)
+    history = InvestigationMessage.query.filter_by(user_id=current_user.id)\
+        .order_by(InvestigationMessage.created_at.desc()).limit(30).all()
+    return render_template('investigate.html', history=history, username=current_user.username)
+
+
 
 
 @views_bp.route('/graph')

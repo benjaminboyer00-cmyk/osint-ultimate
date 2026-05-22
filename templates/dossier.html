@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ dossier.title }} – OSINT Ultimate</title>
+    <style>
+        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:960px;margin:0 auto}
+        a{color:#4d9fff} h1{color:#00e5a0}
+        .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin:1rem 0}
+        .timeline{border-left:2px solid #4d9fff;padding-left:1rem;margin:1rem 0}
+        .timeline div{margin:.5rem 0;font-size:.88rem}
+        .sug{background:rgba(0,229,160,.08);padding:.6rem;border-radius:8px;margin:.4rem 0;display:flex;justify-content:space-between;align-items:center}
+        button{background:#00e5a0;color:#000;border:none;padding:.4rem .8rem;border-radius:6px;cursor:pointer}
+        input,select{padding:.5rem;background:#14171c;border:1px solid rgba(255,255,255,.1);color:#c8cfe8;border-radius:6px}
+    </style>
+</head>
+<body>
+    <p><a href="{{ url_for('views.expert') }}">← Expert</a>
+       <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">🕸️ Graphe</a></p>
+    <h1>📁 {{ dossier.title }}</h1>
+    <div class="card">
+        <strong>{{ dossier.entity.type }}</strong> : {{ dossier.entity.value }}<br>
+        <small>{{ dossier.scans_count }} scans · {{ dossier.links_count }} liens</small>
+    </div>
+
+    <h2>🔗 Corrélations suggérées</h2>
+    {% for s in dossier.rebound_suggestions %}
+    <div class="sug">
+        <span>{{ s.reason }} → <code>{{ s.module }}</code> « {{ s.target }} »</span>
+        <form method="post" action="{{ url_for('scan_start') }}" style="display:none" class="rebound-form">
+            <input type="hidden" name="json" value='{"module":"{{ s.module }}","target":"{{ s.target }}"}'>
+        </form>
+        <button onclick="launchRebound('{{ s.module }}','{{ s.target }}')">Lancer</button>
+    </div>
+    {% else %}
+    <p style="color:#5a6180">Aucune suggestion — lancez des scans pour enrichir le dossier.</p>
+    {% endfor %}
+
+    <h2>➕ Ajouter une entité</h2>
+    <form class="card" method="post" action="{{ url_for('views.dossier_add_entity', entity_id=dossier.entity.id) }}">
+        <input type="text" name="target" placeholder="email, téléphone, pseudo…" required style="width:60%">
+        <select name="module">
+            <option value="">Auto</option>
+            <option value="hunter">Hunter</option>
+            <option value="dehashed">Dehashed</option>
+            <option value="sherlock">Sherlock</option>
+            <option value="epieos">Epieos</option>
+            <option value="wayback">Wayback</option>
+        </select>
+        <button type="submit">Analyser</button>
+    </form>
+
+    <h2>📅 Timeline</h2>
+    <div class="timeline">
+        {% for ev in dossier.timeline %}
+        <div>
+            <small>{{ ev.at or '—' }}</small> —
+            {% if ev.type == 'scan' %}Scan <strong>{{ ev.module }}</strong> {{ ev.target }} ({{ ev.status }})
+            {% else %}Lien <em>{{ ev.link_type }}</em> {{ ev.proof or '' }}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+<script>
+async function launchRebound(module, target){
+    const r = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({module,target})});
+    const d = await r.json();
+    alert(d.scan_id ? 'Scan #'+d.scan_id+' lancé' : (d.error||'Erreur'));
+}
+</script>
+</body>
+</html>

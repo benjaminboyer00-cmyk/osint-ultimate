@@ -53,6 +53,7 @@
     <nav>
         <a href="{{ url_for('views.express') }}"><strong>Express</strong></a>
         <a href="{{ url_for('views.expert') }}">Espace Expert</a>
+        <a href="{{ url_for('views.privacy') }}">RGPD</a>
         {% if authenticated %}
         <a href="{{ url_for('history') }}">Historique</a>
         <a href="{{ url_for('views.settings') }}">Paramètres</a>
@@ -182,8 +183,20 @@ async function askAssistant(){
         body:JSON.stringify({card:lastCard,result:lastResult})});
     const d = await r.json();
     if(d.assistant){
-        box.textContent = d.assistant;
+        box.innerHTML = '';
+        const p = document.createElement('div');
+        p.textContent = d.assistant;
+        p.style.whiteSpace = 'pre-wrap';
+        box.appendChild(p);
         if(d.source === 'fallback') box.style.borderLeft = '3px solid var(--warn)';
+        (d.actions||[]).forEach(act => {
+            const btn = document.createElement('button');
+            btn.textContent = act;
+            btn.className = 'btn';
+            btn.style.cssText='display:block;margin:.4rem 0;cursor:pointer';
+            btn.onclick = () => { window.location = '{{ url_for("views.expert") }}'; };
+            box.appendChild(btn);
+        });
     } else {
         box.textContent = 'Erreur: '+(d.error||'?');
     }

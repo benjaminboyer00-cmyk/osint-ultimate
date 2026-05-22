@@ -739,7 +739,7 @@ def scan_github(username, options=None):
     username = username.strip()
     results = {}
     headers = {}
-    gh_token = os.environ.get('GITHUB_TOKEN')
+    gh_token = (options or {}).get('_github_key') or os.environ.get('GITHUB_TOKEN')
     if gh_token:
         headers['Authorization'] = f'token {gh_token}'
     try:
@@ -843,6 +843,8 @@ SCAN_FUNCTIONS = {
     'twitter': scan_twitter, 'tiktok': scan_tiktok, 'github': scan_github,
     'facebook': scan_facebook, 'linkedin': scan_linkedin, 'snapchat': scan_snapchat,
 }
+from scan_modules import EXTRA_SCAN_FUNCTIONS
+SCAN_FUNCTIONS.update(EXTRA_SCAN_FUNCTIONS)
 
 # ============================================================
 #  ASYNC WORKER
@@ -865,8 +867,20 @@ def worker():
                     from services.user_keys import get_key
                     u = db.session.get(User, scan.user_id)
                     opts = dict(opts)
-                    opts['_shodan_key'] = get_key(u, 'shodan', 'SHODAN_API_KEY', fernet)
-                    opts['_hibp_key'] = get_key(u, 'hibp', 'HIBP_API_KEY', fernet)
+                    for opt_k, ukey, env in [
+                        ('_shodan_key', 'shodan', 'SHODAN_API_KEY'),
+                        ('_hibp_key', 'hibp', 'HIBP_API_KEY'),
+                        ('_hunter_key', 'hunter', 'HUNTER_API_KEY'),
+                        ('_dehashed_key', 'dehashed', 'DEHASHED_API_KEY'),
+                        ('_dehashed_email', 'dehashed_email', 'DEHASHED_EMAIL'),
+                        ('_epieos_key', 'epieos', 'EPIEOS_API_KEY'),
+                        ('_github_key', 'github', 'GITHUB_TOKEN'),
+                    ]:
+                        opts[opt_k] = get_key(u, ukey, env, fernet) or os.environ.get(env, '')
+                    if u.proxy_list:
+                        opts['_proxy_list'] = u.proxy_list
+                    if u.stealth_mode:
+                        opts['_stealth_mode'] = True
                     kwargs['options'] = opts
                 result = func(*args, **kwargs)
                 scan.result_json = json.dumps(result, ensure_ascii=False, default=str)
@@ -880,6 +894,11 @@ def worker():
                     )
                 except Exception as corr_err:
                     app.logger.warning('Corrélation: %s', corr_err)
+                try:
+                    from services.webhooks import notify_scan_complete
+                    notify_scan_complete(scan, result, scan.user_id)
+                except Exception:
+                    pass
                 socketio.emit('scan_done', {'scan_id': scan_id, 'result': result})
             except Exception as e:
                 scan.result_json = json.dumps({'error': str(e)}, ensure_ascii=False)
@@ -963,9 +982,39 @@ def scan_result(scan_id):
 @app.route('/history')
 @login_required
 def history():
-    scans = Scan.query.filter_by(user_id=current_user.id)\
-                      .order_by(Scan.timestamp.desc()).all()
-    return render_template('history.html', scans=scans)
+    module_f = request.args.get('module', '')
+    q = Scan.query.filter_by(user_id=current_user.id)
+    if module_f:
+        q = q.filter_by(module=module_f)
+    scans = q.order_by(Scan.timestamp.desc()).limit(200).all()
+    return render_template('history.html', scans=scans, module_filter=module_f)
+
+
+@app.route('/export/<int:scan_id>/csv')
+@login_required
+def export_csv(scan_id):
+    import csv
+    scan = db.session.get(Scan, scan_id)
+    if not scan or scan.user_id != current_user.id:
+        abort(404)
+    data = json.loads(scan.result_json or '{}')
+    buf = BytesIO()
+    w = csv.writer(buf)
+    w.writerow(['section', 'key', 'value'])
+    for section, content in data.items():
+        if section.startswith('_'):
+            continue
+        if isinstance(content, dict):
+            for k, v in content.items():
+                w.writerow([section, k, str(v)[:500]])
+        elif isinstance(content, list):
+            for i, item in enumerate(content):
+                w.writerow([section, str(i), str(item)[:500]])
+        else:
+            w.writerow([section, '', str(content)[:500]])
+    buf.seek(0)
+    return send_file(buf, mimetype='text/csv', as_attachment=True,
+                     download_name=f'osint_{scan.module}_{scan_id}.csv')
 
 
 @app.route('/export/<int:scan_id>')
@@ -990,7 +1039,11 @@ def report_pdf(scan_id):
     try:
         from weasyprint import HTML as WeasyHTML
         data = json.loads(scan.result_json)
-        html_str = render_template('report.html', scan=scan, data=data, ai_summary=scan.ai_summary)
+        report_hash = hashlib.sha256(
+            json.dumps(data, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()[:32]
+        html_str = render_template('report.html', scan=scan, data=data,
+                                   ai_summary=scan.ai_summary, report_hash=report_hash)
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
         return send_file(BytesIO(pdf_bytes), mimetype='application/pdf',
                          as_attachment=True,
