@@ -290,7 +290,8 @@ document.getElementById('btn-narrative').onclick = async () => {
     out.style.display = 'none';
     const { ok, data: d } = await parseJsonResponse(await fetch(`/expert/dossier/${ENTITY_ID}/narrative`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
         body: JSON.stringify({
             style: document.getElementById('narr-style').value,
             length: document.getElementById('narr-length').value,

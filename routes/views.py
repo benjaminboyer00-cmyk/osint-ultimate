@@ -258,7 +258,17 @@ def dossier_launch_scan(entity_id):
 @login_required
 def dossier_narrative(entity_id):
     """Génère le rapport narratif IA (JSON) — ne renvoie jamais de page HTML 500."""
+    from services.dossier_access import get_dossier_context
+    from services.dossier_scans import link_scans_to_dossier
     from services.narrative_api import flask_narrative_response
+
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Dossier non accessible', 'entity_id': entity_id}), 403
+    try:
+        link_scans_to_dossier(entity_id, ctx['owner_user_id'])
+    except Exception as e:
+        current_app.logger.warning('link_scans narrative entity=%s: %s', entity_id, e)
 
     body = request.get_json(silent=True) or {}
     try:

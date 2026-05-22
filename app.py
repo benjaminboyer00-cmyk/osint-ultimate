@@ -651,9 +651,10 @@ def scan_pseudo(username, options=None):
     results = {}
 
     def check(name, url_tpl, not_found):
+        from services.social_fetch import social_http_get
         url = url_tpl.replace('{u}', username)
         try:
-            r = safe_get(url, timeout=10, allow_redirects=True)
+            r = social_http_get(url, options, timeout=12)
             if not r:
                 results[name] = 'Timeout'
                 return
@@ -676,49 +677,75 @@ def scan_pseudo(username, options=None):
 
 
 def scan_instagram(username, options=None):
-    username = username.strip().lstrip('@')
-    results = {}
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/20A362 Instagram/301.0.0.34.109',
-        'Accept': '*/*', 'Accept-Language': 'fr-FR,fr;q=0.9',
-        'X-IG-App-ID': '936619743392459',
-    }
-    try:
-        r = safe_get(f'https://www.instagram.com/api/v1/users/web_profile_info/?username={username}', headers=headers)
-        if r and r.status_code == 200:
-            user = r.json().get('data', {}).get('user', {})
-            if user:
-                results['Nom complet']  = user.get('full_name', '')
-                results['Bio']          = user.get('biography', '')
-                results['Followers']    = user.get('edge_followed_by', {}).get('count', 'N/A')
-                results['Following']    = user.get('edge_follow', {}).get('count', 'N/A')
-                results['Publications'] = user.get('edge_owner_to_timeline_media', {}).get('count', 'N/A')
-                results['Vérifié']      = '✓ Oui' if user.get('is_verified') else 'Non'
-                results['Privé']        = 'Oui' if user.get('is_private') else 'Non'
-                results['Entreprise']   = 'Oui' if user.get('is_business_account') else 'Non'
-                results['Site web']     = user.get('external_url', '')
-                results['Catégorie']    = user.get('category_name', '')
-                results['Avatar URL']   = user.get('profile_pic_url_hd', '')
-                return results
-    except Exception:
-        pass
+    from services.social_fetch import (
+        social_http_get,
+        parse_instagram_api_json,
+        parse_instagram_profile_html,
+    )
 
-    # Fallback HTML
+    username = username.strip().lstrip('@')
+    if not username:
+        return {'Erreur': 'Pseudo Instagram manquant'}
+    opts = options or {}
+    headers = {
+        'User-Agent': (
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+            'AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/312.0.0.0.0'
+        ),
+        'Accept': '*/*',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+        'X-IG-App-ID': '936619743392459',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': f'https://www.instagram.com/{username}/',
+    }
+    api_url = (
+        f'https://www.instagram.com/api/v1/users/web_profile_info/?username={username}'
+    )
     try:
-        r2 = safe_get(f'https://www.instagram.com/{username}/')
+        r = social_http_get(api_url, opts, headers=headers, timeout=18)
+        if r and r.status_code == 200:
+            try:
+                parsed = parse_instagram_api_json(r.json())
+                if parsed:
+                    return parsed
+            except (json.JSONDecodeError, ValueError):
+                pass
+        if r and r.status_code == 404:
+            return {'Résultat': 'Compte non trouvé'}
+    except Exception as e:
+        app.logger.debug('Instagram API %s: %s', username, e)
+
+    profile_url = f'https://www.instagram.com/{username}/'
+    try:
+        r2 = social_http_get(profile_url, opts, headers=headers, timeout=18)
         if r2:
             if r2.status_code == 404:
                 return {'Résultat': 'Compte non trouvé'}
-            for pattern, key in [(r'"edge_followed_by":\{"count":(\d+)\}', 'Followers'),
-                                  (r'"edge_follow":\{"count":(\d+)\}', 'Following'),
-                                  (r'"edge_owner_to_timeline_media":\{"count":(\d+)\}', 'Publications')]:
-                m = re.search(pattern, r2.text)
-                if m: results[key] = int(m.group(1))
-            results['Profil'] = f'https://www.instagram.com/{username}/'
-            results['Note']   = 'Données partielles – Instagram limite le scraping non-authentifié'
+            if r2.status_code == 200:
+                results = parse_instagram_profile_html(r2.text, username)
+                if results.get('Followers') or results.get('Nom complet') or results.get('Titre'):
+                    if 'Note' not in results:
+                        results['Note'] = (
+                            'Données partielles — Instagram limite le scraping non authentifié.'
+                        )
+                    return results
+                if 'login' in r2.url.lower() or 'connexion' in r2.text[:2000].lower():
+                    return {
+                        'Profil': profile_url,
+                        'Résultat': 'Profil existant (page login — données masquées)',
+                        'Note': (
+                            'Instagram exige une session. Activez le fallback scraping '
+                            '(Paramètres) ou consultez le profil manuellement.'
+                        ),
+                    }
     except Exception as e:
-        results['Erreur'] = str(e)
-    return results
+        return {'Erreur': str(e), 'Profil': profile_url}
+
+    return {
+        'Profil': profile_url,
+        'Résultat': 'Données indisponibles (rate-limit ou blocage Instagram)',
+        'Note': 'Réessayez avec proxy / mode furtif, ou ouvrez le profil dans un navigateur.',
+    }
 
 
 def scan_twitter(username, options=None):
@@ -752,10 +779,12 @@ def scan_twitter(username, options=None):
 
 
 def scan_tiktok(username, options=None):
+    from services.social_fetch import social_http_get
+
     username = username.strip().lstrip('@')
     results = {}
     try:
-        r = safe_get(f'https://www.tiktok.com/@{username}')
+        r = social_http_get(f'https://www.tiktok.com/@{username}', options)
         if r and r.status_code == 200:
             m = re.search(r'<script id="SIGI_STATE"[^>]*>(.*?)</script>', r.text, re.DOTALL)
             if m:
@@ -836,10 +865,12 @@ def scan_github(username, options=None):
 
 
 def scan_facebook(username, options=None):
+    from services.social_fetch import social_http_get
+
     username = username.strip()
     results = {'Profil': f'https://www.facebook.com/{username}'}
     try:
-        r = safe_get(f'https://www.facebook.com/{username}')
+        r = social_http_get(f'https://www.facebook.com/{username}', options)
         if r and r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
             for prop, key in [('og:title','Nom'), ('og:description','Description'), ('og:image','Image')]:
@@ -856,10 +887,12 @@ def scan_facebook(username, options=None):
 
 
 def scan_linkedin(username, options=None):
+    from services.social_fetch import social_http_get
+
     username = username.strip()
     results = {'Profil': f'https://www.linkedin.com/in/{username}/'}
     try:
-        r = safe_get(f'https://www.linkedin.com/in/{username}/')
+        r = social_http_get(f'https://www.linkedin.com/in/{username}/', options)
         if r:
             if r.status_code == 200:
                 soup = BeautifulSoup(r.text, 'html.parser')
@@ -878,10 +911,12 @@ def scan_linkedin(username, options=None):
 
 
 def scan_snapchat(username, options=None):
+    from services.social_fetch import social_http_get
+
     username = username.strip().lstrip('@')
     results = {}
     try:
-        r = safe_get(f'https://www.snapchat.com/add/{username}')
+        r = social_http_get(f'https://www.snapchat.com/add/{username}', options)
         if r and r.status_code == 200 and username.lower() in r.text.lower():
             soup = BeautifulSoup(r.text, 'html.parser')
             for prop, key in [('og:title','Nom'), ('og:description','Description'), ('og:image','Photo')]:
@@ -1352,12 +1387,28 @@ def manifest():
     return app.send_static_file('manifest.json')
 
 
+@login_manager.unauthorized_handler
+def _login_unauthorized():
+    """JSON pour les routes expert/API (évite page HTML opaque côté XHR)."""
+    path = request.path or ''
+    if path.startswith('/expert/') or path.startswith('/api/'):
+        return jsonify({'error': 'Connexion requise'}), 401
+    from flask import redirect, url_for
+    return redirect(url_for('login'))
+
+
 @app.errorhandler(500)
 def handle_500(err):
     """Évite la page HTML 500 sur les API dossier (toujours du JSON)."""
     path = request.path or ''
-    if '/narrative' in path or path.startswith('/api/v1') or path.startswith('/dossier/'):
+    if (
+        '/narrative' in path
+        or path.startswith('/api/v1')
+        or path.startswith('/dossier/')
+        or path.startswith('/expert/')
+    ):
         from services.narrative_report import FALLBACK_NARRATIVE_MD, markdown_to_html
+        app.logger.exception('HTTP 500 sur %s', path)
         return jsonify({
             'error': 'Erreur serveur interne',
             'detail': str(getattr(err, 'description', err)),

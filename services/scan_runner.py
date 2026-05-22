@@ -170,6 +170,21 @@ def _run_correlation(scan: Scan, result: dict, opts: dict):
     except Exception as e:
         logger.warning('Corrélation scan #%s: %s', scan.id, e)
     try:
+        if scan.user_id and not scan.root_entity_id:
+            from services.entity_resolve import find_entity_for_target
+            ent = find_entity_for_target(scan.user_id, scan.target, scan.module)
+            if ent:
+                scan.root_entity_id = ent.id
+        root_ent = opts.get('_root_entity_id') or scan.root_entity_id
+        if root_ent and scan.user_id:
+            from services.dossier_scans import link_scans_to_dossier
+            from services.dossier_access import correlation_user_id
+            owner = correlation_user_id(scan.user_id, int(root_ent))
+            if owner:
+                link_scans_to_dossier(int(root_ent), owner)
+    except Exception as e:
+        logger.warning('Lien dossier scan #%s: %s', scan.id, e)
+    try:
         from services.geo import enrich_geo_from_scan
         enrich_geo_from_scan(scan, result, scan.user_id)
         db.session.commit()

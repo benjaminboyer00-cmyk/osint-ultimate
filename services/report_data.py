@@ -1,11 +1,15 @@
 """Collecte structurée des données dossier pour le rapport narratif IA (Phase 3 V7)."""
 import json
+import logging
 from datetime import datetime
 
 from extensions import db
 from models import Entity, EntityLink, Scan
 from services.correlation import build_graph_json, build_entity_links_json
 from services.dossier import build_dossier
+from services.dossier_scans import link_scans_to_dossier
+
+logger = logging.getLogger(__name__)
 
 
 def _entity_row(ent: Entity) -> dict:
@@ -18,6 +22,33 @@ def _entity_row(ent: Entity) -> dict:
     }
 
 
+def _scan_matches_dossier(
+    s: Scan,
+    root_l: str,
+    entity_ids: set[int],
+    target_values: set[str],
+) -> bool:
+    t = (s.target or '').lower().strip()
+    t_at = t.lstrip('@')
+    if s.root_entity_id and int(s.root_entity_id) in entity_ids:
+        return True
+    if t == root_l or t_at == root_l.lstrip('@') or f'@{t_at}' == root_l:
+        return True
+    if t in target_values or t_at in target_values:
+        return True
+    body = (s.result_json or '').lower()
+    if root_l and root_l in body:
+        return True
+    for eid in entity_ids:
+        ent = db.session.get(Entity, eid)
+        if not ent:
+            continue
+        ev = (ent.value or '').lower()
+        if ev == t or ev in body or t in ev:
+            return True
+    return False
+
+
 def _collect_related_scans(
     owner_id: int,
     root_entity_id: int,
@@ -25,7 +56,10 @@ def _collect_related_scans(
     entity_ids: set[int],
 ) -> list[dict]:
     from sqlalchemy import or_
-    root_l = (root_value or '').lower()
+    from services.dossier_scans import _target_values_for_dossier
+
+    root_l = (root_value or '').lower().strip()
+    target_values = _target_values_for_dossier(root_entity_id, owner_id)
     out = []
     scans = (
         Scan.query.filter(
@@ -39,14 +73,7 @@ def _collect_related_scans(
     for s in scans:
         if s.status != 'completed':
             continue
-        hit = s.target.lower() == root_l or str(s.id) in (s.result_json or '')
-        if not hit:
-            for eid in entity_ids:
-                ent = db.session.get(Entity, eid)
-                if ent and ent.value.lower() in (s.target.lower(), (s.result_json or '').lower()):
-                    hit = True
-                    break
-        if not hit:
+        if not _scan_matches_dossier(s, root_l, entity_ids, target_values):
             continue
         sections = []
         try:
@@ -77,14 +104,34 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
     ctx = get_dossier_context(entity_id, user_id, min_role='reader')
     if not ctx:
         return None
-    dossier = build_dossier(entity_id, user_id)
+    try:
+        dossier = build_dossier(entity_id, user_id)
+    except Exception as e:
+        logger.error('build_dossier entity=%s: %s', entity_id, e)
+        dossier = None
     if not dossier:
-        return None
+        dossier = {
+            'entity': {
+                'id': ent.id,
+                'type': ent.entity_type,
+                'value': ent.value,
+            },
+            'title': f'Dossier — {ent.value}',
+            'scans_count': 0,
+            'links_count': 0,
+            'timeline': [],
+            'web_history': [],
+        }
 
     ent = ctx['entity']
     owner_id = ctx['owner_user_id']
     if not ent:
         return None
+
+    try:
+        link_scans_to_dossier(entity_id, owner_id)
+    except Exception as e:
+        logger.warning('link_scans dossier %s: %s', entity_id, e)
 
     try:
         graph = build_graph_json(entity_id, owner_id)
@@ -166,6 +213,10 @@ def pick_anchor_scan(entity_id: int, user_id: int) -> Scan | None:
         return None
     owner_id = ctx['owner_user_id']
     ent = ctx['entity']
+    try:
+        link_scans_to_dossier(entity_id, owner_id)
+    except Exception as e:
+        logger.warning('pick_anchor link_scans %s: %s', entity_id, e)
     if ent.source_scan_id:
         s = db.session.get(Scan, ent.source_scan_id)
         if s and s.status == 'completed':

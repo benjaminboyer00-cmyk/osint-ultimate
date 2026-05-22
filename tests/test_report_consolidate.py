@@ -49,7 +49,9 @@ def test_consolidate_dedup_whois():
     ctx = {'owner_user_id': 10, 'entity': MagicMock(id=1)}
     q = MagicMock()
     q.order_by.return_value.limit.return_value.all.return_value = [s1, s2]
-    with patch('services.dossier_access.get_dossier_context', return_value=ctx):
+    with patch('services.dossier_access.get_dossier_context', return_value=ctx), \
+         patch('services.dossier_scans._target_values_for_dossier', return_value={'example.com'}), \
+         patch('services.dossier_scans.link_scans_to_dossier', return_value=0):
         with patch('services.report_consolidate.Scan') as Scan:
             Scan.query.filter.return_value = q
             out = consolidate_scan_payloads(1, 10, 'example.com')

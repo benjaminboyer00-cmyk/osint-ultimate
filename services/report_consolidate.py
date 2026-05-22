@@ -127,6 +127,12 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
 
     ctx = get_dossier_context(entity_id, user_id, min_role='reader')
     owner_id = ctx['owner_user_id'] if ctx else user_id
+    if ctx:
+        try:
+            from services.dossier_scans import link_scans_to_dossier
+            link_scans_to_dossier(entity_id, owner_id)
+        except Exception:
+            pass
     scans = (
         Scan.query.filter(
             Scan.status == 'completed',
@@ -136,11 +142,22 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
         .limit(100)
         .all()
     )
-    root_l = (root_value or '').lower()
+    from services.dossier_scans import _target_values_for_dossier
+
+    root_l = (root_value or '').lower().strip()
+    target_values = _target_values_for_dossier(entity_id, owner_id) if ctx else set()
     related: list[tuple[Scan, dict]] = []
 
     for s in scans:
-        if root_l and s.target.lower() != root_l and root_l not in (s.result_json or '').lower():
+        t = (s.target or '').lower().strip()
+        body = (s.result_json or '').lower()
+        if s.root_entity_id == entity_id:
+            pass
+        elif t in target_values or t.lstrip('@') in target_values:
+            pass
+        elif root_l and (t == root_l or root_l in body):
+            pass
+        else:
             continue
         try:
             payload = json.loads(s.result_json or '{}')
