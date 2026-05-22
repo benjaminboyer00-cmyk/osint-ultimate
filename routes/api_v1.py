@@ -218,8 +218,22 @@ def api_export_pdf(scan_id):
         abort(404)
     raw_data = json.loads(scan.result_json or '{}')
     from services.report_export import generate_pdf_response
+    from services.narrative_report import narrative_pdf_context
+
+    nar_html = ''
+    nar_md = ''
+    try:
+        if scan.root_entity_id:
+            _, _, nar_html, nar_md = narrative_pdf_context(
+                scan.root_entity_id, request.api_user.id,
+            )
+    except Exception:
+        pass
+
     _, response, err = generate_pdf_response(
         scan, raw_data,
+        narrative_html=nar_html,
+        narrative_markdown=nar_md,
         investigator=request.api_user.username,
         classification=request.args.get('classification', 'CONFIDENTIEL'),
     )

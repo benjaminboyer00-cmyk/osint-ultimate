@@ -309,11 +309,16 @@ function mergeGraphUpdate(payload){
     });
     (payload.edges || []).forEach(e => {
         if (cy.getElementById(e.id).length) return;
+        const srcStr = String(e.source);
+        const tgtStr = String(e.target);
+        const hasSource = cy.getElementById(srcStr).length || toAdd.some(n => n.data?.id === srcStr);
+        const hasTarget = cy.getElementById(tgtStr).length || toAdd.some(n => n.data?.id === tgtStr);
+        if (!hasSource || !hasTarget) return;
         const conf = e.confidence != null ? e.confidence : 0.5;
         toAdd.push({
             group: 'edges',
             data: {
-                id: e.id, source: String(e.source), target: String(e.target),
+                id: e.id, source: srcStr, target: tgtStr,
                 label: e.label || '', width: e.width || 3, opacity: 0.5 + conf * 0.5,
             },
         });

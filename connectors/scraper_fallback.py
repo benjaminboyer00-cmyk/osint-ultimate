@@ -22,7 +22,8 @@ _scraper_cache = {}
 
 def _get_cloudscraper(options=None):
     """Session cloudscraper réutilisable (contournement anti-bot basique)."""
-    key = id(options)
+    # Clé stable (proxy) — évite une instance par id(dict) à chaque appel
+    key = str((options or {}).get('_proxy_list', 'default'))
     if key in _scraper_cache:
         return _scraper_cache[key]
     import cloudscraper

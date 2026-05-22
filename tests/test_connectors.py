@@ -47,6 +47,21 @@ def test_scraper_fallback_disabled_by_policy():
     assert scrape_fallback_allowed({}) is True
 
 
+def test_cloudscraper_cache_reuses_session_for_same_proxy():
+    """Évite une nouvelle instance cloudscraper par id(dict) à chaque appel."""
+    import connectors.scraper_fallback as sf
+    from unittest.mock import MagicMock, patch
+
+    sf._scraper_cache.clear()
+    mock_scraper = MagicMock()
+    with patch('cloudscraper.create_scraper', return_value=mock_scraper) as create:
+        a = sf._get_cloudscraper({'_proxy_list': 'http://proxy:8080'})
+        b = sf._get_cloudscraper({'_proxy_list': 'http://proxy:8080'})
+    assert a is b
+    assert create.call_count == 1
+    sf._scraper_cache.clear()
+
+
 def test_quota_error_detection():
     from services.quota_fallback import is_quota_error
     assert is_quota_error({'Erreur': 'HTTP 429 quota', '_quota': True})

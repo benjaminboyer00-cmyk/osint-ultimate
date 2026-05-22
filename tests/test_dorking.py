@@ -76,3 +76,23 @@ def test_deep_dorking_flag_in_options():
     """Le flag _deep_dorking doit être reconnu par le scanner."""
     opts = {'_deep_dorking': True}
     assert opts.get('_deep_dorking') is True
+
+
+def test_dorking_run_skips_search_when_scrape_disabled():
+    from unittest.mock import patch
+
+    conn = DorkingConnector('email', 'user@example.com')
+    calls = []
+
+    def track(*args, **kwargs):
+        calls.append(1)
+        return []
+
+    with patch.object(conn, 'search_dork', side_effect=track):
+        with patch.object(
+            DorkingConnector, 'get_cached_or_fetch',
+            side_effect=lambda key, fn, **kw: (fn(), 'live'),
+        ):
+            out = conn.run({'_scrape_fallback': False})
+    assert calls == []
+    assert out.get('Dorks exécutés', 0) >= 0

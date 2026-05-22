@@ -272,7 +272,7 @@ class DorkingConnector(BaseConnector):
 
             for d in dorks:
                 if opts.get('_scrape_fallback') is False:
-                    pass
+                    continue
                 hits = self.search_dork(d['query'], d.get('engine', 'duckduckgo'), opts)
                 dork_log.append({
                     'catégorie': d.get('category'),
