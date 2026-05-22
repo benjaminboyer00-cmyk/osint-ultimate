@@ -14,6 +14,17 @@ logger = logging.getLogger(__name__)
 VALID_ROLES = ('reader', 'editor', 'admin')
 
 
+def invite_share_path(collaboration_id: int) -> str:
+    """Chemin relatif — le collaborateur doit être connecté avec le bon compte."""
+    return f'/invitations#inv-{collaboration_id}'
+
+
+def invite_share_url(collaboration_id: int, external_base: str | None = None) -> str:
+    path = invite_share_path(collaboration_id)
+    base = (external_base or '').rstrip('/')
+    return f'{base}{path}' if base else path
+
+
 def log_activity(
     root_entity_id: int,
     user_id: int | None,
@@ -35,6 +46,8 @@ def invite_collaborator(
     inviter_id: int,
     email: str,
     role: str = 'reader',
+    *,
+    external_base: str | None = None,
 ) -> dict:
     from services.dossier_access import get_dossier_context as _get_ctx
 
@@ -93,13 +106,21 @@ def invite_collaborator(
         'collaboration_id': row.id,
     })
     db.session.commit()
+    share_url = invite_share_url(row.id, external_base)
     return {
         'id': row.id,
+        'collaboration_id': row.id,
         'user_id': invitee.id,
         'email': invitee.email,
         'username': invitee.username,
         'role': role,
         'status': 'pending',
+        'invite_path': invite_share_path(row.id),
+        'invite_url': share_url,
+        'share_hint': (
+            'Aucun email n\'est envoyé par l\'application. Copiez ce lien et transmettez-le '
+            f'à {invitee.email} — il doit se connecter avec ce compte, puis accepter l\'invitation.'
+        ),
     }
 
 

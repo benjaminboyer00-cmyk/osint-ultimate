@@ -27,6 +27,16 @@
     <p style="color:#5a6180">Aucune invitation en attente.</p>
     {% endif %}
 <script>
+(function highlightInviteFromHash() {
+    const m = location.hash.match(/^#inv-(\d+)$/);
+    if (!m) return;
+    const el = document.getElementById('inv-' + m[1]);
+    if (el) {
+        el.style.borderColor = '#00e5a0';
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+})();
+
 async function acceptInv(id) {
     const r = await fetch(`/invitations/${id}/accept`, { method: 'POST' });
     const d = await r.json();

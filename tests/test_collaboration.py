@@ -23,3 +23,9 @@ def test_invite_requires_admin():
             assert False, 'should raise'
         except ValueError as e:
             assert 'Droits' in str(e) or 'admin' in str(e).lower()
+
+
+def test_invite_share_url():
+    from services.collaboration import invite_share_url, invite_share_path
+    assert invite_share_path(12) == '/invitations#inv-12'
+    assert invite_share_url(12, 'https://app.example.com') == 'https://app.example.com/invitations#inv-12'

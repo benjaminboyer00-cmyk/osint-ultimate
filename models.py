@@ -215,6 +215,15 @@ class Recipe(db.Model):
     owner = db.relationship('User', backref=db.backref('recipes', lazy='dynamic'))
 
 
+# ---------------------------------------------------------------------------
+# Phase 8 V8 — Collaboration (tables PostgreSQL / Supabase)
+# Spec « dossier_collaborators » → dossier_collaborator
+# Spec « comments »           → entity_comment
+# Spec « activity_log »       → dossier_activity_log
+# Dossier = entité racine (Entity.id), pas de table dossier séparée
+# ---------------------------------------------------------------------------
+
+
 class DossierCollaborator(db.Model):
     """Partage d'un dossier (entité racine) entre utilisateurs."""
     __tablename__ = 'dossier_collaborator'
@@ -231,8 +240,13 @@ class DossierCollaborator(db.Model):
         db.UniqueConstraint('root_entity_id', 'user_id', name='uq_dossier_collab_entity_user'),
     )
 
+    root_entity = db.relationship('Entity', foreign_keys=[root_entity_id])
+    user = db.relationship('User', foreign_keys=[user_id])
+    inviter = db.relationship('User', foreign_keys=[invited_by_user_id])
+
 
 class EntityComment(db.Model):
+    """Commentaires sur une entité du graphe (table spec: comments)."""
     __tablename__ = 'entity_comment'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -241,8 +255,12 @@ class EntityComment(db.Model):
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    entity = db.relationship('Entity', foreign_keys=[entity_id])
+    author = db.relationship('User', foreign_keys=[user_id])
+
 
 class DossierActivityLog(db.Model):
+    """Journal d'audit par dossier (table spec: activity_log)."""
     __tablename__ = 'dossier_activity_log'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -252,8 +270,12 @@ class DossierActivityLog(db.Model):
     details_json = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
+    root_entity = db.relationship('Entity', foreign_keys=[root_entity_id])
+    actor = db.relationship('User', foreign_keys=[user_id])
+
 
 class CollaborationNotification(db.Model):
+    """Notifications internes (invitations collaboration, etc.)."""
     __tablename__ = 'collaboration_notification'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -263,3 +285,5 @@ class CollaborationNotification(db.Model):
     notification_type = db.Column(db.String(30), default='invite', nullable=False)
     read = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    recipient = db.relationship('User', foreign_keys=[user_id])

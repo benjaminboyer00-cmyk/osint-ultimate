@@ -54,7 +54,10 @@ def dossier_invite(entity_id):
     email = (data.get('email') or '').strip()
     role = (data.get('role') or 'reader').strip()
     try:
-        out = invite_collaborator(entity_id, current_user.id, email, role)
+        base = request.url_root.rstrip('/')
+        out = invite_collaborator(
+            entity_id, current_user.id, email, role, external_base=base,
+        )
         from app import socketio
         from services.collaboration import emit_dossier_event, log_activity
         emit_dossier_event(socketio, entity_id, 'invite_sent', out)

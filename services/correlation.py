@@ -24,26 +24,9 @@ def _entities_equivalent(a: Entity, b: Entity) -> bool:
     return False
 
 
-def _get_or_create_entity(etype: str, value: str, user_id, scan_id: int) -> Entity:
-    if etype == 'domain':
-        value = _normalize_domain_value(value)
-    elif etype != 'phone':
-        value = (value or '').strip().lower()
-    else:
-        value = (value or '').strip()
-    ent = Entity.query.filter_by(
-        user_id=user_id, entity_type=etype, value=value
-    ).first()
-    if not ent:
-        ent = Entity(
-            user_id=user_id,
-            entity_type=etype,
-            value=value,
-            source_scan_id=scan_id,
-        )
-        db.session.add(ent)
-        db.session.flush()
-    return ent
+def _get_or_create_entity(etype: str, value: str, user_id, scan_id: int, module: str | None = None) -> Entity:
+    from services.entity_resolve import get_or_create_entity
+    return get_or_create_entity(user_id, etype, value, scan_id, module=module)
 
 
 def _link(src: Entity, tgt: Entity, link_type: str, proof: str, scan_id: int, user_id, module: str = 'unknown'):
@@ -105,6 +88,7 @@ def process_scan_correlations(
         target,
         user_id,
         scan_id,
+        module=module,
     )
 
     if module == 'email' and '@' in target:

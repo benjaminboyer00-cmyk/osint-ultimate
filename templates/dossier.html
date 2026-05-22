@@ -43,8 +43,18 @@
                     <option value="admin">Admin</option>
                 </select>
             </label>
-            <button type="button" id="btn-invite-send">Envoyer l'invitation</button>
+            <p style="font-size:.8rem;color:#8a92b0;margin:.5rem 0 0">
+                Pas d'email automatique — après invitation, copiez le lien ci-dessous pour l'envoyer manuellement (messagerie, Slack, etc.).
+            </p>
+            <button type="button" id="btn-invite-send">Créer l'invitation</button>
             <button type="button" id="btn-share-close" style="background:#444;color:#fff;margin-left:.5rem">Fermer</button>
+            <div id="invite-link-box" style="display:none;margin-top:1rem">
+                <label style="font-size:.85rem">Lien à partager<br>
+                    <input type="text" id="invite-link" readonly style="width:100%;margin:.4rem 0;font-size:.8rem">
+                </label>
+                <button type="button" id="btn-copy-invite" style="background:#4d9fff;color:#fff">📋 Copier le lien</button>
+                <p id="invite-hint" style="font-size:.78rem;color:#5a6180;margin:.4rem 0 0"></p>
+            </div>
             <ul id="collab-list" style="margin-top:1rem;padding-left:1.2rem;font-size:.85rem"></ul>
         </div>
     </div>
@@ -178,8 +188,32 @@ document.getElementById('btn-invite-send')?.addEventListener('click', async () =
         body: JSON.stringify({ email, role }),
     });
     const d = await r.json();
-    alert(r.ok ? `Invitation envoyée à ${d.email || email}` : (d.error || 'Erreur'));
-    if (r.ok) loadCollabs();
+    if (!r.ok) {
+        alert(d.error || 'Erreur');
+        return;
+    }
+    const box = document.getElementById('invite-link-box');
+    const inp = document.getElementById('invite-link');
+    const hint = document.getElementById('invite-hint');
+    if (box && inp && d.invite_url) {
+        const full = d.invite_url.startsWith('http') ? d.invite_url : (window.location.origin + d.invite_url);
+        inp.value = full;
+        box.style.display = 'block';
+        if (hint) hint.textContent = d.share_hint || `Invitation pour ${d.email || email}`;
+    }
+    loadCollabs();
+});
+document.getElementById('btn-copy-invite')?.addEventListener('click', async () => {
+    const inp = document.getElementById('invite-link');
+    if (!inp?.value) return;
+    try {
+        await navigator.clipboard.writeText(inp.value);
+        alert('Lien copié dans le presse-papiers');
+    } catch {
+        inp.select();
+        document.execCommand('copy');
+        alert('Lien copié');
+    }
 });
 async function loadCollabs() {
     const r = await fetch(`/dossier/${ENTITY_ID}/collaborators`);

@@ -94,7 +94,7 @@
 | P3.1.1b | API `GET /api/v1/entity/<id>/links` | P0 | ✅ |
 | P3.1.2 | Vue graphe Cytoscape.js (Expert) | P1 | ✅ |
 | P3.1.3 | Clic nœud → relancer scan | P2 | 🔲 |
-| P3.2.1 | Dossier investigation (timeline) | P2 | 🔲 |
+| P3.2.1 | Dossier investigation (timeline) | P2 | ✅ |
 | P3.2.2 | Ajout manuel d’entités | P2 | 🔲 |
 | P3.2.3 | Filtres historique avancés | P3 | 🔲 |
 
@@ -113,6 +113,27 @@
 | P4.2.1 | Page `/settings` clés API utilisateur | P0 | ✅ |
 | P4.3.1 | Scans programmés (APScheduler) | P3 | ✅ |
 | P4.3.2 | Notifications email changements | P3 | 🔲 |
+
+---
+
+## Phase 8 — Collaboration dossiers (V8 — livré)
+
+> Dossier = **entité racine** (`Entity.id`). Migration : `011_v8_collaboration` (pas de tables `dossier_shares` / `comments` — noms réels ci-dessous).
+
+| ID | Tâche | Priorité | Statut |
+|----|-------|----------|--------|
+| P8.1.1 | Partage entre comptes enregistrés (`dossier_collaborator`) | P0 | ✅ |
+| P8.1.2 | Rôles reader / editor / admin (`dossier_access.py`) | P0 | ✅ |
+| P8.1.3 | Commentaires (`entity_comment`) + journal (`dossier_activity_log`) | P0 | ✅ |
+| P8.1.4 | Notifications in-app + page `/invitations` | P1 | ✅ |
+| P8.1.5 | Lien d'invitation copiable (sans email — partage manuel) | P1 | ✅ |
+| P8.1.6 | Scans collaborateur → `scan.root_entity_id` + corrélation propriétaire | P0 | ✅ |
+| P8.1.7 | Socket.IO room `dossier_<id>` | P1 | ✅ |
+| P8.1.8 | Déduplication entités via `entity_resolve.get_or_create_entity` | P1 | ✅ |
+| P8.2.1 | Invités sans compte (lien token public) | P3 | 🔲 |
+| P8.2.2 | Email SMTP invitations (Flask-Mail) | P3 | 🔲 |
+
+**Utilisation** : voir `docs/COLLABORATION_V8.md` — `flask db upgrade` en prod (révision `011`).
 
 ---
 

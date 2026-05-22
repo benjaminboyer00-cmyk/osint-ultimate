@@ -12,7 +12,7 @@ pinned: false
 
 Plateforme OSINT (Flask) déployée sur [Hugging Face Spaces](https://huggingface.co/spaces/benji4565/osint_ultimate_backend), base PostgreSQL [Supabase](https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz).
 
-Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
+Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** · Secrets : **`SECRETS.md`** · Collaboration V8 : **`docs/COLLABORATION_V8.md`**
 
 ## Fonctionnalités V5
 
@@ -77,7 +77,8 @@ Au lancement du conteneur, `entrypoint.sh` exécute :
 flask db upgrade
 ```
 
-Schéma V4 : tables `user` et `scan` (historique, résumés IA en cache).
+Schéma V4+ : tables `user` et `scan` (historique, résumés IA en cache).  
+**V8** : `dossier_collaborator`, `entity_comment`, `dossier_activity_log`, `collaboration_notification`, `scan.root_entity_id` (révision `011_v8_collaboration`).
 
 ### Commandes locales (optionnel)
 
@@ -104,6 +105,17 @@ Tests : depuis la racine du dépôt, `python -m pytest tests/ -q` (ou `pytest` s
 | `/health` | Santé app + connexion DB |
 | `/login` `/register` | Authentification |
 | `/history` | Historique (connecté) |
+| `/invitations` | Invitations collaboration (V8) |
+| `/dossier/<entity_id>` | Dossier partagé (activité, collaborateurs) |
+
+### Collaboration (V8)
+
+1. Ouvrir un dossier depuis le graphe ou `/expert/dossier/<entity_id>`.
+2. **Partager** (rôle admin) : saisir l'email d'un utilisateur **déjà inscrit**, créer l'invitation, **copier le lien** affiché.
+3. L'invité se connecte, ouvre le lien → `/invitations` → **Accepter**.
+4. Rôle **éditeur** : peut lancer des scans visibles dans le dossier du propriétaire.
+
+Détails : `docs/COLLABORATION_V8.md`.
 | `/ai-summary` | Résumé IA (Groq) |
 
 ## Déploiement
