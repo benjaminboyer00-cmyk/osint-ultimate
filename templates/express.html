@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche Express – OSINT Ultimate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#07080f; --panel:rgba(14,17,28,.92); --text:#c8cfe8; --dim:#5a6180;
+                --accent:#00e5a0; --accent2:#4d9fff; --err:#ff4757; --warn:#ffa502; --border:rgba(255,255,255,.08); }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+        .wrap{max-width:720px;margin:0 auto}
+        nav{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;font-size:.85rem}
+        nav a{color:var(--accent2);text-decoration:none}
+        h1{font-size:1.8rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--accent),var(--accent2));
+           -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .sub{color:var(--dim);margin-bottom:1.5rem;font-size:.95rem}
+        .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin-bottom:1.5rem}
+        .tile{padding:.9rem;border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;
+              background:rgba(255,255,255,.03);transition:.2s}
+        .tile:hover,.tile.active{border-color:var(--accent);background:rgba(0,229,160,.08)}
+        .tile span{font-size:1.5rem;display:block;margin-bottom:.3rem}
+        .search-box{display:flex;gap:.6rem;margin-bottom:1rem}
+        #target{flex:1;padding:1rem 1.2rem;border-radius:40px;border:1.5px solid var(--border);
+                background:rgba(255,255,255,.04);color:var(--text);font-size:1rem}
+        #target:focus{outline:none;border-color:var(--accent)}
+        #go{background:var(--accent);color:#000;border:none;padding:1rem 2rem;border-radius:40px;
+             font-weight:700;cursor:pointer}
+        #go:disabled{opacity:.4;cursor:not-allowed}
+        .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+              padding:1.5rem;display:none;margin-top:1rem}
+        .card.show{display:block}
+        .card h2{font-size:1.1rem;color:var(--accent);margin-bottom:1rem}
+        .hl{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.9rem}
+        .hl .k{color:var(--dim)}
+        .risk{color:var(--warn);margin:.4rem 0;font-size:.88rem}
+        .steps{color:var(--accent2);font-size:.88rem;margin-top:1rem}
+        .steps li{margin:.3rem 0}
+        .assistant{margin-top:1rem;padding:1rem;background:rgba(77,159,255,.08);
+                   border-radius:12px;font-size:.9rem;line-height:1.6;white-space:pre-wrap}
+        .actions{display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap}
+        .btn{padding:.45rem 1rem;border-radius:20px;border:1px solid var(--border);
+             background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;font-size:.82rem;text-decoration:none}
+        .btn-primary{border-color:var(--accent);color:var(--accent)}
+        .legal{font-size:.75rem;color:var(--dim);margin-top:2rem;line-height:1.5}
+        .prog{height:4px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;display:none}
+        .prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2);transition:.3s}
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <nav>
+        <a href="{{ url_for('views.express') }}"><strong>Express</strong></a>
+        <a href="{{ url_for('views.expert') }}">Espace Expert</a>
+        {% if authenticated %}
+        <a href="{{ url_for('history') }}">Historique</a>
+        <a href="{{ url_for('views.settings') }}">Paramètres</a>
+        <a href="{{ url_for('logout') }}">Déconnexion ({{ username }})</a>
+        {% else %}
+        <a href="{{ url_for('login') }}">Connexion</a>
+        {% endif %}
+    </nav>
+
+    <h1>Recherche Express</h1>
+    <p class="sub">Collez un numéro, email, pseudo ou site — nous détectons le type automatiquement.</p>
+
+    <div class="tiles" id="tiles">
+        <div class="tile" data-hint="ex: +33 6 12 34 56 78"><span>📞</span>Téléphone</div>
+        <div class="tile" data-hint="ex: contact@mail.com"><span>📧</span>Email</div>
+        <div class="tile" data-hint="ex: pseudonyme"><span>🔍</span>Pseudo</div>
+        <div class="tile" data-hint="ex: example.com"><span>🌐</span>Site</div>
+        <div class="tile" data-hint="ex: 8.8.8.8"><span>🖥️</span>IP</div>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="target" placeholder="Entrez votre cible ici…" autocomplete="off">
+        <button id="go" onclick="runExpress()">Analyser</button>
+    </div>
+    <div class="prog" id="prog"><div class="prog-bar" id="prog-bar"></div></div>
+
+    <div id="card" class="card"></div>
+
+    <p class="legal">⚖️ Cette recherche utilise uniquement des sources publiquement accessibles.
+    Usage responsable conforme au RGPD. Ne stockez pas de données sans base légale.</p>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io({ transports: ['websocket','polling'] });
+let activeScanId = null, lastResult = null, lastCard = null, detectedModule = 'pseudo';
+
+document.querySelectorAll('.tile').forEach(t => {
+    t.addEventListener('click', () => {
+        document.querySelectorAll('.tile').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById('target').placeholder = t.dataset.hint || '';
+    });
+});
+
+socket.on('scan_done', ({ scan_id, result }) => {
+    if (scan_id !== activeScanId) return;
+    finishProgress();
+    lastResult = result;
+    showCard(result);
+});
+
+socket.on('scan_error', ({ error }) => {
+    finishProgress();
+    document.getElementById('card').innerHTML = `<p style="color:var(--err)">❌ ${error}</p>`;
+    document.getElementById('card').classList.add('show');
+});
+
+async function runExpress(){
+    const target = document.getElementById('target').value.trim();
+    if(!target) return;
+    const go = document.getElementById('go');
+    go.disabled = true;
+    document.getElementById('card').classList.remove('show');
+    startProgress();
+
+    const det = await fetch('/express/detect',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({target})}).then(r=>r.json());
+    detectedModule = det.module || 'pseudo';
+
+    const resp = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({module:detectedModule,target,mode:'express'})});
+    const data = await resp.json();
+    if(data.scan_id){
+        activeScanId = data.scan_id;
+        pollScan(data.scan_id);
+    } else {
+        finishProgress();
+        document.getElementById('card').innerHTML = `<p style="color:var(--err)">${data.error||'Erreur'}</p>`;
+        document.getElementById('card').classList.add('show');
+    }
+    go.disabled = false;
+}
+
+function pollScan(id){
+    const iv = setInterval(async ()=>{
+        const r = await fetch(`/scan/${id}`);
+        const d = await r.json();
+        if(d.status && d.status !== 'completed') return;
+        clearInterval(iv);
+        if(activeScanId !== id) return;
+        finishProgress();
+        lastResult = d;
+        showCard(d);
+    }, 2000);
+    setTimeout(()=>clearInterval(iv), 120000);
+}
+
+async function showCard(result){
+    const card = await fetch('/express/card',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({module:detectedModule,target:document.getElementById('target').value.trim(),result})
+    }).then(r=>r.json());
+    lastCard = card;
+    let html = `<h2>${card.title||'Résultat'}</h2><p style="color:var(--dim);margin-bottom:1rem">${card.type} · ${card.target}</p>`;
+    (card.highlights||[]).forEach(h => html += `<div class="hl"><span class="k">${h.label}</span><span>${h.value}</span></div>`);
+    (card.risks||[]).forEach(r => html += `<div class="risk">⚠️ ${r}</div>`);
+    if(card.next_steps?.length){
+        html += '<ul class="steps">'+card.next_steps.map(s=>`<li>${s}</li>`).join('')+'</ul>';
+    }
+    html += `<div class="actions">
+        <button class="btn" onclick="askAssistant()">🧠 Comprendre ces résultats</button>`;
+    if(activeScanId && {{ 'true' if authenticated else 'false' }}){
+        html += `<a class="btn btn-primary" href="/report/${activeScanId}">📄 PDF</a>`;
+    }
+    html += `<a class="btn" href="/expert">Mode Expert</a></div>
+        <div class="assistant" id="assistant" style="display:none"></div>`;
+    const el = document.getElementById('card');
+    el.innerHTML = html;
+    el.classList.add('show');
+}
+
+async function askAssistant(){
+    const box = document.getElementById('assistant');
+    box.style.display = 'block';
+    box.textContent = '⏳ Analyse en cours…';
+    const r = await fetch('/express/assist',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({card:lastCard,result:lastResult})});
+    const d = await r.json();
+    box.textContent = d.assistant || ('Erreur: '+(d.error||'?'));
+}
+
+function startProgress(){
+    document.getElementById('prog').style.display = 'block';
+    document.getElementById('prog-bar').style.width = '30%';
+}
+function finishProgress(){
+    document.getElementById('prog-bar').style.width = '100%';
+    setTimeout(()=>{document.getElementById('prog').style.display='none';
+        document.getElementById('prog-bar').style.width='0';},600);
+}
+document.getElementById('target').addEventListener('keydown',e=>{if(e.key==='Enter')runExpress();});
+</script>
+</body>
+</html>

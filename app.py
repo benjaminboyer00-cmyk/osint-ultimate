@@ -81,7 +81,10 @@ def safe_get(url, timeout=15, **kwargs):
         return None
 
 # ---------- OPENROUTER IA ----------
-OPENROUTER_MODELS = [
+_forced_model = os.environ.get('OPENROUTER_MODEL', '').strip()
+OPENROUTER_MODELS = (
+    [_forced_model] if _forced_model else []
+) + [
     'openchat/openchat-7b:free',
     'google/gemma-2-9b-it:free',
     'meta-llama/llama-3.2-3b-instruct:free',
@@ -164,10 +167,11 @@ def register():
             return redirect(url_for('register'))
         user = User(username=username, email=email)
         user.set_password(password)
+        user.ensure_api_token()
         db.session.add(user)
         db.session.commit()
         login_user(user)
-        return redirect(url_for('index'))
+        return redirect(url_for('views.expert'))
     return render_template('auth.html', mode='register')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -180,7 +184,7 @@ def login():
             user.last_login = datetime.utcnow()
             db.session.commit()
             login_user(user, remember=True)
-            return redirect(url_for('index'))
+            return redirect(url_for('views.expert'))
         flash('Identifiants invalides. Sur Hugging Face, recréez un compte après chaque redéploiement si la base n\'est pas persistante.', 'error')
     return render_template('auth.html', mode='login')
 
@@ -188,7 +192,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('views.expert'))
 
 # ============================================================
 #  SCAN FUNCTIONS
@@ -430,7 +434,7 @@ def scan_email(email, options=None):
         results['Gravatar'] = 'Non trouvé'
 
     # HIBP (optionnel)
-    hibp_key = os.environ.get('HIBP_API_KEY', '')
+    hibp_key = (options or {}).get('_hibp_key') or os.environ.get('HIBP_API_KEY', '')
     if hibp_key:
         r = safe_get(f'https://haveibeenpwned.com/api/v3/breachedaccount/{email}',
                      headers={'hibp-api-key': hibp_key, 'User-Agent': 'OSINT-Ultimate'})
@@ -554,8 +558,8 @@ def scan_ip(ip, options=None):
                 pass
         results['Ports ouverts'] = open_ports or ['Aucun détecté']
 
-    # Shodan (si clé)
-    shodan_key = os.environ.get('SHODAN_API_KEY')
+    # Shodan (clé globale ou utilisateur via options)
+    shodan_key = (options or {}).get('_shodan_key') or os.environ.get('SHODAN_API_KEY')
     if shodan_key:
         sh = safe_get(f'https://api.shodan.io/shodan/host/{ip}?key={shodan_key}')
         if sh and sh.status_code == 200:
@@ -566,10 +570,37 @@ def scan_ip(ip, options=None):
                 'OS': d.get('os', 'N/A'),
                 'Ports': d.get('ports', []),
                 'Tags': d.get('tags', []),
+                'Organisation': d.get('org', 'N/A'),
+                'ISP': d.get('isp', 'N/A'),
                 'CVE (top 10)': list(d.get('vulns', {}).keys())[:10],
             }
+            banners = []
+            for item in (d.get('data') or [])[:8]:
+                banners.append({
+                    'Port': item.get('port'),
+                    'Service': item.get('product') or item.get('_shodan', {}).get('module', ''),
+                    'Bannière': (item.get('data') or '')[:200],
+                })
+            if banners:
+                results['Shodan']['Bannières'] = banners
+            if d.get('vulns'):
+                results['Shodan']['Vulnérabilités'] = [
+                    {'CVE': k, 'CVSS': v.get('cvss', 'N/A')}
+                    for k, v in list(d.get('vulns', {}).items())[:10]
+                    if isinstance(v, dict)
+                ]
+        elif sh and sh.status_code == 401:
+            results['Shodan'] = {'Erreur': 'Clé Shodan invalide'}
+        elif sh and sh.status_code == 429:
+            results['Shodan'] = {'Erreur': 'Quota Shodan dépassé'}
 
     return results
+
+
+def scan_sherlock(username, options=None):
+    """Recherche multi-plateformes (Sherlock CLI ou repli scan_pseudo)."""
+    from connectors.sherlock_scan import search
+    return search(username, fallback_fn=scan_pseudo)
 
 
 def scan_pseudo(username, options=None):
@@ -848,7 +879,8 @@ def scan_snapchat(username, options=None):
 # ──────────────────────────────────────────
 SCAN_FUNCTIONS = {
     'site': scan_site, 'email': scan_email, 'phone': scan_phone,
-    'ip': scan_ip, 'pseudo': scan_pseudo, 'instagram': scan_instagram,
+    'ip': scan_ip, 'pseudo': scan_pseudo, 'sherlock': scan_sherlock,
+    'instagram': scan_instagram,
     'twitter': scan_twitter, 'tiktok': scan_tiktok, 'github': scan_github,
     'facebook': scan_facebook, 'linkedin': scan_linkedin, 'snapchat': scan_snapchat,
 }
@@ -869,11 +901,26 @@ def worker():
             scan.status = 'running'
             db.session.commit()
             try:
+                opts = kwargs.get('options') or {}
+                if scan.user_id:
+                    from services.user_keys import get_key
+                    u = db.session.get(User, scan.user_id)
+                    opts = dict(opts)
+                    opts['_shodan_key'] = get_key(u, 'shodan', 'SHODAN_API_KEY', fernet)
+                    opts['_hibp_key'] = get_key(u, 'hibp', 'HIBP_API_KEY', fernet)
+                    kwargs['options'] = opts
                 result = func(*args, **kwargs)
                 scan.result_json = json.dumps(result, ensure_ascii=False, default=str)
                 scan.status = 'completed'
                 scan.completed_at = datetime.utcnow()
                 db.session.commit()
+                try:
+                    from services.correlation import process_scan_correlations
+                    process_scan_correlations(
+                        scan_id, scan.module, scan.target, result, scan.user_id
+                    )
+                except Exception as corr_err:
+                    app.logger.warning('Corrélation: %s', corr_err)
                 socketio.emit('scan_done', {'scan_id': scan_id, 'result': result})
             except Exception as e:
                 scan.result_json = json.dumps({'error': str(e)}, ensure_ascii=False)
@@ -885,8 +932,8 @@ def worker():
 threading.Thread(target=worker, daemon=True).start()
 
 
-def run_scan_async(module, target, options=None, user_id=None):
-    scan = Scan(module=module, target=target, user_id=user_id, status='pending')
+def run_scan_async(module, target, options=None, user_id=None, mode='expert'):
+    scan = Scan(module=module, target=target, user_id=user_id, status='pending', mode=mode)
     db.session.add(scan)
     db.session.commit()
     scan_id = scan.id
@@ -910,17 +957,9 @@ def health():
         pass
     return jsonify({
         'status': 'ok' if db_ok else 'degraded',
-        'version': app.config.get('APP_VERSION', '4.0'),
+        'version': app.config.get('APP_VERSION', '4.2'),
         'database': 'connected' if db_ok else 'error',
     }), 200 if db_ok else 503
-
-
-@app.route('/')
-def index():
-    return render_template('index.html',
-        authenticated=current_user.is_authenticated,
-        username=current_user.username if current_user.is_authenticated else None,
-        version=app.config.get('APP_VERSION', '4.0'))
 
 
 @app.route('/scan', methods=['POST'])
@@ -929,12 +968,13 @@ def scan_start():
     module = data.get('module', '')
     target = data.get('target', '').strip()
     options = data.get('options', [])
+    mode = data.get('mode', 'expert')
     if not target:
         return jsonify({'error': 'Cible manquante'}), 400
     if module not in SCAN_FUNCTIONS:
         return jsonify({'error': f'Module inconnu: {module}'}), 400
-    user_id = current_user.id if current_user.is_authenticated else None
-    scan_id = run_scan_async(module, target, options, user_id)
+    user_id = current_user.is_authenticated and current_user.id or None
+    scan_id = run_scan_async(module, target, options, user_id, mode=mode)
     if scan_id:
         return jsonify({'scan_id': scan_id, 'status': 'started'})
     return jsonify({'error': 'Échec du lancement'}), 500
@@ -988,7 +1028,7 @@ def report_pdf(scan_id):
     try:
         from weasyprint import HTML as WeasyHTML
         data = json.loads(scan.result_json)
-        html_str = render_template('report.html', scan=scan, data=data)
+        html_str = render_template('report.html', scan=scan, data=data, ai_summary=scan.ai_summary)
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
         return send_file(BytesIO(pdf_bytes), mimetype='application/pdf',
                          as_attachment=True,
@@ -1086,8 +1126,8 @@ def scan_view(scan_id):
     if not scan or scan.user_id != current_user.id:
         abort(404)
     if scan.status != 'completed':
-        return redirect(url_for('index'))
-    return redirect(url_for('index', scan_id=scan_id))
+        return redirect(url_for('views.expert'))
+    return redirect(url_for('views.expert', scan_id=scan_id))
 
 
 # ---------- SOCKETIO ----------
@@ -1107,6 +1147,12 @@ def service_worker():
 @app.route('/manifest.json')
 def manifest():
     return app.send_static_file('manifest.json')
+
+
+from routes.views import views_bp
+from routes.api_v1 import api_bp
+app.register_blueprint(views_bp)
+app.register_blueprint(api_bp, url_prefix='/api/v1')
 
 
 if __name__ == '__main__':

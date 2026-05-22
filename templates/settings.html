@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paramètres – OSINT Ultimate</title>
+    <style>
+        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:2rem;max-width:560px;margin:0 auto}
+        h1{color:#00e5a0;font-size:1.4rem}
+        label{display:block;margin:1rem 0 .3rem;font-size:.85rem;color:#5a6180}
+        input{width:100%;padding:.7rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+               background:rgba(255,255,255,.05);color:#c8cfe8}
+        button{margin-top:1rem;padding:.8rem 1.5rem;background:#00e5a0;color:#000;border:none;
+               border-radius:8px;font-weight:700;cursor:pointer}
+        .token{background:rgba(77,159,255,.1);padding:1rem;border-radius:8px;margin:1.5rem 0;
+               font-family:monospace;font-size:.8rem;word-break:break-all}
+        a{color:#4d9fff;margin-right:1rem}
+        .ok{color:#00e5a0;margin-bottom:1rem}
+    </style>
+</head>
+<body>
+    <p><a href="{{ url_for('views.expert') }}">← Expert</a> <a href="{{ url_for('views.express') }}">Express</a></p>
+    <h1>Paramètres — {{ username }}</h1>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}<p class="ok">{{ messages[0] }}</p>{% endif %}
+    {% endwith %}
+
+    <h2 style="font-size:1rem;margin-top:1.5rem;color:#4d9fff">Clé API REST</h2>
+    <p style="font-size:.85rem;color:#5a6180">Header : <code>X-API-Key</code> — Doc : <a href="/api/v1/docs">/api/v1/docs</a></p>
+    <div class="token">{{ api_token }}</div>
+
+    <h2 style="font-size:1rem;margin-top:1rem;color:#4d9fff">Vos clés API (chiffrées)</h2>
+    <form method="post">
+        <label>Shodan</label>
+        <input type="password" name="shodan" value="{{ user_keys.get('shodan','') }}" placeholder="Clé Shodan">
+        <label>HIBP (fuites email)</label>
+        <input type="password" name="hibp" value="{{ user_keys.get('hibp','') }}" placeholder="Clé HIBP">
+        <label>Hunter.io</label>
+        <input type="password" name="hunter" value="{{ user_keys.get('hunter','') }}" placeholder="Clé Hunter">
+        <label>Numverify</label>
+        <input type="password" name="numverify" value="{{ user_keys.get('numverify','') }}" placeholder="Clé Numverify">
+        <label>GitHub Token</label>
+        <input type="password" name="github" value="{{ user_keys.get('github','') }}" placeholder="ghp_…">
+        <button type="submit">Enregistrer</button>
+    </form>
+</body>
+</html>

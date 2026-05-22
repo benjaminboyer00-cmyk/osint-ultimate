@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Graphe de corrélation – OSINT Ultimate</title>
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <style>
+        body{margin:0;background:#07080f;color:#c8cfe8;font-family:Inter,sans-serif}
+        header{padding:1rem 1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+        header a{color:#4d9fff}
+        #cy{width:100%;height:calc(100vh - 70px);border-top:1px solid rgba(255,255,255,.08)}
+        select{padding:.5rem;background:#14171c;color:#c8cfe8;border:1px solid rgba(255,255,255,.1);border-radius:8px}
+    </style>
+</head>
+<body>
+<header>
+    <a href="{{ url_for('views.expert') }}">← Expert</a>
+    <strong>Graphe de relations</strong>
+    <select id="entity-select" onchange="loadGraph(this.value)">
+        <option value="">— Choisir une entité —</option>
+        {% for e in entities %}
+        <option value="{{ e.id }}" {% if entity_id == e.id %}selected{% endif %}>
+            {{ e.entity_type }}: {{ e.value[:50] }}
+        </option>
+        {% endfor %}
+    </select>
+</header>
+<div id="cy"></div>
+<script>
+const cy = cytoscape({
+    container: document.getElementById('cy'),
+    style: [
+        { selector: 'node', style: {
+            'background-color': '#00e5a0', 'label': 'data(label)', 'color': '#c8cfe8',
+            'font-size': '10px', 'text-wrap': 'wrap', 'text-max-width': '80px',
+            'width': 40, 'height': 40 }},
+        { selector: 'edge', style: {
+            'width': 2, 'line-color': '#4d9fff', 'target-arrow-color': '#4d9fff',
+            'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
+            'label': 'data(label)', 'font-size': '8px', 'color': '#8090b0' }},
+    ],
+    layout: { name: 'cose', animate: true },
+});
+
+async function loadGraph(entityId){
+    if(!entityId) return;
+    const r = await fetch(`/graph/data/${entityId}`);
+    if(!r.ok){ alert('Impossible de charger le graphe'); return; }
+    render(await r.json());
+}
+
+function render(data){
+    cy.elements().remove();
+    const nodes = (data.nodes||[]).map(n => ({ data: { id: n.id, label: n.label, type: n.type }}));
+    const edges = (data.edges||[]).map(e => ({ data: { id: e.id, source: e.source, target: e.target, label: e.label }}));
+    cy.add([...nodes, ...edges]);
+    cy.layout({ name: 'cose', animate: true }).run();
+}
+
+{% if entity_id %}
+loadGraph('{{ entity_id }}');
+{% endif %}
+</script>
+</body>
+</html>

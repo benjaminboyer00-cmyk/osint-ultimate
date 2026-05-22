@@ -299,11 +299,14 @@
 
     <!-- Header -->
     <div class="hdr">
-        <div class="logo">⚡ OSINT ULTIMATE V{{ version|default('4.0') }}</div>
+        <div class="logo">⚡ OSINT ULTIMATE V{{ version|default('4.2') }}</div>
         <div class="hdr-right">
+            <a href="{{ url_for('views.express') }}" class="auth-btn" style="border-color:#4d9fff;color:#4d9fff">Express</a>
             {% if authenticated %}
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
+                <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
+                <a href="{{ url_for('views.settings') }}" class="history-link">⚙️</a>
                 <a href="/logout" class="auth-btn">Déconnexion</a>
             {% else %}
                 <a href="/login" class="auth-btn">Connexion</a>
@@ -320,6 +323,7 @@
         <button class="mod" data-m="phone">📞 Téléphone</button>
         <button class="mod" data-m="ip">🌍 Adresse IP</button>
         <button class="mod" data-m="pseudo">🔍 Pseudo</button>
+        <button class="mod" data-m="sherlock">🕵️ Sherlock</button>
         <button class="mod" data-m="instagram">📸 Instagram</button>
         <button class="mod" data-m="twitter">🐦 Twitter/X</button>
         <button class="mod" data-m="tiktok">🎵 TikTok</button>
@@ -359,6 +363,7 @@
     <div class="export-bar" id="export-bar">
         <button class="icon-btn" onclick="copyResults()">📋 Copier</button>
         <button class="icon-btn" onclick="downloadJSON()">💾 JSON</button>
+        <button class="icon-btn" id="pdf-btn" onclick="downloadPDF()" style="display:none">📄 PDF</button>
         <button class="icon-btn" onclick="window.print()">🖨️ Imprimer</button>
     </div>
 
@@ -505,6 +510,8 @@ socket.on('scan_done', ({ scan_id, result }) => {
     renderResult(result);
     exportBar.style.display = 'flex';
     aiBox.style.display = 'block';
+    const pdfBtn = document.getElementById('pdf-btn');
+    if(pdfBtn && activeScanId) pdfBtn.style.display = 'inline-block';
     // Map
     const geo = result.Géolocalisation || result['Géolocalisation IP'] || {};
     if(geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
@@ -761,6 +768,10 @@ function copyResults(){
         const btn = event.target; btn.textContent='✓ Copié';
         setTimeout(()=>btn.textContent='📋 Copier',2000);
     });
+}
+function downloadPDF(){
+    if(!activeScanId) return;
+    window.open(`/report/${activeScanId}`, '_blank');
 }
 function downloadJSON(){
     if(!lastResult) return;

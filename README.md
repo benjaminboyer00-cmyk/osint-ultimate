@@ -8,9 +8,21 @@ app_port: 7860
 pinned: false
 ---
 
-# OSINT Ultimate V4
+# OSINT Ultimate V4.2
 
 Plateforme OSINT (Flask) déployée sur [Hugging Face Spaces](https://huggingface.co/spaces/benji4565/osint_ultimate_backend), base PostgreSQL [Supabase](https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz).
+
+## Parcours utilisateur
+
+| URL | Public cible |
+|-----|----------------|
+| `/express` | Recherche rapide, détection auto, carte synthèse, assistant IA |
+| `/expert` | Console multi-modules, exports, graphe |
+| `/graph` | Visualisation des corrélations (Cytoscape) |
+| `/settings` | Clés API personnelles + token REST |
+| `/api/v1/docs` | Documentation OpenAPI |
+
+Feuille de route complète : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
 
 ## Secrets Hugging Face (Settings → Repository secrets)
 

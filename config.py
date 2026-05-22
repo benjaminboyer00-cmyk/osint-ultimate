@@ -8,7 +8,7 @@ def normalize_database_url(url):
         return url
     if url.startswith('postgres://'):
         url = url.replace('postgres://', 'postgresql://', 1)
-    if url.startswith('postgresql://') and '+psycopg2' not in url:
+    if url.startswith('postgresql://') and '+psycopg2' not in url and '+psycopg' not in url:
         url = url.replace('postgresql://', 'postgresql+psycopg2://', 1)
     if 'supabase' in url and 'sslmode=' not in url:
         sep = '&' if '?' in url else '?'
@@ -35,5 +35,5 @@ def build_config():
         ).lower() == 'true',
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
-        'APP_VERSION': '4.0',
+        'APP_VERSION': '4.2',
     }

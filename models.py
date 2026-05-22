@@ -15,8 +15,16 @@ class User(UserMixin, db.Model):
     api_keys_enc  = db.Column(db.Text)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_login    = db.Column(db.DateTime)
+    api_token     = db.Column(db.String(64), unique=True, index=True)
 
     scans = db.relationship('Scan', backref='owner', lazy='dynamic')
+    entities = db.relationship('Entity', backref='owner', lazy='dynamic')
+
+    def ensure_api_token(self):
+        import secrets
+        if not self.api_token:
+            self.api_token = secrets.token_hex(32)
+        return self.api_token
 
     def set_password(self, pw):
         self.password_hash = generate_password_hash(pw)
@@ -50,3 +58,32 @@ class Scan(db.Model):
     timestamp    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     completed_at = db.Column(db.DateTime)
     status       = db.Column(db.String(20), default='pending', nullable=False, index=True)
+    mode         = db.Column(db.String(20), default='expert')  # express | expert
+
+
+class Entity(db.Model):
+    __tablename__ = 'entity'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    entity_type    = db.Column(db.String(30), nullable=False, index=True)
+    value          = db.Column(db.String(500), nullable=False, index=True)
+    source_scan_id = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'entity_type', 'value', name='uq_entity_user_type_value'),
+    )
+
+
+class EntityLink(db.Model):
+    __tablename__ = 'entity_link'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    source_id    = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False)
+    target_id    = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False)
+    link_type    = db.Column(db.String(50), nullable=False)
+    source_proof = db.Column(db.String(500))
+    scan_id      = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

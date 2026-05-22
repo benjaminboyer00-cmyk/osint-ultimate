@@ -8,21 +8,30 @@
         h1 { font-size: 18px; color: #006644; }
         h2 { font-size: 14px; margin-top: 1.2em; border-bottom: 1px solid #ccc; }
         .meta { color: #666; margin-bottom: 1.5em; }
-        pre { background: #f5f5f5; padding: 8px; white-space: pre-wrap; word-break: break-all; }
-        .kv { margin: 4px 0; }
-        .k { font-weight: bold; color: #444; }
+        .ai { background: #f0f7ff; padding: 12px; border-left: 4px solid #0066cc; margin: 1em 0; white-space: pre-wrap; }
+        pre { background: #f5f5f5; padding: 8px; white-space: pre-wrap; word-break: break-all; font-size: 10px; }
+        .footer { margin-top: 2em; font-size: 10px; color: #888; }
     </style>
 </head>
 <body>
-    <h1>Rapport OSINT Ultimate</h1>
+    <h1>Rapport OSINT Ultimate V4</h1>
     <p class="meta">
         Module : <strong>{{ scan.module }}</strong><br>
         Cible : <strong>{{ scan.target }}</strong><br>
-        Date : {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
+        Mode : {{ scan.mode or 'expert' }}<br>
+        Date : {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}<br>
+        {% if scan.completed_at %}Terminé : {{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}
     </p>
+    {% if ai_summary %}
+    <h2>Résumé IA</h2>
+    <div class="ai">{{ ai_summary }}</div>
+    {% endif %}
     {% for section, content in data.items() %}
+    {% if not section.startswith('_') %}
     <h2>{{ section }}</h2>
     <pre>{{ content | tojson(indent=2) }}</pre>
+    {% endif %}
     {% endfor %}
+    <p class="footer">Document généré par OSINT Ultimate — sources publiques uniquement. Usage conforme au RGPD.</p>
 </body>
 </html>

@@ -90,6 +90,9 @@
             <input type="password" name="password" placeholder="Mot de passe" required>
             <button type="submit">{{ 'S\'inscrire' if mode == 'register' else 'Se connecter' }}</button>
         </form>
+        <p style="text-align:center;margin-top:1rem;font-size:.85rem">
+            <a href="{{ url_for('views.express') }}" style="color:#4d9fff">← Recherche Express</a>
+        </p>
         <div class="link">
             {% if mode == 'login' %}
                 Pas de compte ? <a href="{{ url_for('register') }}">Inscrivez-vous</a>
