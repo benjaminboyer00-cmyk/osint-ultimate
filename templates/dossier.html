@@ -118,10 +118,21 @@
     {% endif %}
 
     <h2>📋 Journal d'activité</h2>
+    <p id="scan-status" style="display:none;font-size:.88rem;color:#4d9fff;margin:.5rem 0"></p>
     <div class="card" id="activity-log">
         {% for a in dossier.activity %}
-        <div style="font-size:.85rem;margin:.35rem 0">
-            <small>{{ a.timestamp or '' }}</small> — <strong>{{ a.username }}</strong> : {{ a.action }}
+        <div style="font-size:.85rem;margin:.35rem 0" data-action="{{ a.action }}">
+            <small>{{ (a.timestamp or '')[:16]|replace('T', ' ') }}</small> —
+            <strong>{{ a.username }}</strong>
+            {% if a.action == 'scan_started' %}
+            a lancé <em>{{ a.details.module if a.details else '?' }}</em> sur « {{ a.details.target if a.details else '' }} »
+            {% elif a.action == 'scan_completed' %}
+            : scan <em>{{ a.details.module if a.details else '?' }}</em> terminé (#{{ a.details.scan_id if a.details else '?' }})
+            {% elif a.action == 'comment_added' %}
+            : commentaire ajouté
+            {% else %}
+            : {{ a.action }}
+            {% endif %}
         </div>
         {% else %}
         <span style="color:#5a6180">Aucune activité enregistrée.</span>
@@ -156,18 +167,65 @@
 <script>
 const ENTITY_ID = {{ dossier.entity.id }};
 const CAN_EDIT = {{ 'true' if dossier.access and dossier.access.can_edit else 'false' }};
+const scanStatusEl = document.getElementById('scan-status');
+
+async function parseJsonResponse(r) {
+    const text = await r.text();
+    try {
+        return { ok: r.ok, data: JSON.parse(text) };
+    } catch {
+        const preview = (text || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 120);
+        return { ok: false, data: { error: preview || 'Réponse serveur invalide (non JSON)' } };
+    }
+}
+
+function formatActivityLine(a) {
+    const who = a.username || 'Système';
+    const t = a.timestamp ? a.timestamp.slice(0, 16).replace('T', ' ') : '';
+    const d = a.details || {};
+    if (a.action === 'scan_started') {
+        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> a lancé <em>${d.module || '?'}</em> sur « ${d.target || ''} » (#${d.scan_id || '?'})</div>`;
+    }
+    if (a.action === 'scan_completed') {
+        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> : scan <em>${d.module || '?'}</em> terminé (#${d.scan_id || '?'})</div>`;
+    }
+    if (a.action === 'comment_added') {
+        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> : commentaire</div>`;
+    }
+    return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> : ${a.action}</div>`;
+}
+
+async function refreshActivity() {
+    const el = document.getElementById('activity-log');
+    if (!el) return;
+    const { ok, data } = await parseJsonResponse(await fetch(`/dossier/${ENTITY_ID}/activity`));
+    if (!ok) return;
+    const rows = data.activity || [];
+    el.innerHTML = rows.length
+        ? rows.map(formatActivityLine).join('')
+        : '<span style="color:#5a6180">Aucune activité enregistrée.</span>';
+}
+
 const dossierSocket = io({ transports: ['websocket', 'polling'] });
 dossierSocket.emit('join_dossier', { root_entity_id: ENTITY_ID });
-dossierSocket.on('scan_completed', p => {
-    const el = document.getElementById('activity-log');
-    if (el) {
-        const d = document.createElement('div');
-        d.style.fontSize = '.85rem';
-        d.textContent = `Scan #${p.scan_id} ${p.module} — ${p.target}`;
-        el.prepend(d);
+
+dossierSocket.on('scan_started', p => {
+    if (scanStatusEl) {
+        scanStatusEl.style.display = 'block';
+        scanStatusEl.textContent = `⏳ ${p.username || 'Quelqu\'un'} lance ${p.module} sur ${p.target}…`;
     }
+    refreshActivity();
 });
-dossierSocket.on('comment_added', () => {});
+
+dossierSocket.on('scan_completed', p => {
+    if (scanStatusEl) {
+        scanStatusEl.style.display = 'block';
+        scanStatusEl.textContent = `✅ Scan #${p.scan_id} ${p.module} terminé (${p.username || ''})`;
+    }
+    refreshActivity();
+});
+
+dossierSocket.on('comment_added', () => refreshActivity());
 dossierSocket.on('invite_sent', () => loadCollabs());
 
 const shareModal = document.getElementById('share-modal');
@@ -230,26 +288,21 @@ document.getElementById('btn-narrative').onclick = async () => {
     const out = document.getElementById('narrative-out');
     status.textContent = '⏳ Génération en cours (Groq)…';
     out.style.display = 'none';
-    try {
-        const r = await fetch(`/expert/dossier/${ENTITY_ID}/narrative`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                style: document.getElementById('narr-style').value,
-                length: document.getElementById('narr-length').value,
-            }),
-        });
-        const d = await r.json();
-        if (!r.ok) {
-            status.textContent = '❌ ' + (d.error || 'Erreur');
-            return;
-        }
-        out.textContent = d.markdown || '';
-        out.style.display = 'block';
-        status.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
-    } catch (e) {
-        status.textContent = '❌ ' + e.message;
+    const { ok, data: d } = await parseJsonResponse(await fetch(`/expert/dossier/${ENTITY_ID}/narrative`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            style: document.getElementById('narr-style').value,
+            length: document.getElementById('narr-length').value,
+        }),
+    }));
+    if (!ok) {
+        status.textContent = '❌ ' + (d.error || 'Erreur');
+        return;
     }
+    out.textContent = d.markdown || '';
+    out.style.display = 'block';
+    status.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
 };
 
 document.getElementById('btn-narrative-pdf').onclick = () => {
@@ -258,12 +311,43 @@ document.getElementById('btn-narrative-pdf').onclick = () => {
     window.open(`/expert/dossier/${ENTITY_ID}/narrative/pdf?style=${style}&length=${length}`, '_blank');
 };
 
-async function launchRebound(module, target){
-    if (!CAN_EDIT) { alert('Droits insuffisants'); return; }
-    const r = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({module,target,root_entity_id:ENTITY_ID})});
-    const d = await r.json();
-    alert(d.scan_id ? 'Scan #'+d.scan_id+' lancé' : (d.error||'Erreur'));
+async function pollDossierScan(scanId, module, target) {
+    if (!scanStatusEl) return;
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = `⏳ Scan #${scanId} ${module} sur ${target}…`;
+    const t0 = Date.now();
+    const iv = setInterval(async () => {
+        if (Date.now() - t0 > 180000) {
+            clearInterval(iv);
+            scanStatusEl.textContent = '⚠️ Délai dépassé — vérifiez l\'historique';
+            return;
+        }
+        const { ok, data } = await parseJsonResponse(await fetch(`/scan/${scanId}`));
+        if (!ok) return;
+        const st = data.status || data._meta?.status;
+        if (st === 'completed') {
+            clearInterval(iv);
+            scanStatusEl.textContent = `✅ Scan #${scanId} terminé`;
+            refreshActivity();
+        } else if (st === 'failed' || data.error) {
+            clearInterval(iv);
+            scanStatusEl.textContent = '❌ ' + (data.error || 'Scan échoué');
+        }
+    }, 2000);
+}
+
+async function launchRebound(module, target) {
+    if (!CAN_EDIT) { alert('Droits insuffisants (rôle éditeur requis)'); return; }
+    const { ok, data: d } = await parseJsonResponse(await fetch(`/expert/dossier/${ENTITY_ID}/scan`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ module, target }),
+    }));
+    if (!ok || !d.scan_id) {
+        alert(d.error || 'Impossible de lancer le scan');
+        return;
+    }
+    await pollDossierScan(d.scan_id, module, target);
 }
 </script>
 </body>

@@ -122,6 +122,16 @@ const MODULE_FOR_TYPE = {
 
 let selectedNode = null;
 let graphData = null;
+
+async function parseJsonResponse(r) {
+    const text = await r.text();
+    try {
+        return { ok: r.ok, data: JSON.parse(text) };
+    } catch {
+        const preview = (text || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 120);
+        return { ok: false, data: { error: preview || 'Réponse non JSON' } };
+    }
+}
 let activeGraphScanId = null;
 let activePivotScanId = null;
 const graphSocket = io({ transports: ['websocket', 'polling'] });
@@ -129,7 +139,7 @@ let dossierRootId = null;
 graphSocket.on('connect', () => graphSocket.emit('join_graph', {}));
 graphSocket.on('comment_added', p => {
     if (selectedNode && String(p.entity_id) === String(selectedNode.id)) {
-        loadComments(selectedNode.id);
+        loadComments(parseInt(selectedNode.id, 10));
     }
 });
 graphSocket.on('scan_completed', p => {
@@ -330,6 +340,12 @@ function mergeGraphUpdate(payload){
     }
 }
 
+graphSocket.on('graph_error', p => {
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = '❌ ' + (p.message || 'Erreur pivot');
+    activePivotScanId = null;
+});
+
 graphSocket.on('graph_update', payload => {
     if (activePivotScanId && payload.scan_id !== activePivotScanId) return;
     mergeGraphUpdate(payload);
@@ -448,25 +464,32 @@ async function loadGraph(entityId){
 async function loadComments(entityId) {
     const ul = document.getElementById('comments-list');
     if (!ul || !entityId) return;
-    const r = await fetch(`/entity/${entityId}/comments`);
-    const d = await r.json();
-    if (!r.ok) { ul.innerHTML = '<li style="color:var(--dim)">—</li>'; return; }
+    const { ok, data: d } = await parseJsonResponse(await fetch(`/entity/${entityId}/comments`));
+    if (!ok) { ul.innerHTML = '<li style="color:var(--dim)">' + (d.error || '—') + '</li>'; return; }
     ul.innerHTML = (d.comments || []).map(c =>
         `<li style="margin:.25rem 0"><strong>${c.author}</strong> : ${c.content.slice(0,120)}<br><small style="color:var(--dim)">${c.created_at || ''}</small></li>`
     ).join('') || '<li style="color:var(--dim)">Aucun commentaire</li>';
 }
 
 document.getElementById('btn-comment')?.addEventListener('click', async () => {
-    if (!selectedNode) return;
-    const content = document.getElementById('comment-input').value;
-    const r = await fetch(`/entity/${selectedNode.id}/comments`, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+    if (!selectedNode?.id) {
+        alert('Sélectionnez un nœud sur le graphe avant de publier.');
+        return;
+    }
+    const content = (document.getElementById('comment-input').value || '').trim();
+    if (!content) {
+        alert('Écrivez un commentaire avant de publier.');
+        return;
+    }
+    const entityId = parseInt(selectedNode.id, 10);
+    const { ok, data: d } = await parseJsonResponse(await fetch(`/entity/${entityId}/comments`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ content }),
-    });
-    const d = await r.json();
-    if (!r.ok) { alert(d.error || 'Erreur'); return; }
+    }));
+    if (!ok) { alert(d.error || 'Erreur publication'); return; }
     document.getElementById('comment-input').value = '';
-    loadComments(selectedNode.id);
+    loadComments(entityId);
 });
 
 function applyGraphLayout(){

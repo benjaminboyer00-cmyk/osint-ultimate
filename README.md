@@ -129,6 +129,8 @@ Vérifier après build : `https://votre-space.hf.space/health` → `"database": 
 ## Stack V5
 
 - Flask 3 + SQLAlchemy + **Supabase PostgreSQL**
+- Compression **gzip** automatique (JSON graphe, API, HTML) via Flask-Compress
+- Rate limiting API (`/api/v1/search`, export PDF, pivot) — 10–30 req/min par clé
 - Flask-Migrate (Alembic), cache API (`api_cache`)
 - Flask-Login, Socket.IO, Groq IA, corrélation entités
 - Celery + Redis (optionnel, scaffold `tasks.py`)

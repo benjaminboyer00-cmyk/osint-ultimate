@@ -120,14 +120,23 @@ def entity_comments_get(entity_id):
 def entity_comments_post(entity_id):
     data = request.json or {}
     content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({'error': 'Commentaire vide'}), 400
     try:
         from app import socketio
         payload = add_entity_comment(entity_id, current_user.id, content)
         from services.collaboration import emit_dossier_event
         emit_dossier_event(socketio, payload['root_entity_id'], 'comment_added', payload)
+        try:
+            socketio.emit('comment_added', payload, room=str(current_user.id))
+        except Exception:
+            pass
         return jsonify(payload)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception('comment entity=%s', entity_id)
+        return jsonify({'error': str(e)}), 500
 
 
 @collab_bp.route('/collab/notifications/count')

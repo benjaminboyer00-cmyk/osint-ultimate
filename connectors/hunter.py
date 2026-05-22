@@ -9,6 +9,11 @@ def search_domain(domain: str, api_key: str, options=None) -> dict:
     if not api_key:
         return {'Erreur': 'Clé Hunter.io non configurée (HUNTER_API_KEY ou /settings)'}
 
+    from services.quota_precheck import hunter_quota_blocked
+    blocked = hunter_quota_blocked(api_key)
+    if blocked:
+        return {'Erreur': blocked, '_quota': True}
+
     cached = get_cached('hunter', domain)
     if cached:
         cached['_cached'] = True

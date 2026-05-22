@@ -43,6 +43,8 @@ L'invité doit posséder un compte avec **le même email** que celui saisi à l'
 | `POST /invitations/<id>/accept` | invité |
 | `GET/POST /entity/<id>/comments` | reader+ |
 | `GET /dossier/<id>/activity` | reader+ |
+| `POST /expert/dossier/<id>/scan` | editor — lance un scan (suggestions Hunter/Wayback/WHOIS) |
+| `POST /expert/dossier/<id>/narrative` | reader+ — rapport IA (JSON) |
 | Socket `join_dossier` | reader accepté |
 
 ## Déduplication entités

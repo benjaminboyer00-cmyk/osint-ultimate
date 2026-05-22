@@ -122,8 +122,16 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
     Fusionne les scans du dossier : une section par catégorie (dernier état connu),
     historique des scans en métadonnées, statut des modules optionnels.
     """
+    from sqlalchemy import or_
+    from services.dossier_access import get_dossier_context
+
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    owner_id = ctx['owner_user_id'] if ctx else user_id
     scans = (
-        Scan.query.filter_by(user_id=user_id, status='completed')
+        Scan.query.filter(
+            Scan.status == 'completed',
+            or_(Scan.user_id == owner_id, Scan.root_entity_id == entity_id),
+        )
         .order_by(Scan.timestamp.asc())
         .limit(100)
         .all()

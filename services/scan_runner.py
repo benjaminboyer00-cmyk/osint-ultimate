@@ -62,10 +62,13 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
             if root_ent and scan.user_id:
                 try:
                     from services.collaboration import log_activity, emit_dossier_event
+                    from models import User
+                    actor = db.session.get(User, scan.user_id) if scan.user_id else None
                     log_activity(int(root_ent), scan.user_id, 'scan_completed', {
                         'scan_id': scan.id,
                         'module': scan.module,
                         'target': scan.target,
+                        'username': actor.username if actor else 'Système',
                     })
                     db.session.commit()
                     emit_dossier_event(socketio, int(root_ent), 'scan_completed', {
@@ -73,6 +76,8 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                         'module': scan.module,
                         'target': scan.target,
                         'user_id': scan.user_id,
+                        'username': actor.username if actor else 'Système',
+                        'status': scan.status,
                     })
                 except Exception as e:
                     logger.warning('activity scan #%s: %s', scan.id, e)
@@ -108,6 +113,11 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                 scan.completed_at = datetime.utcnow()
                 db.session.commit()
                 _emit(socketio, 'scan_error', {'scan_id': scan_id, 'error': str(e)})
+                try:
+                    opts_err = _build_options(scan, fernet)
+                except Exception:
+                    opts_err = {}
+                _emit_graph_pivot_error(socketio, opts_err, scan_id, str(e))
 
 
 def _build_options(scan: Scan, fernet) -> dict:
@@ -182,6 +192,24 @@ def _emit(socketio, event: str, payload: dict):
             socketio.emit(event, payload)
         except Exception as e:
             logger.warning('Socket emit %s: %s', event, e)
+
+
+def _emit_graph_pivot_error(socketio, opts: dict | None, scan_id: int, message: str):
+    """Notifie l'UI graphe si un pivot multi-modules a échoué."""
+    opts = opts or {}
+    if not socketio or not opts.get('_graph_pivot'):
+        return
+    room = str(opts.get('_graph_pivot_notify') or '')
+    if not room:
+        return
+    try:
+        socketio.emit('graph_error', {
+            'scan_id': scan_id,
+            'message': message,
+            'root_entity_id': opts.get('_root_entity_id'),
+        }, room=room)
+    except Exception as e:
+        logger.warning('graph_error emit scan #%s: %s', scan_id, e)
 
 
 def dispatch_scan(scan_id: int, app, socketio=None, fernet=None):

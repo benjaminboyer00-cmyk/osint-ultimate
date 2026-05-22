@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, send_file, abort
 from io import BytesIO
 from datetime import datetime, timedelta
 
-from extensions import db
+from extensions import db, limiter
 from models import User, Scan, ScheduledScan, Investigation
 from services.target_detector import detect_target_type
 from services.api_auth import require_api_key
@@ -55,6 +55,7 @@ def openapi_docs():
 
 @api_bp.route('/investigate', methods=['POST'])
 @require_api_key
+@limiter.limit('10/minute')
 def api_investigate_start():
     from app import app, socketio, fernet
     from services.investigation_agent import start_investigation
@@ -107,6 +108,7 @@ def api_me():
 
 @api_bp.route('/search', methods=['POST'])
 @require_api_key
+@limiter.limit('30/minute')
 def api_search():
     from app import run_scan_async, SCAN_FUNCTIONS
     data = request.json or {}
@@ -190,6 +192,7 @@ def api_graph(entity_id):
 
 @api_bp.route('/graph/pivot', methods=['POST'])
 @require_api_key
+@limiter.limit('15/minute')
 def api_graph_pivot():
     """Pivot OSINT multi-modules depuis une entité du graphe."""
     from services.graph_pivot import launch_pivot
@@ -212,6 +215,7 @@ def api_graph_pivot():
 
 @api_bp.route('/export/<int:scan_id>/pdf')
 @require_api_key
+@limiter.limit('10/minute')
 def api_export_pdf(scan_id):
     scan = db.session.get(Scan, scan_id)
     if not scan or scan.user_id != request.api_user.id:

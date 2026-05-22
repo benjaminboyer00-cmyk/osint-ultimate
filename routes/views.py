@@ -217,11 +217,53 @@ def dossier(entity_id):
     return render_template('dossier.html', dossier=d, username=current_user.username)
 
 
+@views_bp.route('/expert/dossier/<int:entity_id>/scan', methods=['POST'])
+@login_required
+def dossier_launch_scan(entity_id):
+    """Lance un scan rattaché au dossier (suggestions, rebonds)."""
+    from app import run_scan_async, SCAN_FUNCTIONS
+    from services.dossier_access import get_dossier_context
+
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='editor')
+    if not ctx:
+        return jsonify({'error': 'Droits insuffisants (éditeur requis)'}), 403
+    data = request.json or {}
+    module = (data.get('module') or '').strip()
+    target = (data.get('target') or '').strip()
+    if not target:
+        return jsonify({'error': 'Cible manquante'}), 400
+    if not module:
+        module = detect_target_type(target)
+    if module not in SCAN_FUNCTIONS:
+        return jsonify({'error': f'Module inconnu: {module}'}), 400
+    opts = {
+        '_root_entity_id': entity_id,
+        '_app': current_app._get_current_object(),
+    }
+    if data.get('stealth'):
+        opts['_stealth_mode'] = True
+    scan_id = run_scan_async(module, target, opts, user_id=current_user.id, mode='expert')
+    if not scan_id:
+        return jsonify({'error': 'Échec du lancement'}), 500
+    return jsonify({
+        'scan_id': scan_id,
+        'status': 'started',
+        'module': module,
+        'target': target,
+        'poll_url': f'/scan/{scan_id}',
+    })
+
+
 @views_bp.route('/expert/dossier/<int:entity_id>/narrative', methods=['POST'])
 @login_required
 def dossier_narrative(entity_id):
     """Génère le rapport narratif IA (JSON)."""
     from services.narrative_report import build_narrative_for_entity
+    from services.dossier_access import get_dossier_context
+
+    if not get_dossier_context(entity_id, current_user.id, min_role='reader'):
+        return jsonify({'error': 'Dossier non accessible'}), 403
+
     body = request.json or {}
     style = body.get('style', 'executive')
     length = body.get('length', 'medium')
@@ -235,6 +277,7 @@ def dossier_narrative(entity_id):
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
     except Exception as e:
+        current_app.logger.exception('narrative entity=%s', entity_id)
         return jsonify({'error': str(e)}), 500
 
 

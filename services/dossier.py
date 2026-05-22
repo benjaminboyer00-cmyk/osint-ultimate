@@ -36,22 +36,23 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
         (Scan.user_id == owner_id) | (Scan.root_entity_id == entity_id),
     ).order_by(Scan.timestamp.desc()).limit(100)
 
+    from models import User as UserModel
     timeline = []
     for s in scans_q:
-        if (
-            s.root_entity_id == entity_id
-            or s.target.lower() == ent.value.lower()
-            or str(ent.value) in (s.result_json or '').lower()
-        ):
-            timeline.append({
-                'type': 'scan',
-                'id': s.id,
-                'module': s.module,
-                'target': s.target,
-                'status': s.status,
-                'at': s.timestamp.isoformat() if s.timestamp else None,
-                'by_user_id': s.user_id,
-            })
+        if s.root_entity_id != entity_id and s.user_id != owner_id:
+            if s.target.lower() != ent.value.lower() and str(ent.value) not in (s.result_json or '').lower():
+                continue
+        actor = db.session.get(UserModel, s.user_id) if s.user_id else None
+        timeline.append({
+            'type': 'scan',
+            'id': s.id,
+            'module': s.module,
+            'target': s.target,
+            'status': s.status,
+            'at': s.timestamp.isoformat() if s.timestamp else None,
+            'by_user_id': s.user_id,
+            'by_username': actor.username if actor else '',
+        })
     for link in links:
         timeline.append({
             'type': 'link',

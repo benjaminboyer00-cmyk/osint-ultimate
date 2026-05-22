@@ -18,11 +18,20 @@ def _entity_row(ent: Entity) -> dict:
     }
 
 
-def _collect_related_scans(user_id: int, root_value: str, entity_ids: set[int]) -> list[dict]:
+def _collect_related_scans(
+    owner_id: int,
+    root_entity_id: int,
+    root_value: str,
+    entity_ids: set[int],
+) -> list[dict]:
+    from sqlalchemy import or_
     root_l = (root_value or '').lower()
     out = []
     scans = (
-        Scan.query.filter_by(user_id=user_id)
+        Scan.query.filter(
+            Scan.status == 'completed',
+            or_(Scan.user_id == owner_id, Scan.root_entity_id == root_entity_id),
+        )
         .order_by(Scan.timestamp.desc())
         .limit(150)
         .all()
@@ -84,7 +93,7 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
     entities = []
     for nid in entity_ids:
         e = db.session.get(Entity, nid)
-        if e and e.user_id == user_id:
+        if e and e.user_id == owner_id:
             entities.append(_entity_row(e))
 
     links = []
@@ -104,7 +113,7 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
             'to': tgt_v,
         })
 
-    scans = _collect_related_scans(owner_id, ent.value, entity_ids)
+    scans = _collect_related_scans(owner_id, entity_id, ent.value, entity_ids)
 
     sources = []
     seen = set()
@@ -139,15 +148,24 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
 
 def pick_anchor_scan(entity_id: int, user_id: int) -> Scan | None:
     """Scan de référence pour signature PDF / traçabilité."""
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
-    if not ent:
+    from services.dossier_access import get_dossier_context
+    from sqlalchemy import or_
+
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    if not ctx:
         return None
+    owner_id = ctx['owner_user_id']
+    ent = ctx['entity']
     if ent.source_scan_id:
         s = db.session.get(Scan, ent.source_scan_id)
-        if s and s.user_id == user_id and s.status == 'completed':
-            return s
+        if s and s.status == 'completed':
+            if s.user_id == owner_id or s.root_entity_id == entity_id:
+                return s
     scans = (
-        Scan.query.filter_by(user_id=user_id, status='completed')
+        Scan.query.filter(
+            Scan.status == 'completed',
+            or_(Scan.user_id == owner_id, Scan.root_entity_id == entity_id),
+        )
         .order_by(Scan.completed_at.desc().nullslast(), Scan.timestamp.desc())
         .limit(80)
         .all()

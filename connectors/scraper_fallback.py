@@ -2,6 +2,8 @@
 Fallback scraping HTTP (DuckDuckGo HTML + cloudscraper) — sans Playwright.
 Utilisé quand Hunter / Dehashed renvoient 429 ou quota, ou pages Cloudflare.
 """
+import hashlib
+import json
 import logging
 import random
 import re
@@ -20,10 +22,20 @@ SCRAPE_TIMEOUT = 10
 _scraper_cache = {}
 
 
+def _scraper_cache_key(options=None) -> str:
+    """Hash stable des options pertinentes (sans clés API)."""
+    opts = options or {}
+    subset = {
+        '_proxy_list': opts.get('_proxy_list', 'default'),
+        '_stealth_mode': bool(opts.get('_stealth_mode')),
+    }
+    raw = json.dumps(subset, sort_keys=True, default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
 def _get_cloudscraper(options=None):
     """Session cloudscraper réutilisable (contournement anti-bot basique)."""
-    # Clé stable (proxy) — évite une instance par id(dict) à chaque appel
-    key = str((options or {}).get('_proxy_list', 'default'))
+    key = _scraper_cache_key(options)
     if key in _scraper_cache:
         return _scraper_cache[key]
     import cloudscraper

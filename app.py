@@ -31,7 +31,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import build_config
-from extensions import db, login_manager, migrate
+from extensions import db, login_manager, migrate, limiter
 from models import User, Scan
 
 app = Flask(__name__)
@@ -43,6 +43,10 @@ db.init_app(app)
 migrate.init_app(app, db)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+limiter.init_app(app)
+
+from flask_compress import Compress
+Compress(app)
 
 socketio = SocketIO(app, cors_allowed_origins='*')
 
@@ -926,6 +930,15 @@ def run_scan_async(module, target, options=None, user_id=None, mode='expert', sc
     db.session.commit()
     scan_id = scan.id
 
+    if root_ent and user_id:
+        try:
+            from services.dossier_notify import notify_dossier_scan_started
+            notify_dossier_scan_started(
+                socketio, int(root_ent), user_id, scan_id, module, target,
+            )
+        except Exception as e:
+            app.logger.warning('notify scan_started #%s: %s', scan_id, e)
+
     # Stocker options pour le worker (root_entity_id, stealth, etc.)
     if options:
         scan.result_json = json.dumps({'_pending_options': options}, ensure_ascii=False)
@@ -989,7 +1002,9 @@ def scan_start():
         options['_app'] = current_app._get_current_object()
     except Exception:
         pass
-    if options.get('_root_entity_id') and user_id:
+    if options.get('_root_entity_id'):
+        if not user_id:
+            return jsonify({'error': 'Connexion requise pour scanner ce dossier partagé'}), 401
         from services.dossier_access import get_dossier_context
         if not get_dossier_context(int(options['_root_entity_id']), user_id, min_role='editor'):
             return jsonify({'error': 'Droits insuffisants pour scanner ce dossier partagé'}), 403
@@ -1047,15 +1062,36 @@ def scan_result(scan_id):
         if not current_user.is_authenticated:
             return jsonify({'error': 'Connexion requise pour ce scan'}), 401
         if scan.user_id != current_user.id:
-            return jsonify({'error': 'Accès refusé'}), 403
+            allowed = False
+            if scan.root_entity_id:
+                from services.dossier_access import get_dossier_context
+                allowed = bool(get_dossier_context(
+                    int(scan.root_entity_id), current_user.id, min_role='reader',
+                ))
+            if not allowed:
+                return jsonify({'error': 'Accès refusé'}), 403
     elif scan.mode != 'express' and not current_user.is_authenticated:
         return jsonify({'error': 'Connexion requise'}), 401
     if scan.status == 'completed':
-        out = json.loads(scan.result_json)
+        try:
+            out = json.loads(scan.result_json or '{}')
+        except json.JSONDecodeError:
+            out = {'error': 'Résultat scan illisible'}
         if scan.ai_summary:
             out['_ai_summary'] = scan.ai_summary
+        out['_meta'] = {
+            'scan_id': scan.id,
+            'status': scan.status,
+            'module': scan.module,
+            'target': scan.target,
+        }
         return jsonify(out)
-    return jsonify({'status': scan.status})
+    return jsonify({
+        'status': scan.status,
+        'scan_id': scan.id,
+        'module': scan.module,
+        'target': scan.target,
+    })
 
 
 @app.route('/history')

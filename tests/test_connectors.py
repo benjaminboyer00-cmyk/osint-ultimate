@@ -62,6 +62,13 @@ def test_cloudscraper_cache_reuses_session_for_same_proxy():
     sf._scraper_cache.clear()
 
 
+def test_scraper_cache_key_stable_across_dict_instances():
+    import connectors.scraper_fallback as sf
+    k1 = sf._scraper_cache_key({'_proxy_list': 'p1'})
+    k2 = sf._scraper_cache_key({'_proxy_list': 'p1', '_extra': 'ignored'})
+    assert k1 == k2
+
+
 def test_quota_error_detection():
     from services.quota_fallback import is_quota_error
     assert is_quota_error({'Erreur': 'HTTP 429 quota', '_quota': True})

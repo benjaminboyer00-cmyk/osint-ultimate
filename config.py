@@ -36,4 +36,13 @@ def build_config():
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
         'APP_VERSION': '5.0',
+        # Compression gzip (JSON graphe, dossiers, API)
+        'COMPRESS_ALGORITHM': 'gzip',
+        'COMPRESS_MIN_SIZE': 512,
+        'COMPRESS_MIMETYPES': [
+            'application/json',
+            'text/html',
+            'text/css',
+            'application/javascript',
+        ],
     }

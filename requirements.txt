@@ -5,6 +5,8 @@ flask-socketio
 flask-login
 flask-sqlalchemy
 flask-migrate
+Flask-Compress>=1.14
+Flask-Limiter>=3.5.0
 psycopg2-binary
 requests
 python-whois
