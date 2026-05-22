@@ -49,6 +49,43 @@ USE_CELERY_BEAT=true ./scripts/run_celery_beat.sh
 - **Paramètres → OPSEC** : case « Fallback scraping » (`user.scrape_fallback_enabled`, migration 007).
 - Env : `SCRAPE_FALLBACK_ENABLED`, `CLOUDSCRAPER_ENABLED` (désactivation globale admin).
 
+## Phase 7 V7 — Surveillance & alertes enrichies
+
+- **`monitoring_alert`** + colonnes `alert_rules_json`, `last_snapshot_json` sur `scheduled_scan` (migration `010`).
+- **Règles** : menace, fuite, WHOIS, sous-domaine, nouvelle section, erreur scan.
+- **`services/monitor_snapshot.py`** : comparaison entre rescans.
+- **Webhooks** Discord/Slack enrichis · **Email** optionnel (`ALERT_EMAIL_ENABLED` + SMTP).
+- **Centre de notifications** : `GET /notifications`, cloche 🔔 dans l'Expert, Socket.IO `alert_notification`.
+- Page **`/monitoring`** : choix des règles + historique des alertes.
+
+## Phase 6 V7 — Timeline interactive (vis-timeline)
+
+- **`services/timeline.py`** : `build_timeline()` — scans, WHOIS, Wayback, fuites, entités, liens.
+- **`GET /timeline`** + **`GET /timeline/data/<entity_id>`** : frise vis-timeline par groupes.
+- **`GET /api/v1/entity/<id>/timeline`** : export JSON API.
+- **Socket.IO** : `join_timeline` + **`timeline_update`** après scan (racine `_root_entity_id`).
+- Clic événement → graphe (`highlight`) + lien dossier / scan.
+- Sources : dates Wayback, WHOIS, Dehashed, scans, création entités.
+
+## Phase 5 V7 — Géolocalisation (Leaflet)
+
+- **`services/geo.py`** : ip-api.com, cache 168h, persistance `entity.latitude/longitude`.
+- **`GET /map`** + **`GET /map/data/<entity_id>`** : carte Leaflet + MarkerCluster.
+- **`GET /api/v1/entity/<id>/map`** : marqueurs JSON pour l'API.
+- **Socket.IO** : `join_map` + événement **`map_update`** après scan (si `_root_entity_id`).
+- **Graphe** : lien carte, paramètre `?highlight=<entity_id>` depuis la carte.
+- Migration **`009_v7_entity_geo`**.
+
+## Phase 4 V7 — Livrable blindé
+
+- **`scan.report_pdf_hash`** + **`report_sealed_at`** (migration `008_v7_report_seal`).
+- **`services/report_seal.py`** : QR code, scellement PDF, vérification upload.
+- **Page de garde PDF** : empreintes SHA-256, QR vers `/verify/<scan_id>`.
+- **`GET/POST /verify/<scan_id>`** : upload PDF public → ✅ authentique / ❌ modifié.
+- **Traçabilité** : colonne **Statut** (succès, cache, fallback, timeout, erreur).
+- Export PDF **double passe** : empreinte fichier inscrite dans le document final.
+- Dépendance **`qrcode[pil]`**.
+
 ## Phase 3 V7 — Rapport narratif IA
 
 - **`services/report_data.py`** : `build_report_data(entity_id)` — entités, liens, scans, sources.

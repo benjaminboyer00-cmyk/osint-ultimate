@@ -1,16 +1,14 @@
 """Export PDF professionnel avec en-têtes d'intégrité."""
 import hashlib
-import json
 from io import BytesIO
 
 from flask import send_file, jsonify
 
 
 def generate_pdf_response(scan, raw_data: dict, **kwargs):
-    """kwargs: investigator, classification, graph_image, narrative_html, narrative_markdown, …"""
     """
     Génère le PDF et retourne une réponse Flask avec en-têtes X-Document-*.
-    kwargs: investigator, classification, graph_image, generated_at
+    kwargs: investigator, classification, graph_image, narrative_html, base_url, …
     """
     try:
         from weasyprint import HTML as WeasyHTML
@@ -19,12 +17,25 @@ def generate_pdf_response(scan, raw_data: dict, **kwargs):
         return None, None, jsonify({'error': 'WeasyPrint non disponible'}), 500
 
     try:
+        from services.report_seal import public_base_url
+        if not kwargs.get('base_url'):
+            kwargs['base_url'] = public_base_url()
+        html_str = render_report_html(scan, raw_data, **kwargs)
+        pdf_bytes = WeasyHTML(string=html_str).write_pdf()
+        pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+        from services.report_seal import seal_scan_report
+        from extensions import db
+        seal_scan_report(scan, pdf_hash)
+        db.session.commit()
+        # 2e passe : empreinte PDF visible sur la page de garde
         html_str = render_report_html(scan, raw_data, **kwargs)
         ctx = build_report_context(scan, raw_data, **kwargs)
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
+        pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+        seal_scan_report(scan, pdf_hash)
+        db.session.commit()
     except Exception as e:
         return None, None, jsonify({'error': str(e)}), 500
-    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
 
     response = send_file(
         BytesIO(pdf_bytes),
@@ -36,4 +47,5 @@ def generate_pdf_response(scan, raw_data: dict, **kwargs):
     response.headers['X-Content-Hash'] = ctx['content_hash']
     response.headers['X-Signature-Hash'] = ctx['signature_hash']
     response.headers['X-Scan-Id'] = str(scan.id)
+    response.headers['X-Verify-Url'] = ctx.get('verify_url', '')
     return pdf_hash, response, None

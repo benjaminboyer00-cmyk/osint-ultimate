@@ -38,12 +38,17 @@ def create_monitoring_job(
     frequency: str = 'daily',
     webhook_url: str | None = None,
     notify_on_change: bool = False,
+    alert_rules: list[str] | None = None,
 ) -> ScheduledScan:
     target = (target or '').strip()
     if not target:
         raise ValueError('Cible manquante')
     module = (module or '').strip() or detect_target_type(target)
     hours = frequency_to_hours(frequency)
+    from services.monitor_rules import serialize_rules, DEFAULT_RULES
+    rules_json = None
+    if notify_on_change:
+        rules_json = serialize_rules(alert_rules or DEFAULT_RULES)
     job = ScheduledScan(
         user_id=user_id,
         module=module,
@@ -53,6 +58,7 @@ def create_monitoring_job(
         next_run_at=datetime.utcnow(),
         webhook_url=webhook_url,
         notify_on_change=notify_on_change,
+        alert_rules_json=rules_json,
     )
     db.session.add(job)
     db.session.commit()

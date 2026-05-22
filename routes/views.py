@@ -168,6 +168,45 @@ def privacy():
     return render_template('privacy.html')
 
 
+@views_bp.route('/verify/<int:scan_id>', methods=['GET'])
+def verify_page(scan_id):
+    """Page publique de vérification PDF (livrable blindé)."""
+    from models import Scan
+    scan = db.session.get(Scan, scan_id)
+    sealed_at = None
+    has_seal = False
+    if scan and scan.report_sealed_at:
+        sealed_at = scan.report_sealed_at.strftime('%d/%m/%Y %H:%M UTC')
+        has_seal = bool(scan.report_pdf_hash)
+    return render_template(
+        'verify.html',
+        scan_id=scan_id,
+        sealed_at=sealed_at,
+        has_seal=has_seal,
+        scan_exists=scan is not None,
+    )
+
+
+@views_bp.route('/verify/<int:scan_id>', methods=['POST'])
+def verify_upload(scan_id):
+    """Compare l'empreinte SHA-256 du PDF uploadé."""
+    from models import Scan
+    from services.report_seal import verify_uploaded_pdf
+    scan = db.session.get(Scan, scan_id)
+    if not scan:
+        return jsonify({'error': 'Référence scan inconnue'}), 404
+    f = request.files.get('pdf') or request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': 'Fichier PDF requis'}), 400
+    data = f.read()
+    if len(data) > 25 * 1024 * 1024:
+        return jsonify({'error': 'Fichier trop volumineux (max 25 Mo)'}), 400
+    if not data.startswith(b'%PDF'):
+        return jsonify({'error': 'Le fichier ne semble pas être un PDF valide'}), 400
+    out = verify_uploaded_pdf(data, scan)
+    return jsonify(out)
+
+
 @views_bp.route('/expert/dossier/<int:entity_id>')
 @login_required
 def dossier(entity_id):
@@ -308,6 +347,68 @@ def graph_suggestions(entity_id):
     return jsonify(s)
 
 
+
+
+@views_bp.route('/timeline')
+@login_required
+def timeline_view():
+    from services.entity_resolve import find_entity_for_target
+    entity_id = request.args.get('entity_id', type=int)
+    target_q = (request.args.get('target') or '').strip()
+    if not entity_id and target_q:
+        ent = find_entity_for_target(current_user.id, target_q)
+        if ent:
+            entity_id = ent.id
+    entities = Entity.query.filter_by(user_id=current_user.id).order_by(Entity.created_at.desc()).limit(50).all()
+    return render_template(
+        'timeline.html',
+        entity_id=entity_id,
+        entities=entities,
+        username=current_user.username,
+    )
+
+
+@views_bp.route('/timeline/data/<int:entity_id>')
+@login_required
+def timeline_data(entity_id):
+    from services.timeline import build_timeline
+    data = build_timeline(entity_id, current_user.id)
+    if not data:
+        return jsonify({'error': 'Entité non trouvée'}), 404
+    return jsonify(data)
+
+
+@views_bp.route('/map')
+@login_required
+def map_view():
+    from services.entity_resolve import find_entity_for_target
+    entity_id = request.args.get('entity_id', type=int)
+    target_q = (request.args.get('target') or '').strip()
+    if not entity_id and target_q:
+        ent = find_entity_for_target(current_user.id, target_q)
+        if ent:
+            entity_id = ent.id
+    entities = Entity.query.filter_by(user_id=current_user.id).order_by(Entity.created_at.desc()).limit(50).all()
+    return render_template(
+        'map.html',
+        entity_id=entity_id,
+        entities=entities,
+        username=current_user.username,
+    )
+
+
+@views_bp.route('/map/data/<int:entity_id>')
+@login_required
+def map_data(entity_id):
+    from services.geo import build_map_markers
+    data = build_map_markers(entity_id, current_user.id)
+    if data.get('root_entity_id') is None:
+        return jsonify({'error': 'Entité non trouvée'}), 404
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify(data)
 
 
 @views_bp.route('/graph')
@@ -453,21 +554,29 @@ def monitoring_page():
         module = request.form.get('module') or None
         frequency = request.form.get('frequency', 'daily')
         notify = request.form.get('notify_on_change') == 'on'
+        from services.monitor_rules import rules_from_form
+        alert_rules = rules_from_form(request.form)
         try:
             if target:
                 create_monitoring_job(
                     current_user.id, target, module=module, frequency=frequency,
                     notify_on_change=notify,
+                    alert_rules=alert_rules if notify else None,
                 )
                 flash('Surveillance activée.', 'success')
         except ValueError as e:
             flash(str(e), 'error')
         return redirect(url_for('views.monitoring_page'))
 
+    from services.monitor_rules import RULE_LABELS, DEFAULT_RULES
+    from services.notifications import list_alerts
     return render_template(
         'monitoring.html',
         jobs=_jobs_for_user(current_user.id),
         username=current_user.username,
+        rule_labels=RULE_LABELS,
+        default_rules=DEFAULT_RULES,
+        recent_alerts=list_alerts(current_user.id, limit=30),
     )
 
 
@@ -483,9 +592,11 @@ def monitoring_quick():
     if not target:
         return jsonify({'error': 'Cible manquante'}), 400
     try:
+        from services.monitor_rules import parse_alert_rules
         job = create_monitoring_job(
             current_user.id, target, module=module or None, frequency=frequency,
             notify_on_change=bool(data.get('notify_on_change')),
+            alert_rules=parse_alert_rules(data.get('alert_rules')),
         )
         return jsonify({
             'ok': True,
@@ -505,6 +616,40 @@ def monitoring_toggle(job_id):
         job.enabled = not job.enabled
         db.session.commit()
     return redirect(url_for('views.monitoring_page'))
+
+
+@views_bp.route('/notifications')
+@login_required
+def notifications_list():
+    from services.notifications import list_alerts, unread_count
+    return jsonify({
+        'unread': unread_count(current_user.id),
+        'alerts': list_alerts(current_user.id, limit=80),
+    })
+
+
+@views_bp.route('/notifications/count')
+@login_required
+def notifications_count():
+    from services.notifications import unread_count
+    return jsonify({'unread': unread_count(current_user.id)})
+
+
+@views_bp.route('/notifications/<int:alert_id>/read', methods=['POST'])
+@login_required
+def notifications_mark_read(alert_id):
+    from services.notifications import mark_read, unread_count
+    if not mark_read(current_user.id, alert_id):
+        return jsonify({'error': 'Alerte non trouvée'}), 404
+    return jsonify({'ok': True, 'unread': unread_count(current_user.id)})
+
+
+@views_bp.route('/notifications/read-all', methods=['POST'])
+@login_required
+def notifications_mark_all_read():
+    from services.notifications import mark_all_read
+    n = mark_all_read(current_user.id)
+    return jsonify({'ok': True, 'marked': n, 'unread': 0})
 
 
 @views_bp.route('/monitoring/<int:job_id>/delete', methods=['POST'])

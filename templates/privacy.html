@@ -94,7 +94,9 @@
     <p>
         Chaque export PDF inclut des empreintes SHA-256 (en-têtes HTTP <code>X-Document-Hash</code>,
         <code>X-Content-Hash</code>). Vous pouvez vérifier un hash via
-        <code>GET /report/{id}/verify?hash=…</code> (session connectée).
+        <code>GET /report/{id}/verify?hash=…</code> (session connectée).<br>
+        <strong>Vérification PDF :</strong> <code>GET /verify/{id}</code> — uploadez le PDF reçu ;
+        l'empreinte SHA-256 est comparée à celle enregistrée lors de la génération officielle.
     </p>
 
     <h2>Rétention</h2>

@@ -6,25 +6,28 @@
     <title>Surveillance — OSINT Ultimate</title>
     <style>
         :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--border:rgba(255,255,255,.1)}
-        body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:900px;margin:0 auto}
+        body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:960px;margin:0 auto}
         h1{color:var(--accent);font-size:1.5rem}
+        h2{font-size:1rem;color:var(--accent2);margin:1.5rem 0 .75rem}
         a{color:var(--accent2);text-decoration:none;margin-right:1rem;font-size:.85rem}
         .intro{color:var(--dim);font-size:.9rem;line-height:1.5;margin:1rem 0 1.5rem}
         .box{background:rgba(255,255,255,.04);padding:1.25rem;border-radius:12px;border:1px solid var(--border);margin-bottom:1.5rem}
         label{display:block;font-size:.8rem;color:var(--dim);margin:.5rem 0 .25rem}
         input,select{width:100%;max-width:400px;padding:.65rem;border-radius:8px;border:1px solid var(--border);background:#14171c;color:var(--text)}
         button{padding:.6rem 1.2rem;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;margin-top:1rem}
+        .rules{display:grid;gap:.35rem;margin:.5rem 0 1rem;max-width:520px}
+        .rules label{display:flex;align-items:flex-start;gap:.5rem;font-size:.85rem;color:var(--text);cursor:pointer}
+        .rules input{width:auto;max-width:none;margin-top:.2rem}
         table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:1rem}
         th,td{padding:.65rem .5rem;border-bottom:1px solid var(--border);text-align:left}
         th{color:var(--dim);font-weight:600;font-size:.75rem;text-transform:uppercase}
         tr.off{opacity:.45}
         .badge{display:inline-block;padding:.2rem .5rem;border-radius:6px;font-size:.72rem;background:rgba(0,229,160,.15);color:var(--accent)}
         .badge.pause{background:rgba(255,71,87,.15);color:#ff6b7a}
-        .actions form{display:inline}
-        .actions button{font-size:.75rem;padding:.35rem .7rem;margin-right:.25rem}
-        .del{background:#ff4757!important;color:#fff!important}
+        .alert-item{padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.85rem}
+        .alert-item.unread{border-left:3px solid var(--accent);padding-left:.6rem}
+        .level-high{color:#ff6b7a}.level-warning{color:#ffa502}.level-info{color:var(--dim)}
         .ok{color:var(--accent);font-size:.85rem}
-        @media(max-width:600px){table{font-size:.75rem}input,select{max-width:100%}}
     </style>
 </head>
 <body>
@@ -35,14 +38,14 @@
     </p>
     <h1>📡 Surveillance continue</h1>
     <p class="intro">
-        Les cibles surveillées sont rescannées automatiquement (moteur APScheduler, toutes les 5 min).
-        Compatible avec la file Celery si <code>REDIS_URL</code> est configuré.
+        Rescans automatiques (APScheduler / Celery Beat). Activez les <strong>règles d'alerte</strong>
+        pour être notifié (webhook Discord/Slack, centre de notifications, email si SMTP configuré).
     </p>
     {% with messages = get_flashed_messages() %}
       {% if messages %}<p class="ok">{{ messages[0] }}</p>{% endif %}
     {% endwith %}
 
-    <form class="box" method="post">
+    <form class="box" method="post" id="mon-form">
         <label>Cible à surveiller</label>
         <input type="text" name="target" required placeholder="email, domaine, IP, pseudo…">
         <label>Module</label>
@@ -52,10 +55,10 @@
             <option value="phone">Téléphone</option>
             <option value="ip">IP</option>
             <option value="site">Site web</option>
+            <option value="multi">Multi-modules</option>
             <option value="sherlock">Sherlock</option>
-            <option value="hunter">Hunter</option>
             <option value="dehashed">Dehashed</option>
-            <option value="whois">WHOIS</option>
+            <option value="otx">OTX</option>
         </select>
         <label>Fréquence</label>
         <select name="frequency">
@@ -63,43 +66,47 @@
             <option value="weekly">Hebdomadaire (7 j)</option>
         </select>
         <label style="margin-top:.75rem">
-            <input type="checkbox" name="notify_on_change" style="width:auto;max-width:none">
-            Alertes intelligentes (webhook si changement menace / résultat)
+            <input type="checkbox" name="notify_on_change" id="notify-chk" style="width:auto;max-width:none">
+            Activer les alertes intelligentes
         </label>
+        <div class="rules" id="rules-box" style="display:none">
+            <strong style="font-size:.8rem;color:var(--dim)">Déclencher une alerte si :</strong>
+            {% for rule_id, label in rule_labels.items() %}
+            <label>
+                <input type="checkbox" name="alert_rules" value="{{ rule_id }}"
+                    {% if rule_id in default_rules %}checked{% endif %}>
+                {{ label }}
+            </label>
+            {% endfor %}
+        </div>
         <button type="submit">+ Ajouter une surveillance</button>
     </form>
 
     {% if jobs %}
+    <h2>Surveillances actives</h2>
     <table>
         <thead>
             <tr>
-                <th>Cible</th><th>Module</th><th>Fréquence</th><th>Prochain scan</th><th>Dernier</th><th>Statut</th><th></th>
+                <th>Cible</th><th>Module</th><th>Fréquence</th><th>Prochain</th><th>Alertes</th><th></th>
             </tr>
         </thead>
         <tbody>
         {% for j in jobs %}
         <tr class="{{ '' if j.enabled else 'off' }}">
-            <td>{{ j.target[:45] }}{% if j.target|length > 45 %}…{% endif %}</td>
+            <td>{{ j.target[:40] }}{% if j.target|length > 40 %}…{% endif %}</td>
             <td>{{ j.module }}</td>
             <td>{{ j.frequency_label }}</td>
-            <td>{{ j.next_run_at.strftime('%d/%m/%Y %H:%M') if j.next_run_at else '—' }}</td>
+            <td>{{ j.next_run_at.strftime('%d/%m %H:%M') if j.next_run_at else '—' }}</td>
+            <td>{{ '🔔' if j.notify_on_change else '—' }}</td>
             <td>
-                {% if j.last_scan_id %}
-                <a href="{{ url_for('views.expert') }}?scan_id={{ j.last_scan_id }}">#{{ j.last_scan_id }}</a>
-                {% else %}—{% endif %}
-            </td>
-            <td><span class="badge {{ 'pause' if not j.enabled else '' }}">{{ 'Actif' if j.enabled else 'Pause' }}</span></td>
-            <td class="actions">
                 {% if j.entity_id %}
-                <a href="{{ url_for('views.graph_view', entity_id=j.entity_id) }}" style="font-size:.75rem;margin-right:.35rem" title="Graphe avec historique">🕸️</a>
-                {% else %}
-                <a href="{{ url_for('views.graph_view', target=j.target) }}" style="font-size:.75rem;margin-right:.35rem;color:var(--dim)" title="Graphe (après 1er scan)">🕸️</a>
+                <a href="{{ url_for('views.graph_view', entity_id=j.entity_id) }}">🕸️</a>
                 {% endif %}
-                <form method="post" action="{{ url_for('views.monitoring_toggle', job_id=j.id) }}">
-                    <button type="submit">{{ 'Pause' if j.enabled else 'Reprendre' }}</button>
+                <form method="post" action="{{ url_for('views.monitoring_toggle', job_id=j.id) }}" style="display:inline">
+                    <button type="submit" style="font-size:.72rem;padding:.3rem .5rem">{{ 'Pause' if j.enabled else '▶' }}</button>
                 </form>
-                <form method="post" action="{{ url_for('views.monitoring_delete', job_id=j.id) }}" onsubmit="return confirm('Supprimer cette surveillance ?')">
-                    <button type="submit" class="del">Suppr.</button>
+                <form method="post" action="{{ url_for('views.monitoring_delete', job_id=j.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ?')">
+                    <button type="submit" style="font-size:.72rem;padding:.3rem .5rem;background:#ff4757;color:#fff">✕</button>
                 </form>
             </td>
         </tr>
@@ -107,11 +114,38 @@
         </tbody>
     </table>
     {% else %}
-    <p style="color:var(--dim)">Aucune surveillance active. Depuis l’Expert, cochez « Surveiller cette cible » après un scan.</p>
+    <p style="color:var(--dim)">Aucune surveillance — cochez « Surveiller » dans l'Expert après un scan.</p>
     {% endif %}
 
+    <h2>📬 Historique des alertes</h2>
+    <div class="box">
+        <button type="button" onclick="markAllRead()" style="margin-top:0;font-size:.8rem">Tout marquer lu</button>
+        <div id="alert-history" style="margin-top:1rem">
+            {% for a in recent_alerts %}
+            <div class="alert-item {{ 'unread' if not a.read else '' }}" data-id="{{ a.id }}">
+                <span class="level-{{ a.level }}">[{{ a.level }}]</span>
+                {{ a.message }}
+                <br><small style="color:var(--dim)">{{ a.created_at or '' }}
+                {% if a.scan_id %} · <a href="{{ url_for('views.expert') }}?scan_id={{ a.scan_id }}">scan #{{ a.scan_id }}</a>{% endif %}
+                </small>
+            </div>
+            {% else %}
+            <p style="color:var(--dim)">Aucune alerte pour l'instant.</p>
+            {% endfor %}
+        </div>
+    </div>
+
     <p style="margin-top:2rem;font-size:.8rem;color:var(--dim)">
-        API REST : <code>GET/POST /api/v1/scheduled</code> · Ancienne URL <code>/scheduled</code> redirige ici.
+        Email : <code>ALERT_EMAIL_ENABLED=true</code> + <code>SMTP_HOST</code> … · API <code>GET /notifications</code>
     </p>
+<script>
+document.getElementById('notify-chk').onchange = function(){
+    document.getElementById('rules-box').style.display = this.checked ? 'grid' : 'none';
+};
+async function markAllRead(){
+    await fetch('/notifications/read-all', {method:'POST'});
+    document.querySelectorAll('.alert-item.unread').forEach(el => el.classList.remove('unread'));
+}
+</script>
 </body>
 </html>

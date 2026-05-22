@@ -16,7 +16,9 @@
 </head>
 <body>
     <p><a href="{{ url_for('views.expert') }}">← Expert</a>
-       <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">🕸️ Graphe</a></p>
+       <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">🕸️ Graphe</a>
+       <a href="{{ url_for('views.map_view', entity_id=dossier.entity.id) }}">🗺️ Carte</a>
+       <a href="{{ url_for('views.timeline_view', entity_id=dossier.entity.id) }}">⏳ Timeline</a></p>
     <h1>📁 {{ dossier.title }}</h1>
     <div class="card">
         <strong>{{ dossier.entity.type }}</strong> : {{ dossier.entity.value }}<br>

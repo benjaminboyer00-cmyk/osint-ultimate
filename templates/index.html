@@ -392,7 +392,12 @@
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
                 <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
+                <a href="{{ url_for('views.map_view') }}" class="history-link">🗺️ Carte</a>
+                <a href="{{ url_for('views.timeline_view') }}" class="history-link">⏳ Timeline</a>
                 <a href="{{ url_for('views.monitoring_page') }}" class="history-link" title="Surveillance">📡</a>
+                <a href="{{ url_for('views.monitoring_page') }}#alert-history" class="history-link" id="notif-bell" title="Notifications" style="position:relative">
+                    🔔<span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-8px;background:#ff4757;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:8px;font-weight:700">0</span>
+                </a>
                 <a href="{{ url_for('views.investigate_page') }}" class="history-link" title="Enquête guidée IA">🧠 Enquête</a>
                 <a href="{{ url_for('views.recipes_page') }}" class="history-link" title="Recettes">📋</a>
                 <a href="{{ url_for('views.marketplace_page') }}" class="history-link" title="Connecteurs">🔌</a>
@@ -1142,6 +1147,31 @@ try {
     if(!localStorage.getItem('osint_expert_tutorial_done') && !(_autoTarget && _autoLaunch))
         setTimeout(openTutorial, 800);
 } catch(e){}
+
+// ── Notifications surveillance ─────────────────────────────
+{% if authenticated %}
+(async function loadNotifBadge(){
+    try {
+        const r = await fetch('/notifications/count');
+        const d = await r.json();
+        const b = document.getElementById('notif-badge');
+        if (b && d.unread > 0) { b.textContent = d.unread > 99 ? '99+' : d.unread; b.style.display = 'inline'; }
+    } catch(e) {}
+})();
+try {
+    const nSocket = io({ transports: ['websocket', 'polling'] });
+    nSocket.on('connect', () => { nSocket.emit('join_graph', {}); nSocket.emit('join_map', {}); });
+    nSocket.on('alert_notification', (p) => {
+        const b = document.getElementById('notif-badge');
+        if (b) {
+            const n = parseInt(b.textContent, 10) || 0;
+            b.textContent = n + 1;
+            b.style.display = 'inline';
+        }
+        if (p.message) console.info('[Alerte]', p.message);
+    });
+} catch(e) {}
+{% endif %}
 
 // ── PWA ────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

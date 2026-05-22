@@ -70,6 +70,8 @@
         <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">🎯 Mode Enquête</button>
         <button type="button" id="btn-show-all" onclick="showAllNodes()" style="display:none">Afficher tout</button>
         <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
+        <a href="#" id="map-link" style="display:none;font-size:.85rem">🗺️ Carte</a>
+        <a href="#" id="timeline-link" style="display:none;font-size:.85rem">⏳ Timeline</a>
     </div>
 </header>
 <div id="ctx-menu" role="menu">
@@ -185,6 +187,17 @@ cy.on('tap', 'node', evt => {
     document.getElementById('btn-dossier').style.display = 'block';
     document.getElementById('dossier-link').style.display = 'inline';
     document.getElementById('dossier-link').href = '/expert/dossier/' + n.id;
+    const root = graphData?.root_id || document.getElementById('entity-select').value;
+    const mapL = document.getElementById('map-link');
+    if (mapL) {
+        mapL.style.display = 'inline';
+        mapL.href = '/map?entity_id=' + (root || n.id);
+    }
+    const tlL = document.getElementById('timeline-link');
+    if (tlL) {
+        tlL.style.display = 'inline';
+        tlL.href = '/timeline?entity_id=' + (root || n.id);
+    }
     hideCtxMenu();
 });
 
@@ -363,12 +376,24 @@ document.getElementById('btn-dossier').onclick = () => {
     if (selectedNode) window.location = '/expert/dossier/' + selectedNode.id;
 };
 
+function highlightEntity(eid) {
+    if (!eid) return;
+    const node = cy.getElementById(String(eid));
+    if (node && node.nonempty()) {
+        cy.$('node:selected').unselect();
+        node.select();
+        cy.animate({ center: { eids: node }, zoom: Math.max(cy.zoom(), 1.2) }, { duration: 400 });
+    }
+}
+
 async function loadGraph(entityId){
     if (!entityId) return;
     const r = await fetch(`/graph/data/${entityId}`);
     if (!r.ok) { alert('Graphe indisponible'); return; }
     graphData = await r.json();
     render(graphData);
+    const hi = new URLSearchParams(location.search).get('highlight');
+    if (hi) setTimeout(() => highlightEntity(hi), 500);
 }
 
 function applyGraphLayout(){

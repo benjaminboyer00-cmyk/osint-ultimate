@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte OSINT – OSINT Ultimate</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <style>
+        :root { --bg:#07080f; --text:#c8cfe8; --dim:#5a6180; --accent:#00e5a0; --accent2:#4d9fff; --border:rgba(255,255,255,.1); }
+        *{box-sizing:border-box}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
+        header{padding:.75rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)}
+        header a{color:var(--accent2);text-decoration:none;font-size:.85rem}
+        .toolbar{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+        .toolbar select, .toolbar button{
+            padding:.45rem .85rem;background:#14171c;color:var(--text);
+            border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.8rem;
+        }
+        #map{flex:1;min-height:240px}
+        aside{
+            width:260px;max-width:38vw;border-left:1px solid var(--border);
+            padding:1rem;font-size:.82rem;overflow-y:auto;
+        }
+        .main{flex:1;display:flex;min-height:0}
+        .marker-popup{font-size:.85rem;line-height:1.4}
+        .marker-popup a{color:var(--accent2)}
+        #status{font-size:.78rem;color:var(--dim);margin-top:.5rem}
+        @media(max-width:768px){
+            .main{flex-direction:column}
+            aside{width:100%;max-width:none;border-left:none;border-top:1px solid var(--border)}
+        }
+    </style>
+</head>
+<body>
+<header>
+    <a href="{{ url_for('views.expert') }}">← Expert</a>
+    <strong>🗺️ Carte</strong>
+    <div class="toolbar">
+        <select id="entity-select" onchange="loadMap(this.value)">
+            <option value="">— Entité racine —</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}" {% if entity_id == e.id %}selected{% endif %}>
+                {{ e.entity_type }}: {{ e.value[:40] }}
+            </option>
+            {% endfor %}
+        </select>
+        <a id="graph-link" href="{{ url_for('views.graph_view', entity_id=entity_id) if entity_id else url_for('views.graph_view') }}" style="font-size:.85rem">🕸️ Graphe</a>
+        <a id="dossier-link" href="#" style="font-size:.85rem;display:none">📁 Dossier</a>
+        <a id="timeline-link" href="{{ url_for('views.timeline_view', entity_id=entity_id) if entity_id else url_for('views.timeline_view') }}" style="font-size:.85rem">⏳ Timeline</a>
+    </div>
+</header>
+<div class="main">
+    <div id="map"></div>
+    <aside>
+        <h3 style="color:var(--accent);font-size:.95rem;margin:0 0 .5rem 0">Géolocalisation</h3>
+        <p id="status">Sélectionnez une entité pour afficher les points géolocalisables (IP, etc.).</p>
+        <p style="font-size:.75rem;color:var(--dim)">
+            Clic sur un marqueur → détails · lien vers le graphe.
+            Les IP sont résolues via <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a>.
+        </p>
+        <ul id="marker-list" style="list-style:none;padding:0;margin:1rem 0 0 0"></ul>
+    </aside>
+</div>
+<script>
+const TYPE_COLORS = {
+    email:'#00e5a0', phone:'#4d9fff', username:'#ff6b9d',
+    domain:'#ffa502', platform:'#a29bfe', ip:'#ff4757', unknown:'#5a6180'
+};
+let map = null;
+let cluster = null;
+let rootEntityId = {{ entity_id or 'null' }};
+const markerByEntity = {};
+
+const mapSocket = io({ transports: ['websocket', 'polling'] });
+mapSocket.on('connect', () => mapSocket.emit('join_map', {}));
+
+function initMap(center) {
+    const c = center || { lat: 48.8566, lng: 2.3522 };
+    if (!map) {
+        map = L.map('map').setView([c.lat, c.lng], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        cluster = L.markerClusterGroup({ maxClusterRadius: 50 });
+        map.addLayer(cluster);
+    } else {
+        map.setView([c.lat, c.lng], map.getZoom());
+    }
+    setTimeout(() => map.invalidateSize(), 200);
+}
+
+function popupHtml(m) {
+    const graphUrl = `/graph?entity_id=${rootEntityId || m.entity_id}&highlight=${m.entity_id}`;
+    return `<div class="marker-popup">
+        <strong>${m.type}</strong><br><code>${m.value}</code><br>
+        <small>${m.label || ''}</small><br>
+        <a href="${graphUrl}">🕸️ Graphe</a> ·
+        <a href="/expert/dossier/${m.entity_id}">📁 Dossier</a>
+    </div>`;
+}
+
+function addMarker(m, fly) {
+    if (markerByEntity[m.entity_id]) return;
+    const color = TYPE_COLORS[m.type] || TYPE_COLORS.unknown;
+    const icon = L.divIcon({
+        className: '',
+        html: `<span style="background:${color};width:14px;height:14px;border-radius:50%;display:block;border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></span>`,
+        iconSize: [14, 14], iconAnchor: [7, 7],
+    });
+    const mk = L.marker([m.lat, m.lng], { icon });
+    mk.bindPopup(popupHtml(m));
+    mk.on('click', () => {
+        document.getElementById('status').textContent = `${m.type} : ${m.value}`;
+        window.open(`/graph?entity_id=${rootEntityId || m.entity_id}&highlight=${m.entity_id}`, '_blank');
+    });
+    cluster.addLayer(mk);
+    markerByEntity[m.entity_id] = mk;
+    if (fly) map.flyTo([m.lat, m.lng], 8, { duration: 0.6 });
+}
+
+function renderList(markers) {
+    const ul = document.getElementById('marker-list');
+    ul.innerHTML = markers.map(m =>
+        `<li style="margin:.35rem 0;cursor:pointer" data-eid="${m.entity_id}">
+            <span style="color:${TYPE_COLORS[m.type]||'#888'}">●</span> ${m.type} — ${m.value.slice(0,36)}
+        </li>`
+    ).join('');
+    ul.querySelectorAll('li').forEach(li => {
+        li.onclick = () => {
+            const m = markers.find(x => x.entity_id === parseInt(li.dataset.eid, 10));
+            if (m && markerByEntity[m.entity_id]) {
+                map.flyTo([m.lat, m.lng], 10);
+                markerByEntity[m.entity_id].openPopup();
+            }
+        };
+    });
+}
+
+async function loadMap(entityId) {
+    if (!entityId) return;
+    rootEntityId = parseInt(entityId, 10);
+    document.getElementById('graph-link').href = `/graph?entity_id=${rootEntityId}`;
+    document.getElementById('dossier-link').style.display = 'inline';
+    document.getElementById('dossier-link').href = `/expert/dossier/${rootEntityId}`;
+    document.getElementById('status').textContent = '⏳ Chargement…';
+    cluster.clearLayers();
+    Object.keys(markerByEntity).forEach(k => delete markerByEntity[k]);
+    try {
+        const r = await fetch(`/map/data/${rootEntityId}`);
+        const d = await r.json();
+        if (!r.ok) {
+            document.getElementById('status').textContent = '❌ ' + (d.error || 'Erreur');
+            return;
+        }
+        initMap(d.center);
+        (d.markers || []).forEach(m => addMarker(m, false));
+        if (d.markers && d.markers.length) {
+            const bounds = L.latLngBounds(d.markers.map(m => [m.lat, m.lng]));
+            map.fitBounds(bounds.pad(0.2));
+            document.getElementById('status').textContent =
+                `${d.count} point(s) — racine : ${d.root_value || ''}`;
+        } else {
+            document.getElementById('status').textContent =
+                'Aucun point géolocalisable — lancez des scans IP ou géoloc.';
+        }
+        renderList(d.markers || []);
+    } catch (e) {
+        document.getElementById('status').textContent = '❌ ' + e.message;
+    }
+}
+
+mapSocket.on('map_update', payload => {
+    if (rootEntityId && payload.root_entity_id && payload.root_entity_id !== rootEntityId) return;
+    if (payload.root_entity_id) rootEntityId = payload.root_entity_id;
+    (payload.markers || []).forEach(m => addMarker(m, true));
+    if (payload.count != null) {
+        document.getElementById('status').textContent =
+            `🔄 Mise à jour — ${payload.count} point(s) sur la carte`;
+    }
+});
+
+{% if entity_id %}
+loadMap('{{ entity_id }}');
+{% endif %}
+</script>
+</body>
+</html>

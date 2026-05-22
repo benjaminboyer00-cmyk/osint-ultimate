@@ -132,6 +132,24 @@
         .narrative table { width: 100%; border-collapse: collapse; font-size: 8.5px; margin: .8em 0; }
         .narrative th, .narrative td { border: 1px solid #ddd; padding: 4px 6px; }
         .narrative th { background: #f0f7f4; }
+        .seal-box {
+            margin: 1.5em auto 0;
+            max-width: 420px;
+            text-align: left;
+            border: 2px solid #006644;
+            padding: 14px 16px;
+            background: #f8fffc;
+            page-break-inside: avoid;
+        }
+        .seal-box img.qr {
+            float: right;
+            width: 88px;
+            height: 88px;
+            margin: 0 0 8px 12px;
+        }
+        .stat-ok { color: #006644; font-weight: bold; }
+        .stat-warn { color: #a60; font-weight: bold; }
+        .stat-err { color: #b00; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -150,6 +168,26 @@
         <p class="meta-line"><strong>Enquêteur :</strong> {{ investigator }}</p>
         <p class="meta-line"><strong>Date du rapport :</strong> {{ generated_at }}</p>
         <p class="meta-line"><strong>Référence :</strong> OSINT-RPT-{{ scan.id }}</p>
+
+        <div class="seal-box">
+            <img class="qr" src="{{ qr_data_uri }}" alt="QR vérification">
+            <p style="font-size:11px;color:#006644;font-weight:bold;margin:0 0 .5em 0">
+                🔐 Empreinte numérique &amp; vérification
+            </p>
+            <p style="font-size:8.5px;margin:.3em 0"><strong>Contenu (SHA-256)</strong></p>
+            <p class="hash">{{ content_hash }}</p>
+            {% if stored_pdf_hash %}
+            <p style="font-size:8.5px;margin:.5em 0 0 0"><strong>Fichier PDF enregistré (SHA-256)</strong></p>
+            <p class="hash">{{ stored_pdf_hash }}</p>
+            {% else %}
+            <p style="font-size:8px;color:#666;margin-top:.5em">
+                L'empreinte PDF sera enregistrée à la génération de ce document.
+            </p>
+            {% endif %}
+            <p style="font-size:8px;color:#555;margin-top:.6em;clear:both">
+                Vérification en ligne : <span style="word-break:break-all">{{ verify_url }}</span>
+            </p>
+        </div>
     </div>
 
     <h2>Résumé exécutif</h2>
@@ -185,6 +223,7 @@
                 <th>Horodatage (UTC)</th>
                 <th>Source</th>
                 <th>Type</th>
+                <th>Statut</th>
                 <th>Détail</th>
             </tr>
         </thead>
@@ -194,6 +233,13 @@
                 <td>{{ row.horodatage }}</td>
                 <td>{{ row.source }}</td>
                 <td>{{ row.type }}</td>
+                <td>
+                    {% if row.statut == 'succès' %}<span class="stat-ok">succès</span>
+                    {% elif row.statut == 'cache' %}<span class="stat-warn">cache</span>
+                    {% elif row.statut == 'fallback' %}<span class="stat-warn">fallback</span>
+                    {% elif row.statut in ('timeout', 'erreur') %}<span class="stat-err">{{ row.statut }}</span>
+                    {% else %}{{ row.statut or '—' }}{% endif %}
+                </td>
                 <td>{{ row.detail }}</td>
             </tr>
             {% endfor %}
@@ -233,6 +279,11 @@
         <p><strong>Signature du document (SHA-256)</strong></p>
         <p class="hash">{{ signature_hash }}</p>
         <p><strong>Référence rapport</strong> OSINT-RPT-{{ scan.id }} · {{ report_hash }}</p>
+        {% if stored_pdf_hash %}
+        <p><strong>Empreinte PDF scellée (SHA-256)</strong></p>
+        <p class="hash">{{ stored_pdf_hash }}</p>
+        <p style="font-size:8.5px">Vérifiez ce fichier sur : {{ verify_url }}</p>
+        {% endif %}
     </div>
 
     <div class="legal">
@@ -248,8 +299,9 @@
             de la plateforme via la page <em>Politique de confidentialité</em> (/privacy).
         </p>
         <p>
-            <strong>Vérification :</strong> recalculez le SHA-256 du JSON source (export /scan/{{ scan.id }}) et comparez
-            à l'empreinte du contenu ci-dessus.
+            <strong>Vérification :</strong> uploadez ce PDF sur
+            <em>{{ verify_url }}</em> pour confirmer l'authenticité, ou comparez l'empreinte contenu
+            avec l'export JSON <code>/scan/{{ scan.id }}</code>.
         </p>
     </div>
 </body>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Vérification rapport #{{ scan_id }} — OSINT Ultimate</title>
+    <style>
+        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:640px;margin:0 auto}
+        a{color:#4d9fff} h1{color:#00e5a0;font-size:1.4rem}
+        .card{background:rgba(14,17,28,.92);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin:1rem 0}
+        .ok{color:#00e5a0;font-weight:bold}.ko{color:#ff6b6b;font-weight:bold}
+        input[type=file]{margin:.8rem 0;width:100%}
+        button{background:#00e5a0;color:#000;border:none;padding:.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600}
+        .hash{font-family:monospace;font-size:.72rem;word-break:break-all;color:#8a92b0;margin:.4rem 0}
+        .meta{font-size:.85rem;color:#8a92b0}
+    </style>
+</head>
+<body>
+    <p><a href="/">← Accueil</a> · <a href="/privacy">Confidentialité</a></p>
+    <h1>🔐 Vérification d'authenticité</h1>
+    <p class="meta">Référence <strong>OSINT-RPT-{{ scan_id }}</strong></p>
+
+    <div class="card">
+        <p>Uploadez le fichier PDF reçu pour vérifier qu'il n'a pas été modifié depuis sa génération officielle.</p>
+        <form id="verify-form" method="post" enctype="multipart/form-data" action="/verify/{{ scan_id }}">
+            <input type="file" name="pdf" accept="application/pdf,.pdf" required>
+            <button type="submit">Vérifier le document</button>
+        </form>
+    </div>
+
+    <div id="result" class="card" style="display:none"></div>
+
+    {% if sealed_at %}
+    <p class="meta">Dernier scellement enregistré : {{ sealed_at }}</p>
+    {% endif %}
+
+<script>
+const form = document.getElementById('verify-form');
+const result = document.getElementById('result');
+form.onsubmit = async (e) => {
+    e.preventDefault();
+    result.style.display = 'block';
+    result.innerHTML = '⏳ Calcul de l\'empreinte…';
+    const fd = new FormData(form);
+    try {
+        const r = await fetch(form.action, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) {
+            result.innerHTML = '<p class="ko">❌ ' + (d.error || 'Erreur') + '</p>';
+            return;
+        }
+        const cls = d.valid ? 'ok' : 'ko';
+        result.innerHTML = `
+            <p class="${cls}">${d.message}</p>
+            <p class="meta"><strong>Fichier uploadé</strong></p>
+            <p class="hash">${d.uploaded_hash || '—'}</p>
+            ${d.stored_hash ? '<p class="meta"><strong>Empreinte officielle</strong></p><p class="hash">' + d.stored_hash + '</p>' : ''}
+            ${d.sealed_at ? '<p class="meta">Scellé le ' + d.sealed_at + '</p>' : ''}
+        `;
+    } catch (err) {
+        result.innerHTML = '<p class="ko">❌ ' + err.message + '</p>';
+    }
+};
+</script>
+</body>
+</html>

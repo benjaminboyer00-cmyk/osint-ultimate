@@ -1133,13 +1133,17 @@ def report_verify(scan_id):
     provided = request.args.get('hash', '')
     match_content = provided == hashes['content_hash']
     match_sig = provided == hashes['signature_hash']
+    match_pdf = provided == (scan.report_pdf_hash or '')
     return jsonify({
         'scan_id': scan_id,
-        'valid': match_content or match_sig,
+        'valid': match_content or match_sig or match_pdf,
         'match_content': match_content,
         'match_signature': match_sig,
+        'match_pdf': match_pdf,
         'content_hash': hashes['content_hash'],
         'signature_hash': hashes['signature_hash'],
+        'report_pdf_hash': scan.report_pdf_hash,
+        'verify_url': f'/verify/{scan_id}',
     })
 
 
@@ -1248,6 +1252,22 @@ def on_join_investigation(data=None):
 @socketio.on('join_graph')
 def on_join_graph(data=None):
     """Salle Socket.IO pour mises à jour graphe (pivot)."""
+    from flask_socketio import join_room
+    if current_user.is_authenticated:
+        join_room(str(current_user.id))
+
+
+@socketio.on('join_map')
+def on_join_map(data=None):
+    """Même salle utilisateur — mises à jour carte en temps réel."""
+    from flask_socketio import join_room
+    if current_user.is_authenticated:
+        join_room(str(current_user.id))
+
+
+@socketio.on('join_timeline')
+def on_join_timeline(data=None):
+    """Mises à jour frise chronologique (même salle utilisateur)."""
     from flask_socketio import join_room
     if current_user.is_authenticated:
         join_room(str(current_user.id))

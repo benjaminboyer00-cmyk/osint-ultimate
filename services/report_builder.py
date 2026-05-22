@@ -35,6 +35,20 @@ def _label_for_section(section: str) -> tuple[str, str]:
     return (section, 'Source publique')
 
 
+def _section_status(content) -> str:
+    """Statut collecte pour l'annexe de traçabilité."""
+    if isinstance(content, dict):
+        if content.get('_timeout'):
+            return 'timeout'
+        if content.get('Erreur') or content.get('error'):
+            return 'erreur'
+        if content.get('_degraded') or content.get('_source') == 'scraping_fallback':
+            return 'fallback'
+        if content.get('_cached'):
+            return 'cache'
+    return 'succès'
+
+
 def build_traceability(scan, raw_data: dict) -> list[dict]:
     """Chaîne de traçabilité : chaque section = une découverte horodatée."""
     chain = []
@@ -45,6 +59,7 @@ def build_traceability(scan, raw_data: dict) -> list[dict]:
         'horodatage': ts,
         'source': 'OSINT Ultimate',
         'type': 'Collecte',
+        'statut': 'succès',
         'detail': f"Scan #{scan.id} — module {scan.module} — cible {scan.target}",
     })
 
@@ -53,13 +68,12 @@ def build_traceability(scan, raw_data: dict) -> list[dict]:
             continue
         source_name, source_type = _label_for_section(section)
         detail = _summarize_section(content)
-        cached = ''
-        if isinstance(content, dict) and content.get('_cached'):
-            cached = ' (cache)'
+        statut = _section_status(content)
         chain.append({
             'horodatage': ts,
-            'source': source_name + cached,
+            'source': source_name,
             'type': source_type,
+            'statut': statut,
             'detail': f"{section} — {detail}",
         })
 
@@ -69,6 +83,7 @@ def build_traceability(scan, raw_data: dict) -> list[dict]:
             'horodatage': ts,
             'source': 'Système',
             'type': 'Avertissement',
+            'statut': 'timeout',
             'detail': f"Timeouts : {', '.join(meta['timeouts'])}",
         })
     return chain
@@ -111,12 +126,16 @@ def build_report_context(
     generated_at: str | None = None,
     narrative_html: str | None = None,
     narrative_markdown: str | None = None,
+    base_url: str | None = None,
 ) -> dict:
     """Contexte Jinja unifié pour report.html et report_pro.html."""
     generated_at = generated_at or datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
     display_data = prepare_report_data(raw_data)
     hashes = build_report_hashes(scan, raw_data, generated_at)
     traceability = build_traceability(scan, raw_data)
+    from services.report_seal import build_seal_assets
+    seal = build_seal_assets(scan.id, base_url)
+    stored_pdf_hash = getattr(scan, 'report_pdf_hash', None) or ''
 
     return {
         'scan': scan,
@@ -135,6 +154,10 @@ def build_report_context(
         'narrative_content': narrative_html or '',
         'narrative_markdown': narrative_markdown or '',
         'has_narrative': bool(narrative_html),
+        'verify_url': seal['verify_url'],
+        'qr_data_uri': seal['qr_data_uri'],
+        'stored_pdf_hash': stored_pdf_hash,
+        'has_stored_pdf_hash': bool(stored_pdf_hash),
         'traceability': traceability,
         'methodology': {
             'platform': 'OSINT Ultimate V5',

@@ -65,6 +65,8 @@ class Scan(db.Model):
     status       = db.Column(db.String(20), default='pending', nullable=False, index=True)
     mode         = db.Column(db.String(20), default='expert')
     scheduled_scan_id = db.Column(db.Integer, db.ForeignKey('scheduled_scan.id'), nullable=True)
+    report_pdf_hash = db.Column(db.String(64), nullable=True, index=True)
+    report_sealed_at = db.Column(db.DateTime, nullable=True)
 
 
 class Entity(db.Model):
@@ -76,6 +78,10 @@ class Entity(db.Model):
     value          = db.Column(db.String(500), nullable=False, index=True)
     source_scan_id = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    latitude       = db.Column(db.Float, nullable=True)
+    longitude      = db.Column(db.Float, nullable=True)
+    geo_label      = db.Column(db.String(255), nullable=True)
+    geo_source     = db.Column(db.String(50), nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('user_id', 'entity_type', 'value', name='uq_entity_user_type_value'),
@@ -113,7 +119,29 @@ class ScheduledScan(db.Model):
     last_scan_id  = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
     notify_on_change = db.Column(db.Boolean, default=False)
     webhook_url   = db.Column(db.String(500))
+    alert_rules_json = db.Column(db.Text)
+    last_snapshot_json = db.Column(db.Text)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    alerts = db.relationship('MonitoringAlert', backref='job', lazy='dynamic', foreign_keys='MonitoringAlert.job_id')
+
+
+class MonitoringAlert(db.Model):
+    """Historique des alertes surveillance (centre de notifications)."""
+    __tablename__ = 'monitoring_alert'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    job_id       = db.Column(db.Integer, db.ForeignKey('scheduled_scan.id'), nullable=True, index=True)
+    scan_id      = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
+    level        = db.Column(db.String(20), default='info', nullable=False)
+    alert_type   = db.Column(db.String(50), nullable=False)
+    message      = db.Column(db.Text, nullable=False)
+    details_json = db.Column(db.Text)
+    read         = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    owner = db.relationship('User', backref=db.backref('monitoring_alerts', lazy='dynamic'))
 
 
 class ApiCache(db.Model):

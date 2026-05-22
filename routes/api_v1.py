@@ -152,6 +152,31 @@ def api_entity_links(entity_id):
     return jsonify(data)
 
 
+@api_bp.route('/entity/<int:entity_id>/timeline')
+@require_api_key
+def api_entity_timeline(entity_id):
+    from services.timeline import build_timeline
+    data = build_timeline(entity_id, request.api_user.id)
+    if not data:
+        return jsonify({'error': 'entité non trouvée'}), 404
+    return jsonify(data)
+
+
+@api_bp.route('/entity/<int:entity_id>/map')
+@require_api_key
+def api_entity_map(entity_id):
+    from services.geo import build_map_markers
+    from extensions import db
+    data = build_map_markers(entity_id, request.api_user.id)
+    if data.get('root_entity_id') is None:
+        return jsonify({'error': 'entité non trouvée'}), 404
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify(data)
+
+
 @api_bp.route('/entity/<int:entity_id>/graph')
 @require_api_key
 def api_graph(entity_id):
@@ -220,6 +245,8 @@ def api_scheduled():
     if hours < 1 or hours > 168:
         return jsonify({'error': 'interval_hours entre 1 et 168'}), 400
 
+    from services.monitor_rules import parse_alert_rules, serialize_rules, DEFAULT_RULES
+    notify = bool(data.get('notify_on_change', False))
     job = ScheduledScan(
         user_id=request.api_user.id,
         module=module,
@@ -227,7 +254,8 @@ def api_scheduled():
         interval_hours=hours,
         enabled=True,
         next_run_at=datetime.utcnow(),
-        notify_on_change=bool(data.get('notify_on_change', False)),
+        notify_on_change=notify,
+        alert_rules_json=serialize_rules(parse_alert_rules(data.get('alert_rules'))) if notify else None,
     )
     db.session.add(job)
     db.session.commit()
@@ -363,13 +391,32 @@ def api_examples():
     })
 
 
+@api_bp.route('/notifications')
+@require_api_key
+def api_notifications():
+    from services.notifications import list_alerts, unread_count
+    return jsonify({
+        'unread': unread_count(request.api_user.id),
+        'alerts': list_alerts(request.api_user.id, limit=50),
+    })
+
+
 def _job_json(job: ScheduledScan) -> dict:
+    import json as _json
+    rules = []
+    if job.alert_rules_json:
+        try:
+            rules = _json.loads(job.alert_rules_json)
+        except Exception:
+            pass
     return {
         'id': job.id,
         'module': job.module,
         'target': job.target,
         'interval_hours': job.interval_hours,
         'enabled': job.enabled,
+        'notify_on_change': job.notify_on_change,
+        'alert_rules': rules,
         'last_run_at': job.last_run_at.isoformat() if job.last_run_at else None,
         'next_run_at': job.next_run_at.isoformat() if job.next_run_at else None,
         'last_scan_id': job.last_scan_id,

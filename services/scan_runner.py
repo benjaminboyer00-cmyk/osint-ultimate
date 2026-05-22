@@ -64,6 +64,18 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                     emit_graph_update_after_scan(scan, socketio, opts)
                 except Exception as e:
                     logger.warning('Pivot graph_update #%s: %s', scan_id, e)
+            root_ent = opts.get('_root_entity_id')
+            if root_ent:
+                try:
+                    from services.geo import emit_map_update_after_scan
+                    emit_map_update_after_scan(scan, socketio, opts)
+                except Exception as e:
+                    logger.warning('map_update #%s: %s', scan_id, e)
+                try:
+                    from services.timeline import emit_timeline_update_after_scan
+                    emit_timeline_update_after_scan(scan, socketio, opts)
+                except Exception as e:
+                    logger.warning('timeline_update #%s: %s', scan_id, e)
             _emit(socketio, 'scan_done', {'scan_id': scan_id, 'result': result})
             logger.info('Scan #%s terminé (%s)', scan_id, scan.module)
 
@@ -123,6 +135,13 @@ def _run_correlation(scan: Scan, result: dict, opts: dict):
             )
     except Exception as e:
         logger.warning('Corrélation scan #%s: %s', scan.id, e)
+    try:
+        from services.geo import enrich_geo_from_scan
+        enrich_geo_from_scan(scan, result, scan.user_id)
+        db.session.commit()
+    except Exception as e:
+        logger.warning('Géo scan #%s: %s', scan.id, e)
+        db.session.rollback()
     try:
         from services.webhooks import notify_scan_complete
         notify_scan_complete(scan, result, scan.user_id)
