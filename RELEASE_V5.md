@@ -20,6 +20,11 @@
 - Liste de proxies rotatifs dans les paramètres.
 - Mode furtif global (settings) ou par scan (checkbox Expert).
 
+## Correctifs post-release
+
+- **Cache** : `ApiCache` possède une colonne `query` qui masquait `Model.query` — le cache utilise `db.session.query(ApiCache)`.
+- **Express → Expert** : les suggestions IA pointent vers `/expert?module=…&target=…` avec lancement auto du scan.
+
 ## Migration depuis V4.2
 
 ```bash

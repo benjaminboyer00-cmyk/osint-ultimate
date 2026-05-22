@@ -7,3 +7,6 @@ venv/
 osint.db
 uploads/*
 !uploads/.gitkeep
+docs/images/*.png
+docs/images/*.jpg
+docs/images/*.webp

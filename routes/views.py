@@ -62,9 +62,13 @@ def express_card():
 def express_assist():
     """Assistant IA pédagogique pour le mode Express."""
     from services.groq import chat_completion, fallback_explain
+    from services.action_links import build_action_links
+
     data = request.json or {}
     card = data.get('card', {})
     result = data.get('result', {})
+    module = data.get('module', '') or card.get('module', '')
+    target = data.get('target', '') or card.get('target', '')
     prompt_ctx = json.dumps({'carte': card, 'donnees': result}, ensure_ascii=False)[:3500]
     system = (
         'Tu es un assistant OSINT pédagogique. Réponds en français simple, sans jargon. '
@@ -78,17 +82,23 @@ def express_assist():
         )
         from services.investigation_ai import parse_suggested_actions
         parts = summary.split('ACTIONS:')
-        actions = parse_suggested_actions(parts[1] if len(parts) > 1 else summary)
+        raw_actions = parse_suggested_actions(parts[1] if len(parts) > 1 else summary)
+        action_links = build_action_links(raw_actions, module, target, card, result)
         return jsonify({
             'assistant': parts[0].strip(),
-            'actions': actions,
+            'actions': [a['label'] for a in action_links],
+            'action_links': action_links,
             'source': 'groq',
         })
     except Exception as e:
         current_app.logger.warning('Express assist Groq: %s', e)
         fallback = fallback_explain(card, result)
+        raw = card.get('next_steps') or []
+        action_links = build_action_links(raw, module, target, card, result)
         return jsonify({
             'assistant': fallback,
+            'actions': [a['label'] for a in action_links],
+            'action_links': action_links,
             'source': 'fallback',
             'warning': str(e),
         })

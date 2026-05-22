@@ -14,15 +14,25 @@ Plateforme OSINT (Flask) déployée sur [Hugging Face Spaces](https://huggingfac
 
 Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
 
-## Aperçu visuel
+## Fonctionnalités V5
 
-Ajoutez vos captures dans `docs/images/` puis elles s'affichent ici :
+### Mode Express (`/express`)
+- Champ unique avec **détection automatique** du type (email, téléphone, site, IP, pseudo).
+- Carte de synthèse lisible + assistant IA Groq (« Comprendre »).
+- Actions IA qui ouvrent **directement le bon scan en mode Expert** (`/expert?module=…&target=…`).
+- Interface **mobile-first**, sans grille de modules.
 
-| Express | Graphe | Expert |
-|---------|--------|--------|
-| ![Express](docs/images/express.png) | ![Graphe](docs/images/graph.png) | ![Expert](docs/images/expert.png) |
+### Mode Expert (`/expert`)
+- Console **19+ modules** : Sherlock, Hunter, Dehashed, Epieos, Shodan, WHOIS, Wayback, réseaux sociaux, etc.
+- **Mode furtif** (User-Agent aléatoire, délais, proxies rotatifs depuis `/settings`).
+- Exports **PDF** (horodaté, empreinte SHA-256), **CSV**, **JSON**.
+- Analyse de fichiers (EXIF, PDF, DOCX).
 
-Captures actuelles du dépôt (`docs/images/`).
+### Corrélation & API
+- **Graphe** `/graph` : Cytoscape, clic → nouveau scan, export PNG/SVG, légende.
+- **API REST** `/api/v1` : search, export, scans programmés, webhooks, OpenAPI.
+- **Cache** TTL par connecteur (Hunter, Dehashed, Shodan…) — table `api_cache`.
+- **Celery** (optionnel) si `REDIS_URL` est défini.
 
 ## Parcours utilisateur
 

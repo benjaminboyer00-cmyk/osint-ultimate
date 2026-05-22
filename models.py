@@ -118,7 +118,7 @@ class ApiCache(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     provider   = db.Column(db.String(40), nullable=False, index=True)
     cache_key  = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    query      = db.Column(db.String(500))
+    query      = db.Column('query', db.String(500))  # nom de colonne SQL ; ne pas utiliser ApiCache.query (conflit ORM)
     payload    = db.Column(db.Text, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

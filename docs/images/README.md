@@ -1,12 +1,5 @@
-# Captures d'écran OSINT Ultimate V5
+# Images / captures
 
-Ajoutez ici les visuels référencés dans le README :
+Ne pas versionner de fichiers PNG/JPG ici (limite de taille Hugging Face).
 
-| Fichier | Contenu suggéré |
-|---------|-----------------|
-| `express.png` | Page `/express` — champ unique type Google |
-| `graph.png` | Graphe de corrélation `/graph` |
-| `expert.png` | Console Expert avec résultats |
-| `report.png` | Aperçu export PDF |
-
-Capture recommandée : 1280×720 ou 1440×900, thème sombre.
+Documentez l’interface dans le **README** à la racine du dépôt.

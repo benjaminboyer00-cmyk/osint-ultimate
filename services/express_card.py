@@ -7,6 +7,7 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
     if not result or result.get('error') or result.get('Erreur'):
         err = result.get('error') or result.get('Erreur', 'Erreur inconnue')
         return {
+            'module': module,
             'type': express_label(module),
             'target': target,
             'status': 'error',
@@ -88,6 +89,7 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
         next_steps.append('Générez un rapport PDF pour documenter l\'investigation.')
 
     return {
+        'module': module,
         'type': express_label(module),
         'target': target,
         'status': 'ok',

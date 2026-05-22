@@ -859,8 +859,18 @@ async function loadScanFromHistory(scanId){
         scanRunning = false;
     }
 }
-const _preload = new URLSearchParams(window.location.search).get('scan_id');
+const _urlParams = new URLSearchParams(window.location.search);
+const _preload = _urlParams.get('scan_id');
 if(_preload) loadScanFromHistory(_preload);
+
+const _autoMod = _urlParams.get('module');
+const _autoTarget = _urlParams.get('target') || _urlParams.get('query') || _urlParams.get('auto');
+if(_autoMod && _autoTarget){
+    const modBtn = document.querySelector(`.mod[data-m="${_autoMod}"]`);
+    if(modBtn) modBtn.click();
+    targetEl.value = decodeURIComponent(_autoTarget);
+    setTimeout(() => { if(!scanRunning) launchScan(); }, 400);
+}
 
 // ── PWA ────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

@@ -297,7 +297,10 @@ async function askAssistant(){
     box.textContent = '⏳ Analyse…';
     const d = await fetch('/express/assist', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ card: lastCard, result: lastResult })
+        body: JSON.stringify({
+            card: lastCard, result: lastResult,
+            module: detectedModule, target: targetEl.value.trim()
+        })
     }).then(r => r.json());
     box.innerHTML = '';
     if (d.assistant) {
@@ -305,13 +308,21 @@ async function askAssistant(){
         p.textContent = d.assistant;
         p.style.whiteSpace = 'pre-wrap';
         box.appendChild(p);
-        (d.actions || []).forEach(act => {
+        const links = d.action_links || (d.actions || []).map(a => ({ label: a, launch: false }));
+        links.forEach(act => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn';
+            btn.className = 'btn btn-primary';
             btn.style.marginTop = '.4rem';
-            btn.textContent = act;
-            btn.onclick = () => { targetEl.value = act.replace(/^→\s*/, '').split('«').pop()?.replace(/»/,'').trim() || targetEl.value; runExpress(); };
+            btn.textContent = act.label || act;
+            btn.onclick = () => {
+                if (act.url) {
+                    window.location.href = act.url;
+                } else if (act.target) {
+                    targetEl.value = act.target;
+                    runExpress();
+                }
+            };
             box.appendChild(btn);
         });
     } else {
