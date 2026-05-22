@@ -1,11 +1,14 @@
 """Cache TTL pour réponses API externes."""
 import json
 import hashlib
+import logging
 from datetime import datetime, timedelta
 from extensions import db
 from models import ApiCache
 
 import os
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TTL_HOURS = 24
 
@@ -48,8 +51,9 @@ def get_cached(provider: str, query: str) -> dict | None:
         if not row or row.expires_at < datetime.utcnow():
             return None
         return json.loads(row.payload)
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        logger.error('Erreur lecture cache %s: %s', provider, e)
         return None
 
 
@@ -75,5 +79,6 @@ def set_cached(provider: str, query: str, data: dict, ttl_hours: int | None = No
                 expires_at=exp,
             ))
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        logger.error('Erreur écriture cache %s: %s', provider, e)

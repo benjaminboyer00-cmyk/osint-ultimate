@@ -33,8 +33,12 @@ def notify_dossier_scan_started(
     })
     try:
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        logger.error(
+            'Erreur commit activité scan_started dossier=%s scan=%s: %s',
+            root_entity_id, scan_id, e,
+        )
         return
     payload = {
         'scan_id': scan_id,

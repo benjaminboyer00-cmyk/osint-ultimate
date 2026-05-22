@@ -480,8 +480,9 @@ def map_data(entity_id):
         return jsonify({'error': 'Entité non trouvée'}), 404
     try:
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        current_app.logger.error('Erreur commit map_data entity=%s: %s', entity_id, e)
     return jsonify(data)
 
 

@@ -133,8 +133,12 @@ def _build_narrative_for_entity_impl(
                 if row:
                     row.ai_summary = markdown
                     db.session.commit()
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+                logger.error(
+                    'Erreur commit ai_summary scan=%s entity=%s: %s',
+                    anchor_id, entity_id, e,
+                )
 
     html = markdown_to_html(markdown or FALLBACK_NARRATIVE_MD)
 

@@ -429,8 +429,12 @@ def build_map_markers(
         try:
             hydrate_entities_from_scans(node_ids, user_id)
             db.session.commit()
-        except Exception:
+        except Exception as e:
             db.session.rollback()
+            logger.error(
+                'Erreur commit hydrate map entity=%s user=%s: %s',
+                entity_id, user_id, e,
+            )
 
     markers = []
     geocode_budget = max_geocode_calls if geocode_missing else 0
@@ -456,8 +460,12 @@ def build_map_markers(
                 precision = loc.get('precision') or loc.get('source', 'network')
                 try:
                     db.session.commit()
-                except Exception:
+                except Exception as e:
                     db.session.rollback()
+                    logger.error(
+                        'Erreur commit géoloc entité %s (map entity=%s): %s',
+                        nid, entity_id, e,
+                    )
         if not loc or not _valid_coords(loc.get('lat'), loc.get('lon')):
             continue
         markers.append({

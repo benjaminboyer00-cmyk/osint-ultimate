@@ -80,8 +80,11 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                         'status': scan.status,
                     })
                 except Exception as e:
-                    logger.warning('activity scan #%s: %s', scan.id, e)
                     db.session.rollback()
+                    logger.error(
+                        'Erreur commit activité scan_completed #%s: %s',
+                        scan.id, e,
+                    )
             if opts.get('_graph_pivot'):
                 try:
                     from services.graph_pivot import emit_graph_update_after_scan
@@ -171,8 +174,8 @@ def _run_correlation(scan: Scan, result: dict, opts: dict):
         enrich_geo_from_scan(scan, result, scan.user_id)
         db.session.commit()
     except Exception as e:
-        logger.warning('Géo scan #%s: %s', scan.id, e)
         db.session.rollback()
+        logger.error('Erreur commit géo scan #%s: %s', scan.id, e)
     try:
         from services.webhooks import notify_scan_complete
         notify_scan_complete(scan, result, scan.user_id)
