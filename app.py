@@ -465,6 +465,21 @@ def scan_phone(phone_str, options=None):
         results['Format national']     = phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.NATIONAL)
         results['Format E.164']        = phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
         results['Indicatif pays']      = f'+{phone.country_code}'
+        try:
+            from services.country_geo import coords_for_country
+            region = phonenumbers.region_code_for_number(phone)
+            if region:
+                loc = coords_for_country(region)
+                if loc:
+                    results['Géolocalisation'] = {
+                        'Pays': results.get('Pays') or loc.get('country', region),
+                        'Code pays': region,
+                        'Lat': loc['lat'],
+                        'Lon': loc['lon'],
+                        'Précision': 'Pays (indicatif téléphonique)',
+                    }
+        except Exception:
+            pass
         type_map = {
             phonenumbers.PhoneNumberType.MOBILE:             'Mobile 📱',
             phonenumbers.PhoneNumberType.FIXED_LINE:         'Fixe ☎️',

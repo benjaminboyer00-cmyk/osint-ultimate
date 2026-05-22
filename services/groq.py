@@ -67,39 +67,77 @@ NARRATIVE_LENGTHS = {
 }
 
 
+def _format_technical_facts(facts: dict | None) -> str:
+    if not facts:
+        return ''
+    lines = ['## Faits établis (données techniques — à utiliser comme base du rapport)']
+    lines.append(f"**Cible :** {facts.get('cible', '—')}")
+    for section, key in (
+        ('Infrastructure & domaine', 'infrastructure'),
+        ('Réseau & hébergement', 'reseau'),
+        ('Identité & enregistrement', 'identite'),
+        ('Sécurité & certificats', 'securite'),
+        ('Lacunes documentées', 'lacunes'),
+    ):
+        items = facts.get(key) or []
+        if items:
+            lines.append(f'\n### {section}')
+            for item in items:
+                lines.append(f'- {item}')
+    return '\n'.join(lines)
+
+
 def generate_narrative_report(
     data: dict,
     *,
     style: str = 'executive',
     length: str = 'medium',
     api_key: str | None = None,
+    technical_facts: dict | None = None,
 ) -> str:
     """
-    Rapport d'enquête en Markdown à partir du JSON dossier (Groq).
+    Rapport d'enquête en Markdown — décrit la CIBLE, pas les scans internes.
     """
     style_hint = NARRATIVE_STYLES.get(style, NARRATIVE_STYLES['executive'])
     length_hint = NARRATIVE_LENGTHS.get(length, NARRATIVE_LENGTHS['medium'])
-    payload = json.dumps(data, ensure_ascii=False, default=str)[:14000]
+    facts_block = _format_technical_facts(technical_facts)
+    slim = {
+        'cible': (data.get('dossier') or {}).get('root_entity'),
+        'entites_cles': (data.get('entities') or [])[:25],
+        'liens': (data.get('links') or [])[:20],
+        'sources_documentees': (data.get('sources') or [])[:15],
+    }
+    payload = json.dumps(slim, ensure_ascii=False, default=str)[:8000]
 
     system = (
-        'Tu es un analyste en renseignement cyber et investigations numériques. '
-        'Tu rédiges en français un rapport d\'enquête professionnel à partir de données OSINT structurées. '
-        'Réponds UNIQUEMENT en Markdown (titres ##, listes, tableaux si utile). '
+        'Tu es un analyste OSINT senior. Tu rédiges en français un rapport professionnel '
+        'sur la CIBLE de l\'investigation (domaine, personne, infrastructure), '
+        'à destination d\'un RSSI, d\'un service juridique ou d\'un décideur.\n\n'
+        'RÈGLES STRICTES :\n'
+        '- Décris UNIQUEMENT la cible : infrastructure, hébergement, DNS, WHOIS, certificats, '
+        'exposition, risques techniques.\n'
+        '- NE JAMAIS parler des scans, de la surveillance, des modules, ni du processus '
+        'd\'investigation interne.\n'
+        '- NE PAS suggérer que l\'enquête est suspecte ou répétitive.\n'
+        '- Appuie-toi sur le bloc « Faits établis » ; ne invente pas de données absentes.\n'
+        '- Mentionne explicitement les lacunes listées (ex. WHOIS indisponible) sans dramatiser.\n'
+        '- Réponds UNIQUEMENT en Markdown (titres ##, listes).\n\n'
         'Structure obligatoire :\n'
-        '## Introduction\n'
-        '## Méthodologie\n'
-        '## Chronologie des faits\n'
-        '## Corrélations et relations clés\n'
-        '## Analyse et hypothèses\n'
-        '## Recommandations\n'
+        '## Synthèse exécutive\n'
+        '## Profil de la cible\n'
+        '## Infrastructure et hébergement\n'
+        '## Identité numérique et enregistrements\n'
+        '## Sécurité et exposition\n'
+        '## Risques et recommandations\n'
         '## Conclusion\n'
-        f'{style_hint} {length_hint} '
-        'Ne invente pas de faits absents des données ; signale les lacunes.'
+        f'{style_hint} {length_hint}'
     )
     user = (
-        'Voici le dossier d\'investigation (entités, liens, scans, sources). '
-        'Rédige le rapport narratif complet :\n\n'
-        f'{payload}'
+        f'{facts_block}\n\n'
+        'Contexte complémentaire (entités et liens, sans détail des scans) :\n'
+        f'{payload}\n\n'
+        'Rédige le rapport en te comportant comme un analyste décrivant ce que '
+        'révèle l\'infrastructure de la cible (ex. hébergement AWS, MX OVH, certificat Let\'s Encrypt…).'
     )
     messages = [
         {'role': 'system', 'content': system},

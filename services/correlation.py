@@ -4,8 +4,33 @@ from extensions import db
 from models import Entity, EntityLink, Scan
 
 
+def _normalize_domain_value(value: str) -> str:
+    v = (value or '').strip().lower()
+    for prefix in ('http://', 'https://', 'www.'):
+        if v.startswith(prefix):
+            v = v[len(prefix):]
+    return v.split('/')[0].split(':')[0]
+
+
+def _entities_equivalent(a: Entity, b: Entity) -> bool:
+    if not a or not b:
+        return False
+    if a.id == b.id:
+        return True
+    if a.entity_type == b.entity_type and (a.value or '').lower() == (b.value or '').lower():
+        return True
+    if a.entity_type in ('domain', 'unknown', 'site') and b.entity_type in ('domain', 'unknown', 'site'):
+        return _normalize_domain_value(a.value) == _normalize_domain_value(b.value)
+    return False
+
+
 def _get_or_create_entity(etype: str, value: str, user_id, scan_id: int) -> Entity:
-    value = (value or '').strip().lower() if etype != 'phone' else (value or '').strip()
+    if etype == 'domain':
+        value = _normalize_domain_value(value)
+    elif etype != 'phone':
+        value = (value or '').strip().lower()
+    else:
+        value = (value or '').strip()
     ent = Entity.query.filter_by(
         user_id=user_id, entity_type=etype, value=value
     ).first()
@@ -22,6 +47,8 @@ def _get_or_create_entity(etype: str, value: str, user_id, scan_id: int) -> Enti
 
 
 def _link(src: Entity, tgt: Entity, link_type: str, proof: str, scan_id: int, user_id, module: str = 'unknown'):
+    if _entities_equivalent(src, tgt):
+        return
     from services.link_scoring import upsert_link_scored
     existing = EntityLink.query.filter_by(
         user_id=user_id,
@@ -51,7 +78,7 @@ def _link_to_root(root_entity_id: int | None, new_ent: Entity, scan_id: int, use
     if not root_entity_id or not new_ent:
         return
     parent = db.session.get(Entity, root_entity_id)
-    if parent and parent.user_id == user_id and parent.id != new_ent.id:
+    if parent and parent.user_id == user_id and not _entities_equivalent(parent, new_ent):
         _link(parent, new_ent, 'ENRICHIT', proof[:500], scan_id, user_id)
 
 
@@ -66,9 +93,15 @@ def process_scan_correlations(
         return
 
     target = (target or '').strip()
+    if module in ('site', 'whois', 'wayback'):
+        target = _normalize_domain_value(target)
+    etype_map = {
+        'email': 'email', 'phone': 'phone', 'ip': 'ip', 'site': 'domain',
+        'whois': 'domain', 'wayback': 'domain',
+        'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown',
+    }
     root = _get_or_create_entity(
-        {'email': 'email', 'phone': 'phone', 'ip': 'ip', 'site': 'domain',
-         'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown'}.get(module, 'unknown'),
+        etype_map.get(module, 'unknown'),
         target,
         user_id,
         scan_id,
@@ -122,12 +155,9 @@ def process_scan_correlations(
                     _link(root, un, 'FUITES_PSEUDO', row.get('Base', ''), scan_id, user_id)
 
     elif module in ('whois', 'site', 'wayback'):
-        dom = target
-        if '@' not in dom:
-            dom = dom.replace('http://', '').replace('https://', '').split('/')[0]
-            de = _get_or_create_entity('domain', dom.lower(), user_id, scan_id)
-            if de.id != root.id:
-                _link(root, de, 'DOMAINE', module, scan_id, user_id)
+        de = _get_or_create_entity('domain', _normalize_domain_value(target), user_id, scan_id)
+        if not _entities_equivalent(root, de):
+            _link(root, de, 'DOMAINE', module, scan_id, user_id)
 
     elif module == 'dorking':
         type_map = {
@@ -289,6 +319,8 @@ def build_entity_links_json(entity_id: int, user_id: int) -> dict | None:
             continue
         direction = 'outgoing' if link.source_id == entity_id else 'incoming'
         other = tgt if direction == 'outgoing' else src
+        if _entities_equivalent(src, tgt):
+            continue
         links_out.append({
             'id': link.id,
             'type': link.link_type,

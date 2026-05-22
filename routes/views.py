@@ -408,11 +408,13 @@ def map_view():
 @login_required
 def map_data(entity_id):
     from services.geo import build_map_markers
-    geocode = request.args.get('geocode', '').lower() in ('1', 'true', 'yes')
+    # Par défaut : hydrate depuis scans + géocode IP/domaines manquants
+    geocode_off = request.args.get('geocode', '').lower() in ('0', 'false', 'no')
     data = build_map_markers(
         entity_id, current_user.id,
-        geocode_missing=geocode,
-        max_geocode_calls=8,
+        geocode_missing=not geocode_off,
+        max_geocode_calls=15,
+        hydrate_from_scans=True,
     )
     if data.get('root_entity_id') is None:
         return jsonify({'error': 'Entité non trouvée'}), 404

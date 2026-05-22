@@ -44,9 +44,10 @@ def test_report_data_structure():
 
 def test_generate_narrative_mock():
     sample = {'dossier': {'title': 'Test'}, 'entities': [], 'links': []}
-    with patch('services.groq._groq_request', return_value='## Introduction\n\nTest.'):
-        md = generate_narrative_report(sample, style='executive')
-    assert 'Introduction' in md
+    facts = {'cible': 'example.com', 'infrastructure': ['DNS A: 1.2.3.4'], 'reseau': [], 'identite': [], 'securite': [], 'lacunes': []}
+    with patch('services.groq._groq_request', return_value='## Synthèse exécutive\n\nTest.'):
+        md = generate_narrative_report(sample, style='executive', technical_facts=facts)
+    assert 'Synthèse' in md or 'exécutive' in md
 
 
 def test_markdown_to_html():

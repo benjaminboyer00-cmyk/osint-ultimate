@@ -1,10 +1,10 @@
 """Préparation des données pour export PDF (volumes importants)."""
 import json
 
-MAX_SECTION_CHARS = 8000
-MAX_SECTIONS = 30
-MAX_TOTAL_CHARS = 180000
-MAX_LIST_ITEMS = 40
+MAX_SECTION_CHARS = 12000
+MAX_SECTIONS = 45
+MAX_TOTAL_CHARS = 350000
+MAX_LIST_ITEMS = 60
 
 
 def _truncate_value(obj, depth=0, max_depth=4):

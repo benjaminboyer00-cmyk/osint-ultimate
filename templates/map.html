@@ -58,10 +58,10 @@
     <div id="map"></div>
     <aside>
         <h3 style="color:var(--accent);font-size:.95rem;margin:0 0 .5rem 0">Géolocalisation</h3>
-        <p id="status">Sélectionnez une entité pour afficher les points géolocalisables (IP, etc.).</p>
+        <p id="status">Sélectionnez une entité racine — téléphone, domaine, IP et hébergement s’affichent après scan.</p>
         <p style="font-size:.75rem;color:var(--dim)">
             Clic sur un marqueur → détails · lien vers le graphe.
-            Les IP sont résolues via <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a>.
+            Sources : scans (téléphone, site/WHOIS), puis <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a> pour les IP.
         </p>
         <ul id="marker-list" style="list-style:none;padding:0;margin:1rem 0 0 0"></ul>
     </aside>
@@ -94,11 +94,19 @@ function initMap(center) {
     setTimeout(() => map.invalidateSize(), 200);
 }
 
+function precisionLabel(p) {
+    if (!p) return '';
+    if (p.includes('country') || p.includes('pays') || p.includes('phone')) return '📍 Pays (approx.)';
+    if (p.includes('city') || p.includes('ip-api') || p.includes('site')) return '📍 Ville / hébergement';
+    return '📍 ' + p;
+}
+
 function popupHtml(m) {
     const graphUrl = `/graph?entity_id=${rootEntityId || m.entity_id}&highlight=${m.entity_id}`;
     return `<div class="marker-popup">
         <strong>${m.type}</strong><br><code>${m.value}</code><br>
         <small>${m.label || ''}</small><br>
+        <small style="color:#888">${precisionLabel(m.precision || m.source)}</small><br>
         <a href="${graphUrl}">🕸️ Graphe</a> ·
         <a href="/expert/dossier/${m.entity_id}">📁 Dossier</a>
     </div>`;
@@ -143,7 +151,7 @@ function renderList(markers) {
     const ul = document.getElementById('marker-list');
     ul.innerHTML = markers.map(m =>
         `<li style="margin:.35rem 0;cursor:pointer" data-eid="${m.entity_id}">
-            <span style="color:${TYPE_COLORS[m.type]||'#888'}">●</span> ${m.type} — ${m.value.slice(0,36)}
+            <span style="color:${TYPE_COLORS[m.type]||'#888'}">●</span> ${m.type} — ${m.value.slice(0,28)} <small style="color:#666">${(m.label||'').slice(0,24)}</small>
         </li>`
     ).join('');
     ul.querySelectorAll('li').forEach(li => {
@@ -181,7 +189,7 @@ async function loadMap(entityId) {
                 `${d.count} point(s) — racine : ${d.root_value || ''}`;
         } else {
             document.getElementById('status').textContent =
-                'Aucun point géolocalisable — lancez des scans IP ou géoloc.';
+                'Aucun point — lancez scan Téléphone, Site ou IP sur cette cible (ou ses liens du graphe).';
         }
         renderList(d.markers || []);
     } catch (e) {

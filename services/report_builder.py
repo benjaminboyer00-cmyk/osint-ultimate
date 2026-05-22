@@ -38,46 +38,66 @@ def _label_for_section(section: str) -> tuple[str, str]:
 def _section_status(content) -> str:
     """Statut collecte pour l'annexe de traçabilité."""
     if isinstance(content, dict):
-        if content.get('_timeout'):
+        if content.get('_not_executed'):
+            return 'non exécuté'
+        if content.get('Statut') == 'Indisponible' or content.get('_timeout'):
             return 'timeout'
-        if content.get('Erreur') or content.get('error'):
+        if content.get('Erreur') or content.get('error') or content.get('Statut') == 'Échec de collecte':
             return 'erreur'
         if content.get('_degraded') or content.get('_source') == 'scraping_fallback':
             return 'fallback'
         if content.get('_cached'):
             return 'cache'
+    if isinstance(content, str) and 'non configur' in content.lower():
+        return 'non exécuté'
     return 'succès'
 
 
 def build_traceability(scan, raw_data: dict) -> list[dict]:
-    """Chaîne de traçabilité : chaque section = une découverte horodatée."""
+    """Chaîne de traçabilité : une ligne par source consolidée (pas par scan dupliqué)."""
     chain = []
     collected_at = scan.completed_at or scan.timestamp or datetime.utcnow()
     ts = collected_at.strftime('%d/%m/%Y %H:%M UTC')
+    meta = raw_data.get('_meta') or {}
 
     chain.append({
         'horodatage': ts,
         'source': 'OSINT Ultimate',
-        'type': 'Collecte',
+        'type': 'Rapport consolidé',
         'statut': 'succès',
-        'detail': f"Scan #{scan.id} — module {scan.module} — cible {scan.target}",
+        'detail': (
+            f"Dossier — {meta.get('scan_count', 1)} scan(s) agrégé(s) — "
+            f"modules : {', '.join(meta.get('modules_executed', [scan.module]))}"
+        ),
     })
 
+    whois_logged = False
     for section, content in (raw_data or {}).items():
         if section.startswith('_'):
+            continue
+        if section == 'WHOIS' and whois_logged:
             continue
         source_name, source_type = _label_for_section(section)
         detail = _summarize_section(content)
         statut = _section_status(content)
+        if isinstance(content, dict) and content.get('_not_executed'):
+            statut = 'non exécuté'
+            detail = content.get('Raison', 'Module non exécuté')
+        if section == 'WHOIS' and statut in ('erreur', 'timeout'):
+            whois_logged = True
+            if meta.get('whois_notice'):
+                detail = meta['whois_notice'][:200]
+        scan_ref = ''
+        if isinstance(content, dict) and content.get('_dernier_scan'):
+            scan_ref = f" ({content['_dernier_scan']})"
         chain.append({
             'horodatage': ts,
             'source': source_name,
             'type': source_type,
             'statut': statut,
-            'detail': f"{section} — {detail}",
+            'detail': f"{section}{scan_ref} — {detail}",
         })
 
-    meta = raw_data.get('_meta') or {}
     if meta.get('timeouts'):
         chain.append({
             'horodatage': ts,
@@ -159,6 +179,7 @@ def build_report_context(
         'stored_pdf_hash': stored_pdf_hash,
         'has_stored_pdf_hash': bool(stored_pdf_hash),
         'traceability': traceability,
+        'scan_history': (raw_data.get('_meta') or {}).get('scan_history', []),
         'methodology': {
             'platform': 'OSINT Ultimate V5',
             'module': scan.module,

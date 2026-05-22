@@ -84,6 +84,10 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
 
     links = []
     for row in links_detail.get('links', []):
+        src_v = (row.get('source') or {}).get('value', '')
+        tgt_v = (row.get('target') or {}).get('value', '')
+        if src_v and tgt_v and src_v.lower() == tgt_v.lower():
+            continue
         links.append({
             'type': row.get('type'),
             'direction': row.get('direction'),
@@ -91,8 +95,8 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
             'confidence': row.get('confidence'),
             'scan_id': row.get('scan_id'),
             'created_at': row.get('created_at'),
-            'from': (row.get('source') or {}).get('value'),
-            'to': (row.get('target') or {}).get('value'),
+            'from': src_v,
+            'to': tgt_v,
         })
 
     scans = _collect_related_scans(user_id, ent.value, entity_ids)
@@ -151,29 +155,11 @@ def pick_anchor_scan(entity_id: int, user_id: int) -> Scan | None:
 
 
 def merge_scan_payloads(entity_id: int, user_id: int) -> dict:
-    """Fusionne les résultats des scans liés au dossier pour l'annexe PDF."""
+    """Données consolidées pour PDF (une section par catégorie, sans doublons)."""
+    from services.report_consolidate import consolidate_scan_payloads
     data = build_report_data(entity_id, user_id)
     if not data:
         return {}
-    merged = {'_meta': {'dossier_entity_id': entity_id, 'multi': True, 'modules': []}}
-    root = data['dossier']['root_entity']['value']
-    scans = (
-        Scan.query.filter_by(user_id=user_id, status='completed')
-        .order_by(Scan.timestamp.desc())
-        .limit(80)
-        .all()
-    )
-    for s in scans:
-        if s.target.lower() != root.lower() and root.lower() not in (s.result_json or '').lower():
-            continue
-        try:
-            payload = json.loads(s.result_json or '{}')
-        except Exception:
-            continue
-        merged['_meta']['modules'].append(s.module)
-        for k, v in payload.items():
-            if k.startswith('_'):
-                continue
-            key = k if k not in merged else f'{k} (scan #{s.id})'
-            merged[key] = v
-    return merged
+    root = (data.get('dossier') or {}).get('root_entity') or {}
+    root_value = root.get('value') or ''
+    return consolidate_scan_payloads(entity_id, user_id, root_value)

@@ -238,6 +238,7 @@
                     {% elif row.statut == 'cache' %}<span class="stat-warn">cache</span>
                     {% elif row.statut == 'fallback' %}<span class="stat-warn">fallback</span>
                     {% elif row.statut in ('timeout', 'erreur') %}<span class="stat-err">{{ row.statut }}</span>
+                    {% elif row.statut == 'non exécuté' %}<span class="stat-warn">non exécuté</span>
                     {% else %}{{ row.statut or '—' }}{% endif %}
                 </td>
                 <td>{{ row.detail }}</td>
@@ -257,14 +258,39 @@
     <img class="graph-img" src="{{ graph_image }}" alt="Graphe">
     {% endif %}
 
-    <h2>Annexe — Données collectées</h2>
+    {% if scan_history %}
+    <h2>Historique des scans (annexe)</h2>
+    <p style="font-size:9px;color:#666">Référence des collectes agrégées — le détail technique consolidé suit.</p>
+    <table class="trace">
+        <thead><tr><th>Scan</th><th>Module</th><th>Cible</th><th>Date</th></tr></thead>
+        <tbody>
+        {% for h in scan_history %}
+        <tr>
+            <td>#{{ h.scan_id }}</td>
+            <td>{{ h.module }}</td>
+            <td>{{ h.target[:50] }}</td>
+            <td>{{ h.completed_at or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>Annexe — Dernier état connu par catégorie</h2>
+    <p style="font-size:9px;color:#666">
+        Données dédupliquées : une section par type (WHOIS, DNS, IP…), version la plus complète retenue.
+    </p>
     {% if data.get('_note_pdf') %}
     <p style="font-size:9px;color:#a60"><strong>Note :</strong> {{ data._note_pdf }}</p>
     {% endif %}
     {% for section, content in data.items() %}
     {% if not section.startswith('_') %}
     <h3>{{ section }}</h3>
+    {% if content is mapping and content.get('_not_executed') %}
+    <p style="font-size:9.5px;color:#a60"><strong>{{ content.get('Statut', 'Non exécuté') }}</strong> — {{ content.get('Raison', '') }}</p>
+    {% else %}
     <pre>{{ content | tojson(indent=2) }}</pre>
+    {% endif %}
     {% endif %}
     {% endfor %}
 

@@ -5,6 +5,7 @@ from extensions import db
 from models import Scan
 from services.groq import generate_narrative_report, markdown_to_html
 from services.report_data import build_report_data, merge_scan_payloads, pick_anchor_scan
+from services.report_consolidate import extract_technical_facts
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +38,22 @@ def build_narrative_for_entity(
 
     if cache_on_scan and anchor and getattr(anchor, 'ai_summary', None):
         stored = (anchor.ai_summary or '').strip()
-        if stored.startswith('## Introduction') or stored.startswith('## Méthodologie'):
+        if stored.startswith('## ') and any(
+            stored.startswith(h) for h in (
+                '## Introduction', '## Méthodologie', '## Synthèse exécutive', '## Profil',
+            )
+        ):
             markdown = stored
             cached = True
 
     if not markdown:
         try:
-            markdown = generate_narrative_report(data, style=style, length=length)
+            root_val = (data.get('dossier') or {}).get('root_entity') or {}
+            consolidated = merge_scan_payloads(entity_id, user_id)
+            facts = extract_technical_facts(consolidated, root_val.get('value', ''))
+            markdown = generate_narrative_report(
+                data, style=style, length=length, technical_facts=facts,
+            )
         except Exception as e:
             logger.error('Groq narrative entity=%s: %s', entity_id, e)
             markdown = FALLBACK_NARRATIVE_MD + f'\n\n_Détail technique : {e}_\n'
