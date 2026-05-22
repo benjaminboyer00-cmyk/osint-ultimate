@@ -1234,6 +1234,15 @@ def scan_view(scan_id):
 def on_connect():
     pass
 
+
+@socketio.on('join_investigation')
+def on_join_investigation(data=None):
+    """Salle Socket.IO par utilisateur pour l'enquête guidée."""
+    from flask_socketio import join_room
+    if current_user.is_authenticated:
+        join_room(str(current_user.id))
+
+
 @socketio.on('disconnect')
 def on_disconnect():
     pass

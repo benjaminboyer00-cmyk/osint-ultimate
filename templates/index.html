@@ -303,6 +303,8 @@
             color: #ffb347;
         }
         .badge.b-scrape { background: rgba(255, 160, 50, .2); color: #ffb347; font-size: .7rem; margin-left: .4rem; }
+        .badge.b-key { background: rgba(255, 200, 50, .15); color: #ffc832; font-size: .7rem; margin-left: .4rem; }
+        .badge.b-key a { color: #4d9fff; }
         .timeout-banner button {
             margin-top: .6rem; padding: .45rem 1rem; background: var(--accent2);
             color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
@@ -886,8 +888,12 @@ function renderDegradedBanner(meta){
 }
 
 function getBadge(key, value){
-    if(value && typeof value === 'object' && (value._degraded || value._source === 'scraping_fallback'))
-        return '<span class="badge b-scrape">scraping</span>';
+    if(value && typeof value === 'object'){
+        if(value._key_required)
+            return '<span class="badge b-key">🔑 <a href="/settings">Clé requise</a></span>';
+        if(value._degraded || value._source === 'scraping_fallback')
+            return '<span class="badge b-scrape">scraping</span>';
+    }
     const s = String(value || '');
     if(s.includes('✓') || s === 'true' || s.includes('Valide') || s.includes('Existe'))
         return '<span class="badge b-ok">OK</span>';
@@ -927,7 +933,12 @@ function renderValue(val, depth=0){
             return `<ul>${val.map(v=>`<li>${renderValue(v,depth+1)}</li>`).join('')}</ul>`;
         }
         let html='';
+        if(val._manual_link && depth === 0)
+            html += `<p><a href="${val._manual_link}" target="_blank" rel="noopener" style="color:var(--accent2)">🔗 Recherche manuelle</a></p>`;
+        if(val._key_required && depth === 0)
+            html += `<p class="badge b-key" style="display:inline-block;margin-bottom:.5rem">🔑 Clé API requise — <a href="${val._settings_url || '/settings'}">Paramètres</a></p>`;
         for(const [k,v] of Object.entries(val)){
+            if(k.startsWith('_')) continue;
             html+=`<div class="kv"><span class="k">${k}:</span><span class="v">${renderValue(v,depth+1)}</span></div>`;
         }
         return html;

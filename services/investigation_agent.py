@@ -200,9 +200,16 @@ def execute_module(module: str, target: str, user_id: int, options: dict, invest
     return result, scan.id
 
 
-def _emit(socketio, event: str, payload: dict):
+def _emit(socketio, event: str, payload: dict, user_id: int | None = None):
     if socketio:
-        socketio.emit(event, payload)
+        payload = dict(payload)
+        if 'status' not in payload and payload.get('phase'):
+            payload['status'] = payload['phase']
+        room = str(user_id) if user_id else None
+        if room:
+            socketio.emit(event, payload, room=room)
+        else:
+            socketio.emit(event, payload)
 
 
 def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, fernet):
@@ -222,9 +229,26 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
         _emit(socketio, 'investigation_started', {
             'investigation_id': investigation_id,
             'objective': objective,
-        })
+            'message': '🧠 L\'IA analyse votre objectif et prépare le plan d\'enquête…',
+        }, user_id)
+
+        _emit(socketio, 'investigation_step', {
+            'investigation_id': investigation_id,
+            'step': 0,
+            'phase': 'planning',
+            'status': 'planning',
+            'message': '🧠 Planification de l\'enquête en cours…',
+        }, user_id)
 
         for step_num in range(1, MAX_STEPS + 1):
+            _emit(socketio, 'investigation_step', {
+                'investigation_id': investigation_id,
+                'step': step_num,
+                'phase': 'planning',
+                'status': 'planning',
+                'message': f'🧠 Étape {step_num}/{MAX_STEPS} — l\'IA choisit le prochain module…',
+            }, user_id)
+
             plan = plan_next_action(objective, steps, step_num)
             action = (plan.get('action') or '').upper()
 
@@ -239,7 +263,7 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
                     'investigation_id': investigation_id,
                     'summary': summary,
                     'steps': steps,
-                })
+                }, user_id)
                 return
 
             module = action.lower()
@@ -251,10 +275,11 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
                 'investigation_id': investigation_id,
                 'step': step_num,
                 'phase': 'running',
+                'status': 'running',
                 'action': module,
                 'target': target,
-                'message': f'🤖 {reason}',
-            })
+                'message': f'🔍 Recherche en cours : {module} sur « {target[:60]} »…',
+            }, user_id)
 
             result, scan_id = execute_module(
                 module, target, user_id, options, investigation_id,
@@ -278,11 +303,12 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
                 'investigation_id': investigation_id,
                 'step': step_num,
                 'phase': 'done',
+                'status': 'done',
                 'action': module,
                 'target': target,
                 'message': f'✅ {module} : {summary}',
                 'scan_id': scan_id,
-            })
+            }, user_id)
 
             if not inv.root_entity_id and user_id:
                 from services.entity_resolve import find_entity_for_target
@@ -304,27 +330,29 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
             'investigation_id': investigation_id,
             'summary': inv.result_summary,
             'steps': steps,
-        })
+        }, user_id)
 
 
 def start_investigation(user_id: int, query: str, app, socketio, fernet) -> int:
     """Crée une enquête et lance le thread agent."""
-    title = (query or 'Enquête')[:180]
-    inv = Investigation(
-        user_id=user_id,
-        title=title,
-        objective=query,
-        status='pending',
-        steps_json='[]',
-    )
-    db.session.add(inv)
-    db.session.commit()
-    inv_id = inv.id
+    with app.app_context():
+        title = (query or 'Enquête')[:180]
+        inv = Investigation(
+            user_id=user_id,
+            title=title,
+            objective=query,
+            status='pending',
+            steps_json='[]',
+        )
+        db.session.add(inv)
+        db.session.commit()
+        inv_id = inv.id
 
     t = threading.Thread(
         target=run_investigation_loop,
         args=(inv_id, user_id, app, socketio, fernet),
         daemon=True,
+        name=f'investigation-{inv_id}',
     )
     t.start()
     return inv_id

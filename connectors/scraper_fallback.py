@@ -82,6 +82,7 @@ def _proxy_dict(options=None) -> dict | None:
 
 def _ddg_search(query: str, options=None) -> str:
     """POST DuckDuckGo HTML — retourne le texte brut ou chaîne vide."""
+    logger.info('DDG scrape: requête=%r stealth=%s', query[:80], bool((options or {}).get('_stealth_mode')))
     try:
         r = requests.post(
             DDG_HTML_URL,
@@ -92,9 +93,10 @@ def _ddg_search(query: str, options=None) -> str:
             verify=False,
         )
         r.raise_for_status()
+        logger.info('DDG scrape: OK (%s octets)', len(r.text))
         return r.text
     except Exception as e:
-        logger.warning('DDG scrape: %s', e)
+        logger.warning('DDG scrape échec: %s — query=%r', e, query[:60])
         return ''
 
 
@@ -109,17 +111,21 @@ def fallback_scrape_emails(domain: str, options=None) -> list[dict]:
 
     query = f'"{domain}" email OR contact OR "@{domain}"'
     html = _ddg_search(query, options)
+    source = 'duckduckgo'
     if not html:
-        # Secours : page d'accueil du domaine via cloudscraper
+        logger.info('DDG vide pour %s — tentative cloudscraper', domain)
         resp = fetch_url_protected(f'https://{domain}', options)
         html = resp.text if resp and resp.text else ''
+        source = 'cloudscraper' if html else 'none'
     if not html:
+        logger.warning('Aucun HTML récupéré pour emails domaine %s', domain)
         return []
 
     soup = BeautifulSoup(html, 'html.parser')
     text = soup.get_text(' ', strip=True)
-    pattern = rf'[a-zA-Z0-9._%+-]+@{re.escape(domain)}'
+    pattern = r'[a-zA-Z0-9._%+-]+@' + re.escape(domain) + r'\b'
     found = sorted(set(re.findall(pattern, text, re.I)))
+    logger.info('Emails trouvés pour %s: %s (source=%s)', domain, len(found), source)
 
     return [
         {

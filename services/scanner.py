@@ -43,9 +43,10 @@ def _resolve_target_for_module(module: str, target: str, category: str) -> str:
     return t
 
 
-def _run_one_module(module: str, target: str, options: dict, category: str) -> tuple:
+def _run_one_module(module: str, target: str, options: dict, category: str, app=None) -> tuple:
     """Exécute un module ; retourne (module, payload, status). status: ok|timeout|error"""
     from app import SCAN_FUNCTIONS
+    from services.result_hints import annotate_result
 
     func = SCAN_FUNCTIONS.get(module)
     if not func:
@@ -55,9 +56,15 @@ def _run_one_module(module: str, target: str, options: dict, category: str) -> t
     opts = dict(options or {})
     opts['_module_timeout'] = MODULE_TIMEOUT_SEC
 
+    def _call():
+        if app is not None:
+            with app.app_context():
+                return func(mod_target, opts)
+        return func(mod_target, opts)
+
     try:
         with ThreadPoolExecutor(max_workers=1) as ex:
-            fut = ex.submit(func, mod_target, opts)
+            fut = ex.submit(_call)
             result = fut.result(timeout=MODULE_TIMEOUT_SEC)
     except FuturesTimeout:
         return module, {'Message': 'Délai dépassé — service lent ou indisponible', '_timeout': True}, 'timeout'
@@ -72,6 +79,8 @@ def _run_one_module(module: str, target: str, options: dict, category: str) -> t
         err = result.get('error') or result.get('Erreur')
         if err and 'timeout' in str(err).lower():
             return module, result, 'timeout'
+    if isinstance(result, dict):
+        result = annotate_result(module, result, opts)
     return module, result, 'ok'
 
 
@@ -87,6 +96,13 @@ def launch_multi_scan(
     Retourne un dict avec sections par module + clé _meta (timeouts, errors).
     """
     options = options or {}
+    app = (options or {}).pop('_app', None)
+    if app is None:
+        try:
+            from flask import has_request_context, current_app
+            app = current_app._get_current_object() if has_request_context() else None
+        except Exception:
+            app = None
     category = category or target_category(target)
     strategies = EXPRESS_STRATEGIES if mode == 'express' else SCAN_STRATEGIES
     module_list = modules or strategies.get(category) or [detect_target_type(target)]
@@ -106,7 +122,7 @@ def launch_multi_scan(
     max_workers = min(6, len(module_list))
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
-            pool.submit(_run_one_module, mod, target, options, category): mod
+            pool.submit(_run_one_module, mod, target, options, category, app): mod
             for mod in module_list
         }
         try:
@@ -215,7 +231,12 @@ def retry_timeout_modules(scan, options=None) -> dict:
     new_errors = {}
 
     for mod in timeout_mods:
-        m, payload, status = _run_one_module(mod, scan.target, opts, category)
+        try:
+            from flask import current_app
+            _app = current_app._get_current_object()
+        except Exception:
+            _app = None
+        m, payload, status = _run_one_module(mod, scan.target, opts, category, _app)
         section = f'Module: {m}'
         retry_results[section] = payload
         if status == 'timeout':

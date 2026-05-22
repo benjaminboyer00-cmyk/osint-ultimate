@@ -37,6 +37,7 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
 
         try:
             opts = _build_options(scan, fernet)
+            opts['_app'] = app
             if scan.result_json:
                 try:
                     pending = json.loads(scan.result_json)
@@ -45,6 +46,12 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                 except Exception:
                     pass
             result = func(scan.target, opts)
+            if isinstance(result, dict):
+                from services.result_hints import annotate_result, annotate_multi_results
+                if scan.module == 'multi' or result.get('_meta', {}).get('multi'):
+                    result = annotate_multi_results(result)
+                else:
+                    result = annotate_result(scan.module, result, opts)
             scan.result_json = json.dumps(result, ensure_ascii=False, default=str)
             scan.status = 'completed'
             scan.completed_at = datetime.utcnow()

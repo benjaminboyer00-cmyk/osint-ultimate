@@ -6,6 +6,10 @@
     <title>Graphe de corrélation – OSINT Ultimate</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
+    <script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
+    <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
+    <script>cytoscape.use(cytoscapeCoseBilkent);</script>
     <style>
         :root { --bg:#07080f; --text:#c8cfe8; --dim:#5a6180; --accent:#00e5a0; --accent2:#4d9fff; --border:rgba(255,255,255,.1); }
         *{box-sizing:border-box}
@@ -53,6 +57,7 @@
         <button type="button" onclick="exportSvg()">SVG</button>
         <button type="button" onclick="loadLinksPanel()">Liens</button>
         <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">🎯 Mode Enquête</button>
+        <button type="button" id="btn-show-all" onclick="showAllNodes()" style="display:none">Afficher tout</button>
         <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
     </div>
 </header>
@@ -104,9 +109,10 @@ const cy = cytoscape({
             'color': '#c8cfe8',
             'font-size': '9px',
             'text-wrap': 'wrap',
-            'text-max-width': '70px',
-            'width': 42,
-            'height': 42,
+            'text-max-width': '90px',
+            'width': 48,
+            'height': 48,
+            'min-zoomed-font-size': 8,
             'border-width': 2,
             'border-color': '#07080f',
         }},
@@ -130,8 +136,11 @@ const cy = cytoscape({
             'border-width': 4,
         }},
     ],
-    layout: { name: 'cose', animate: true, padding: 40 },
+    layout: { name: 'cose', animate: false, padding: 60 },
 });
+
+let hiddenNodesData = null;
+const MAX_NODES_INIT = 50;
 
 cy.on('tap', 'node', evt => {
     const n = evt.target.data();
@@ -235,18 +244,60 @@ async function loadGraph(entityId){
     render(graphData);
 }
 
+function applyGraphLayout(){
+    const n = cy.nodes().length;
+    const bilkent = n > 20 ? {
+        name: 'cose-bilkent',
+        animate: false,
+        randomize: true,
+        nodeSpacing: 90,
+        idealEdgeLength: 140,
+        gravity: 0.22,
+        gravityRange: 4,
+        numIter: 1200,
+        padding: 70,
+    } : null;
+    const fallback = {
+        name: 'cose',
+        animate: false,
+        padding: 70,
+        nodeRepulsion: 12000,
+        idealEdgeLength: 100,
+        gravity: 0.35,
+    };
+    try {
+        cy.layout(bilkent || fallback).run();
+    } catch (e) {
+        cy.layout(fallback).run();
+    }
+}
+
 function render(data){
     cy.elements().remove();
-    const nodes = (data.nodes || []).map(n => ({
+    hiddenNodesData = null;
+    let rawNodes = data.nodes || [];
+    const btnAll = document.getElementById('btn-show-all');
+    if (rawNodes.length > MAX_NODES_INIT) {
+        hiddenNodesData = rawNodes.slice(MAX_NODES_INIT);
+        rawNodes = rawNodes.slice(0, MAX_NODES_INIT);
+        btnAll.style.display = 'inline-block';
+        btnAll.textContent = `Afficher tout (+${hiddenNodesData.length} nœuds)`;
+    } else {
+        btnAll.style.display = 'none';
+    }
+    const nodeIds = new Set(rawNodes.map(n => String(n.id)));
+    const nodes = rawNodes.map(n => ({
         data: {
             id: n.id,
-            label: (n.type || '') + '\n' + (n.value || '').slice(0, 20),
+            label: (n.type || '') + '\n' + (n.value || '').slice(0, 24),
             type: n.type,
             value: n.value,
             color: NODE_COLORS[n.type] || NODE_COLORS.unknown,
         }
     }));
-    const edges = (data.edges || []).map(e => {
+    const edges = (data.edges || []).filter(e =>
+        nodeIds.has(String(e.source)) && nodeIds.has(String(e.target))
+    ).map(e => {
         const conf = e.confidence != null ? e.confidence : 0.5;
         const pct = Math.round(conf * 100);
         return {
@@ -259,7 +310,18 @@ function render(data){
         };
     });
     cy.add([...nodes, ...edges]);
-    cy.layout({ name: 'cose', animate: true, padding: 40 }).run();
+    applyGraphLayout();
+    cy.fit(undefined, 50);
+}
+
+function showAllNodes(){
+    if (!graphData || !hiddenNodesData?.length) return;
+    graphData = {
+        ...graphData,
+        nodes: [...(graphData.nodes || []).slice(0, MAX_NODES_INIT), ...hiddenNodesData],
+    };
+    hiddenNodesData = null;
+    render(graphData);
 }
 
 function exportPng(){

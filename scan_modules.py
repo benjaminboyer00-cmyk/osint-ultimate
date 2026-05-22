@@ -36,16 +36,19 @@ def scan_hunter(target, options=None):
         return result
 
     scraped = fallback_scrape_emails(domain, options)
+    msg = (
+        'Quota API Hunter atteint ou réponse vide. '
+        'Emails extraits via recherche publique (DuckDuckGo / cloudscraper).'
+    )
+    if not scraped:
+        msg += ' Aucun email public trouvé pour ce domaine — essayez une recherche manuelle ou une clé Hunter valide.'
     return wrap_scraping_result(
         {
             'Domaine': domain,
             'Organisation': result.get('Organisation') if isinstance(result, dict) else None,
             'Emails trouvés': len(scraped),
             'Liste': scraped,
-            'Message': (
-                'Quota API Hunter atteint ou réponse vide. '
-                'Emails extraits via recherche publique (DuckDuckGo HTML).'
-            ),
+            'Message': msg,
         },
         {},
         provider='hunter',
