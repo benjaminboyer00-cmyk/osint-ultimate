@@ -1099,16 +1099,18 @@ def report_pdf(scan_id):
         graph_image = request.json.get('graph_png', graph_image)
     try:
         from weasyprint import HTML as WeasyHTML
+        from services.report_signing import build_report_hashes
         data = json.loads(scan.result_json or '{}')
-        report_hash = hashlib.sha256(
-            json.dumps(data, sort_keys=True, ensure_ascii=False).encode()
-        ).hexdigest()[:32]
         generated_at = datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
+        hashes = build_report_hashes(scan, data, generated_at)
         html_str = render_template(
             'report.html', scan=scan, data=data,
-            ai_summary=scan.ai_summary, report_hash=report_hash,
+            ai_summary=scan.ai_summary,
             graph_image=graph_image or None,
             generated_at=generated_at,
+            content_hash=hashes['content_hash'],
+            signature_hash=hashes['signature_hash'],
+            report_hash=hashes['content_hash_short'],
         )
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
         return send_file(BytesIO(pdf_bytes), mimetype='application/pdf',

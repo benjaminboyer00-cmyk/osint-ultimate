@@ -272,6 +272,21 @@
         #ai-text { margin-top:.7rem; font-size:.88rem; line-height:1.7; font-style:italic; white-space:pre-wrap; }
 
         /* ── Export bar ── */
+        #monitor-panel {
+            display: none; margin-top: 1rem; padding: 1rem 1.1rem;
+            background: rgba(77,159,255,.08); border: 1px solid rgba(77,159,255,.25);
+            border-radius: var(--r); font-size: .85rem;
+        }
+        #monitor-panel label { cursor: pointer; color: var(--text); }
+        #monitor-panel select {
+            margin: 0 .5rem; padding: .35rem .6rem; border-radius: 8px;
+            border: 1px solid var(--border); background: #14171c; color: var(--text);
+        }
+        #monitor-panel .watch-btn {
+            margin-top: .6rem; padding: .45rem 1rem; background: var(--accent2);
+            color: #fff; border: none; border-radius: 20px; font-weight: 600; cursor: pointer;
+        }
+        #monitor-panel .watch-meta { color: var(--text-dim); font-size: .78rem; margin-top: .35rem; }
         .export-bar {
             display:none; justify-content:flex-end;
             gap:.5rem; margin-top:1rem;
@@ -327,7 +342,7 @@
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
                 <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
-                <a href="{{ url_for('views.scheduled_page') }}" class="history-link">⏱️</a>
+                <a href="{{ url_for('views.monitoring_page') }}" class="history-link" title="Surveillance">📡</a>
                 <a href="{{ url_for('views.investigate_chat') }}" class="history-link">🧠 IA</a>
                 <a href="{{ url_for('views.settings') }}" class="history-link">⚙️</a>
                 <a href="/logout" class="auth-btn">Déconnexion</a>
@@ -404,6 +419,24 @@
         <button class="icon-btn" id="csv-btn" onclick="downloadCSV()" style="display:none">📊 CSV</button>
         <button class="icon-btn" onclick="window.print()">🖨️ Imprimer</button>
     </div>
+
+    {% if authenticated %}
+    <div id="monitor-panel">
+        <label>
+            <input type="checkbox" id="watch-enable"> 📡 Surveiller cette cible
+        </label>
+        <select id="watch-frequency" title="Fréquence de rescan">
+            <option value="daily">Quotidien</option>
+            <option value="weekly">Hebdomadaire</option>
+        </select>
+        <button type="button" class="watch-btn" onclick="enableMonitoring()">Activer la surveillance</button>
+        <p class="watch-meta">
+            Cible : <strong id="watch-target-preview">—</strong> · Module : <strong id="watch-module-preview">—</strong>
+            · <a href="{{ url_for('views.monitoring_page') }}" style="color:var(--accent2)">Voir toutes les surveillances</a>
+        </p>
+        <p id="watch-msg" class="watch-meta" style="color:var(--accent)"></p>
+    </div>
+    {% endif %}
 
     <!-- AI Summary -->
     <div class="ai-box" id="ai-box">
@@ -691,6 +724,47 @@ function renderResult(data){
     } else {
         document.getElementById('chart-wrap').style.display = 'none';
     }
+    updateMonitorPreview();
+}
+
+function updateMonitorPreview(){
+    const panel = document.getElementById('monitor-panel');
+    if(!panel) return;
+    const t = targetEl.value.trim();
+    if(t && activeScanId){
+        panel.style.display = 'block';
+        document.getElementById('watch-target-preview').textContent = t;
+        document.getElementById('watch-module-preview').textContent = currentModule;
+    }
+}
+
+async function enableMonitoring(){
+    const msg = document.getElementById('watch-msg');
+    if(!document.getElementById('watch-enable')?.checked){
+        msg.textContent = 'Cochez « Surveiller cette cible » pour confirmer.';
+        return;
+    }
+    const target = targetEl.value.trim();
+    if(!target){ msg.textContent = 'Aucune cible à surveiller.'; return; }
+    msg.textContent = '⏳ Création…';
+    try {
+        const r = await fetch('/monitoring/quick', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                target, module: currentModule,
+                frequency: document.getElementById('watch-frequency').value
+            })
+        });
+        const d = await r.json();
+        if(d.ok){
+            msg.innerHTML = `✓ Surveillance activée — <a href="${d.monitoring_url}" style="color:var(--accent2)">voir le tableau de bord</a>`;
+        } else {
+            msg.textContent = '❌ ' + (d.error || 'Erreur');
+        }
+    } catch(e){
+        msg.textContent = '❌ ' + e.message;
+    }
 }
 
 function toggleAcc(hdr){
@@ -808,9 +882,28 @@ function copyResults(){
         setTimeout(()=>btn.textContent='📋 Copier',2000);
     });
 }
-function downloadPDF(){
+async function downloadPDF(){
     if(!activeScanId) return;
-    window.open(`/report/${activeScanId}`, '_blank');
+    try {
+        const r = await fetch(`/report/${activeScanId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({}),
+        });
+        if(!r.ok){
+            const err = await r.json().catch(() => ({}));
+            alert(err.error || 'Export PDF impossible');
+            return;
+        }
+        const blob = await r.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `osint_report_${activeScanId}.pdf`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e){
+        window.open(`/report/${activeScanId}`, '_blank');
+    }
 }
 function downloadCSV(){
     if(!activeScanId) return;

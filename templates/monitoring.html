@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveillance — OSINT Ultimate</title>
+    <style>
+        :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--border:rgba(255,255,255,.1)}
+        body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:900px;margin:0 auto}
+        h1{color:var(--accent);font-size:1.5rem}
+        a{color:var(--accent2);text-decoration:none;margin-right:1rem;font-size:.85rem}
+        .intro{color:var(--dim);font-size:.9rem;line-height:1.5;margin:1rem 0 1.5rem}
+        .box{background:rgba(255,255,255,.04);padding:1.25rem;border-radius:12px;border:1px solid var(--border);margin-bottom:1.5rem}
+        label{display:block;font-size:.8rem;color:var(--dim);margin:.5rem 0 .25rem}
+        input,select{width:100%;max-width:400px;padding:.65rem;border-radius:8px;border:1px solid var(--border);background:#14171c;color:var(--text)}
+        button{padding:.6rem 1.2rem;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;margin-top:1rem}
+        table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:1rem}
+        th,td{padding:.65rem .5rem;border-bottom:1px solid var(--border);text-align:left}
+        th{color:var(--dim);font-weight:600;font-size:.75rem;text-transform:uppercase}
+        tr.off{opacity:.45}
+        .badge{display:inline-block;padding:.2rem .5rem;border-radius:6px;font-size:.72rem;background:rgba(0,229,160,.15);color:var(--accent)}
+        .badge.pause{background:rgba(255,71,87,.15);color:#ff6b7a}
+        .actions form{display:inline}
+        .actions button{font-size:.75rem;padding:.35rem .7rem;margin-right:.25rem}
+        .del{background:#ff4757!important;color:#fff!important}
+        .ok{color:var(--accent);font-size:.85rem}
+        @media(max-width:600px){table{font-size:.75rem}input,select{max-width:100%}}
+    </style>
+</head>
+<body>
+    <p>
+        <a href="{{ url_for('views.expert') }}">← Expert</a>
+        <a href="{{ url_for('views.express') }}">Express</a>
+        <a href="{{ url_for('views.settings') }}">Paramètres</a>
+    </p>
+    <h1>📡 Surveillance continue</h1>
+    <p class="intro">
+        Les cibles surveillées sont rescannées automatiquement (moteur APScheduler, toutes les 5 min).
+        Compatible avec la file Celery si <code>REDIS_URL</code> est configuré.
+    </p>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}<p class="ok">{{ messages[0] }}</p>{% endif %}
+    {% endwith %}
+
+    <form class="box" method="post">
+        <label>Cible à surveiller</label>
+        <input type="text" name="target" required placeholder="email, domaine, IP, pseudo…">
+        <label>Module</label>
+        <select name="module">
+            <option value="">— Détection auto —</option>
+            <option value="email">Email</option>
+            <option value="phone">Téléphone</option>
+            <option value="ip">IP</option>
+            <option value="site">Site web</option>
+            <option value="sherlock">Sherlock</option>
+            <option value="hunter">Hunter</option>
+            <option value="dehashed">Dehashed</option>
+            <option value="whois">WHOIS</option>
+        </select>
+        <label>Fréquence</label>
+        <select name="frequency">
+            <option value="daily">Quotidien (24 h)</option>
+            <option value="weekly">Hebdomadaire (7 j)</option>
+        </select>
+        <button type="submit">+ Ajouter une surveillance</button>
+    </form>
+
+    {% if jobs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Cible</th><th>Module</th><th>Fréquence</th><th>Prochain scan</th><th>Dernier</th><th>Statut</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for j in jobs %}
+        <tr class="{{ '' if j.enabled else 'off' }}">
+            <td>{{ j.target[:45] }}{% if j.target|length > 45 %}…{% endif %}</td>
+            <td>{{ j.module }}</td>
+            <td>{{ j.frequency_label }}</td>
+            <td>{{ j.next_run_at.strftime('%d/%m/%Y %H:%M') if j.next_run_at else '—' }}</td>
+            <td>{% if j.last_scan_id %}<a href="{{ url_for('views.expert') }}?scan_id={{ j.last_scan_id }}">#{{ j.last_scan_id }}</a>{% else %}—{% endif %}</td>
+            <td><span class="badge {{ 'pause' if not j.enabled else '' }}">{{ 'Actif' if j.enabled else 'Pause' }}</span></td>
+            <td class="actions">
+                <form method="post" action="{{ url_for('views.monitoring_toggle', job_id=j.id) }}">
+                    <button type="submit">{{ 'Pause' if j.enabled else 'Reprendre' }}</button>
+                </form>
+                <form method="post" action="{{ url_for('views.monitoring_delete', job_id=j.id) }}" onsubmit="return confirm('Supprimer cette surveillance ?')">
+                    <button type="submit" class="del">Suppr.</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--dim)">Aucune surveillance active. Depuis l’Expert, cochez « Surveiller cette cible » après un scan.</p>
+    {% endif %}
+
+    <p style="margin-top:2rem;font-size:.8rem;color:var(--dim)">
+        API REST : <code>GET/POST /api/v1/scheduled</code> · Ancienne URL <code>/scheduled</code> redirige ici.
+    </p>
+</body>
+</html>

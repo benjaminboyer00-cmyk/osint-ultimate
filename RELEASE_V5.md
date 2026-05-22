@@ -7,9 +7,15 @@
 - **Graphe** (`/graph`) : clic sur un nœud → lancement d'analyse, export PNG/SVG, légende des types.
 
 ### Reporting pro
-- Export **PDF** horodaté (en-tête/pied de page, empreinte SHA-256).
+- Export **PDF** horodaté avec en-tête/pied de page professionnels.
+- **Signature numérique** : empreinte SHA-256 du contenu + signature du document (bloc dédié dans le PDF).
+- Capture du **graphe de corrélation** via POST `graph_png` (depuis `/graph` → export PNG).
 - Export **CSV** et **JSON** depuis Expert et API v1.
-- Option d'inclure une capture du graphe dans le PDF (POST `graph_png`).
+
+### Surveillance continue
+- Page **`/monitoring`** : liste des surveillances, fréquences quotidien / hebdomadaire.
+- Mode Expert : case **« Surveiller cette cible »** + API `POST /monitoring/quick`.
+- Moteur APScheduler (5 min) ; compatible scaffold Celery (`REDIS_URL`).
 
 ### Architecture
 - Cache TTL par connecteur (Hunter, Dehashed, Shodan, Wayback…) via `services/cache.py`.

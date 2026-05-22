@@ -41,6 +41,7 @@ Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** ·
 | `/express` | Recherche type Google : un champ, détection auto du type, mobile-first |
 | `/expert` | Console multi-modules, mode furtif, exports PDF/CSV/JSON |
 | `/graph` | Graphe interactif : clic → analyse, PNG/SVG, légende |
+| `/monitoring` | Surveillance continue (quotidien / hebdomadaire) |
 | `/settings` | Clés API, proxies rotatifs, quotas, webhook |
 | `/api/v1/docs` | Documentation OpenAPI |
 

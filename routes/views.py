@@ -285,47 +285,100 @@ def regenerate_token():
     return redirect(url_for('views.settings'))
 
 
-@views_bp.route('/scheduled', methods=['GET', 'POST'])
+def _jobs_for_user(user_id: int):
+    from services.monitoring import frequency_label
+    jobs = ScheduledScan.query.filter_by(user_id=user_id)\
+        .order_by(ScheduledScan.next_run_at.asc()).all()
+    for j in jobs:
+        j.frequency_label = frequency_label(j.interval_hours or 24)
+    return jobs
+
+
+@views_bp.route('/monitoring', methods=['GET', 'POST'])
 @login_required
-def scheduled_page():
+def monitoring_page():
+    from services.monitoring import create_monitoring_job
     if request.method == 'POST':
         target = request.form.get('target', '').strip()
-        module = request.form.get('module') or detect_target_type(target)
-        hours = int(request.form.get('interval_hours', 24) or 24)
-        if target and 1 <= hours <= 168:
-            job = ScheduledScan(
-                user_id=current_user.id,
-                module=module,
-                target=target,
-                interval_hours=hours,
-                enabled=True,
-                next_run_at=datetime.utcnow(),
-            )
-            db.session.add(job)
-            db.session.commit()
-            flash('Surveillance programmée créée.', 'success')
-        return redirect(url_for('views.scheduled_page'))
+        module = request.form.get('module') or None
+        frequency = request.form.get('frequency', 'daily')
+        try:
+            if target:
+                create_monitoring_job(
+                    current_user.id, target, module=module, frequency=frequency,
+                )
+                flash('Surveillance activée.', 'success')
+        except ValueError as e:
+            flash(str(e), 'error')
+        return redirect(url_for('views.monitoring_page'))
 
-    jobs = ScheduledScan.query.filter_by(user_id=current_user.id)\
-        .order_by(ScheduledScan.next_run_at.asc()).all()
-    return render_template('scheduled.html', jobs=jobs, username=current_user.username)
+    return render_template(
+        'monitoring.html',
+        jobs=_jobs_for_user(current_user.id),
+        username=current_user.username,
+    )
+
+
+@views_bp.route('/monitoring/quick', methods=['POST'])
+@login_required
+def monitoring_quick():
+    """Création rapide depuis le mode Expert (après un scan)."""
+    from services.monitoring import create_monitoring_job
+    data = request.json or {}
+    target = (data.get('target') or '').strip()
+    module = data.get('module') or ''
+    frequency = data.get('frequency', 'daily')
+    if not target:
+        return jsonify({'error': 'Cible manquante'}), 400
+    try:
+        job = create_monitoring_job(
+            current_user.id, target, module=module or None, frequency=frequency,
+        )
+        return jsonify({
+            'ok': True,
+            'job_id': job.id,
+            'message': f'Surveillance {job.target} programmée',
+            'monitoring_url': url_for('views.monitoring_page'),
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@views_bp.route('/monitoring/<int:job_id>/toggle', methods=['POST'])
+@login_required
+def monitoring_toggle(job_id):
+    job = db.session.get(ScheduledScan, job_id)
+    if job and job.user_id == current_user.id:
+        job.enabled = not job.enabled
+        db.session.commit()
+    return redirect(url_for('views.monitoring_page'))
+
+
+@views_bp.route('/monitoring/<int:job_id>/delete', methods=['POST'])
+@login_required
+def monitoring_delete(job_id):
+    job = db.session.get(ScheduledScan, job_id)
+    if job and job.user_id == current_user.id:
+        db.session.delete(job)
+        db.session.commit()
+    return redirect(url_for('views.monitoring_page'))
+
+
+@views_bp.route('/scheduled', methods=['GET', 'POST'])
+@views_bp.route('/scheduled/', methods=['GET', 'POST'])
+@login_required
+def scheduled_page():
+    """Ancienne URL — délègue à /monitoring."""
+    return monitoring_page()
 
 
 @views_bp.route('/scheduled/<int:job_id>/toggle', methods=['POST'])
 @login_required
 def scheduled_toggle(job_id):
-    job = db.session.get(ScheduledScan, job_id)
-    if job and job.user_id == current_user.id:
-        job.enabled = not job.enabled
-        db.session.commit()
-    return redirect(url_for('views.scheduled_page'))
+    return monitoring_toggle(job_id)
 
 
 @views_bp.route('/scheduled/<int:job_id>/delete', methods=['POST'])
 @login_required
 def scheduled_delete(job_id):
-    job = db.session.get(ScheduledScan, job_id)
-    if job and job.user_id == current_user.id:
-        db.session.delete(job)
-        db.session.commit()
-    return redirect(url_for('views.scheduled_page'))
+    return monitoring_delete(job_id)
