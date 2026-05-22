@@ -278,7 +278,15 @@ def dossier_narrative(entity_id):
         return jsonify({'error': str(e)}), 404
     except Exception as e:
         current_app.logger.exception('narrative entity=%s', entity_id)
-        return jsonify({'error': str(e)}), 500
+        from services.narrative_report import FALLBACK_NARRATIVE_MD, markdown_to_html
+        md = FALLBACK_NARRATIVE_MD + f'\n\n_Détail : {e}_\n'
+        return jsonify({
+            'error': str(e),
+            'markdown': md,
+            'html': markdown_to_html(md),
+            'partial': True,
+            'entity_id': entity_id,
+        }), 200
 
 
 @views_bp.route('/expert/dossier/<int:entity_id>/narrative/pdf', methods=['GET'])

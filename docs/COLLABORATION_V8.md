@@ -39,7 +39,9 @@ L'invité doit posséder un compte avec **le même email** que celui saisi à l'
 | Route | Rôle |
 |-------|------|
 | `POST /dossier/<entity_id>/invite` | admin |
-| `GET /invitations` | invité |
+| `GET /invitations` | invité — invitations en attente + **dossiers partagés** (acceptés) |
+| `GET /shared-dossiers` | liste JSON des dossiers collaboratifs acceptés |
+| `GET /api/v1/shared-dossiers` | idem (clé API) |
 | `POST /invitations/<id>/accept` | invité |
 | `GET/POST /entity/<id>/comments` | reader+ |
 | `GET /dossier/<id>/activity` | reader+ |

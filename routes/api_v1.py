@@ -94,6 +94,13 @@ def api_entity_suggestions(entity_id):
     return jsonify(s)
 
 
+@api_bp.route('/shared-dossiers')
+@require_api_key
+def api_shared_dossiers():
+    from services.collaboration import list_shared_dossiers
+    return jsonify({'dossiers': list_shared_dossiers(request.api_user.id)})
+
+
 @api_bp.route('/me')
 @require_api_key
 def api_me():

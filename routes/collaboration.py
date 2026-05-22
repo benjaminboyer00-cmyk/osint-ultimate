@@ -6,6 +6,7 @@ from extensions import db
 from services.collaboration import (
     invite_collaborator,
     list_pending_invitations,
+    list_shared_dossiers,
     accept_invitation,
     list_collaborators,
     update_collaborator_role,
@@ -24,11 +25,19 @@ collab_bp = Blueprint('collab', __name__)
 @login_required
 def invitations_page():
     invites = list_pending_invitations(current_user.id)
+    shared = list_shared_dossiers(current_user.id)
     return render_template(
         'invitations.html',
         invitations=invites,
+        shared_dossiers=shared,
         username=current_user.username,
     )
+
+
+@collab_bp.route('/shared-dossiers')
+@login_required
+def shared_dossiers_api():
+    return jsonify({'dossiers': list_shared_dossiers(current_user.id)})
 
 
 @collab_bp.route('/invitations/list')
@@ -44,7 +53,17 @@ def invitations_accept(collab_id):
         out = accept_invitation(collab_id, current_user.id)
         return jsonify(out)
     except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+        msg = str(e)
+        if 'déjà acceptée' in msg.lower():
+            row = db.session.get(DossierCollaborator, collab_id)
+            if row and row.user_id == current_user.id:
+                return jsonify({
+                    'dossier_url': f'/expert/dossier/{row.root_entity_id}',
+                    'already_accepted': True,
+                    'root_entity_id': row.root_entity_id,
+                    'role': row.role,
+                })
+        return jsonify({'error': msg}), 400
 
 
 @collab_bp.route('/dossier/<int:entity_id>/invite', methods=['POST'])

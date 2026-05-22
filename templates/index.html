@@ -391,6 +391,7 @@
             {% if authenticated %}
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
+                <a href="{{ url_for('collab.invitations_page') }}" class="history-link" title="Invitations & dossiers partagés">📬 Dossiers</a>
                 <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
                 <a href="{{ url_for('views.map_view') }}" class="history-link">🗺️ Carte</a>
                 <a href="{{ url_for('views.timeline_view') }}" class="history-link">⏳ Timeline</a>
@@ -483,6 +484,14 @@
     </div>
 
     {% if authenticated %}
+    <div id="shared-dossiers-panel" style="margin:1rem 0;padding:1rem;background:rgba(77,159,255,.06);border:1px solid var(--border);border-radius:var(--r)">
+        <strong style="color:var(--accent2)">📁 Dossiers partagés avec moi</strong>
+        <p style="font-size:.8rem;color:var(--text-dim);margin:.35rem 0 .6rem">
+            Investigations où vous êtes invité (lecteur / éditeur).
+            <a href="{{ url_for('collab.invitations_page') }}" style="color:var(--accent2)">Tout voir →</a>
+        </p>
+        <div id="shared-dossiers-list" style="font-size:.85rem;color:var(--text-dim)">Chargement…</div>
+    </div>
     <div id="monitor-panel">
         <label>
             <input type="checkbox" id="watch-enable"> 📡 Surveiller cette cible
@@ -1158,6 +1167,27 @@ try {
 
 // ── Notifications surveillance ─────────────────────────────
 {% if authenticated %}
+(async function loadSharedDossiers(){
+    const el = document.getElementById('shared-dossiers-list');
+    if (!el) return;
+    try {
+        const r = await fetch('/shared-dossiers');
+        const d = await r.json();
+        const list = d.dossiers || [];
+        if (!list.length) {
+            el.innerHTML = 'Aucun dossier partagé. <a href="/invitations" style="color:var(--accent2)">Invitations</a>';
+            return;
+        }
+        el.innerHTML = list.map(x =>
+            `<div style="margin:.4rem 0">
+                <a href="${x.dossier_url}" style="color:var(--accent)">${x.dossier_type} : ${x.dossier_value}</a>
+                <span style="color:var(--text-dim)"> (${x.role} · ${x.owner_username})</span>
+            </div>`
+        ).join('');
+    } catch(e) {
+        el.textContent = 'Impossible de charger les dossiers partagés.';
+    }
+})();
 (async function loadNotifBadge(){
     try {
         const r = await fetch('/notifications/count');

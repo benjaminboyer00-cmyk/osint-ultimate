@@ -5,15 +5,37 @@
     <title>Invitations — OSINT Ultimate</title>
     <style>
         body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:720px;margin:0 auto}
-        a{color:#4d9fff} h1{color:#00e5a0}
+        a{color:#4d9fff} h1{color:#00e5a0} h2{color:#4d9fff;font-size:1.1rem;margin:1.5rem 0 .8rem}
         .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1rem;margin:.8rem 0}
-        button{background:#00e5a0;color:#000;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer}
+        button,.btn-link{background:#00e5a0;color:#000;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block;font-size:.88rem;margin:.25rem .25rem 0 0}
+        .btn-secondary{background:#4d9fff;color:#fff}
         .role{color:#5a6180;font-size:.85rem}
     </style>
 </head>
 <body>
-    <p><a href="{{ url_for('views.expert') }}">← Expert</a></p>
-    <h1>📬 Invitations collaboration</h1>
+    <p>
+        <a href="{{ url_for('views.expert') }}">← Expert</a>
+        <a href="{{ url_for('collab.invitations_page') }}" style="margin-left:1rem">🔄 Actualiser</a>
+    </p>
+    <h1>📬 Collaboration</h1>
+
+    <h2>📁 Mes dossiers partagés</h2>
+    <p style="font-size:.85rem;color:#5a6180">Dossiers auxquels vous avez accès (invitation déjà acceptée).</p>
+    {% if shared_dossiers %}
+    {% for d in shared_dossiers %}
+    <div class="card">
+        <strong>{{ d.dossier_type }}</strong> : {{ d.dossier_value }}<br>
+        <span class="role">Rôle : {{ d.role }} — propriétaire {{ d.owner_username }} — invité par {{ d.invited_by }}</span><br>
+        <small>Accepté : {{ (d.accepted_at or '')[:16] }}</small><br>
+        <a href="{{ d.dossier_url }}" class="btn-link">Ouvrir le dossier</a>
+        <a href="{{ d.graph_url }}" class="btn-link btn-secondary">Graphe</a>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#5a6180">Aucun dossier partagé pour le moment.</p>
+    {% endif %}
+
+    <h2>✉️ Invitations en attente</h2>
     {% if invitations %}
     {% for inv in invitations %}
     <div class="card" id="inv-{{ inv.id }}">
@@ -26,6 +48,7 @@
     {% else %}
     <p style="color:#5a6180">Aucune invitation en attente.</p>
     {% endif %}
+
 <script>
 (function highlightInviteFromHash() {
     const m = location.hash.match(/^#inv-(\d+)$/);
@@ -34,14 +57,40 @@
     if (el) {
         el.style.borderColor = '#00e5a0';
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        const shared = {{ shared_dossiers|tojson }};
+        const hit = shared.find(d => String(d.collaboration_id) === m[1]);
+        if (hit?.dossier_url) {
+            window.location = hit.dossier_url;
+        }
     }
 })();
 
+async function parseJsonResponse(r) {
+    const text = await r.text();
+    try {
+        return { ok: r.ok, data: JSON.parse(text) };
+    } catch {
+        return { ok: false, data: { error: (text || '').slice(0, 150) || 'Réponse non JSON' } };
+    }
+}
+
 async function acceptInv(id) {
-    const r = await fetch(`/invitations/${id}/accept`, { method: 'POST' });
-    const d = await r.json();
-    if (!r.ok) { alert(d.error || 'Erreur'); return; }
-    window.location = d.dossier_url || '/expert';
+    const { ok, data: d } = await parseJsonResponse(
+        await fetch(`/invitations/${id}/accept`, { method: 'POST' }),
+    );
+    if (!ok && !d.dossier_url) {
+        alert(d.error || 'Erreur');
+        return;
+    }
+    const url = d.dossier_url || '/expert';
+    if (d.already_accepted) {
+        if (confirm('Invitation déjà acceptée. Ouvrir le dossier ?')) {
+            window.location = url;
+        }
+        return;
+    }
+    window.location = url;
 }
 </script>
 </body>

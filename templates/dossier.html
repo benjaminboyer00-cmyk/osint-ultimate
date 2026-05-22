@@ -296,13 +296,19 @@ document.getElementById('btn-narrative').onclick = async () => {
             length: document.getElementById('narr-length').value,
         }),
     }));
-    if (!ok) {
+    if (d.markdown) {
+        out.textContent = d.markdown || '';
+        out.style.display = 'block';
+    }
+    if (!ok && !d.markdown) {
         status.textContent = '❌ ' + (d.error || 'Erreur');
         return;
     }
-    out.textContent = d.markdown || '';
-    out.style.display = 'block';
-    status.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
+    if (d.groq_error || d.partial) {
+        status.textContent = '⚠️ ' + (d.groq_error || d.error || 'Rapport partiel (fallback)');
+    } else {
+        status.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
+    }
 };
 
 document.getElementById('btn-narrative-pdf').onclick = () => {

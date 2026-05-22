@@ -40,14 +40,49 @@ def build_narrative_for_entity(
     """
     Génère le rapport narratif Markdown + HTML.
     Retourne {markdown, html, entity_id, anchor_scan_id, cached}.
+    Ne lève jamais d'exception technique (fallback Groq / données).
     """
+    try:
+        return _build_narrative_for_entity_impl(
+            entity_id, user_id,
+            style=style, length=length, cache_on_scan=cache_on_scan,
+        )
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.exception('narrative entity=%s user=%s', entity_id, user_id)
+        md = FALLBACK_NARRATIVE_MD + f'\n\n_Détail : {e}_\n'
+        return {
+            'entity_id': entity_id,
+            'anchor_scan_id': None,
+            'markdown': md,
+            'html': markdown_to_html(md),
+            'style': style,
+            'length': length,
+            'cached': False,
+            'dossier_title': None,
+            'groq_error': str(e),
+            'partial': True,
+        }
+
+
+def _build_narrative_for_entity_impl(
+    entity_id: int,
+    user_id: int,
+    *,
+    style: str = 'executive',
+    length: str = 'medium',
+    cache_on_scan: bool = True,
+) -> dict:
+    import os
     data = build_report_data(entity_id, user_id)
     if not data:
-        raise ValueError('Dossier non trouvé')
+        raise ValueError('Dossier non trouvé ou données indisponibles')
 
     anchor = pick_anchor_scan(entity_id, user_id)
     markdown = None
     cached = False
+    groq_note = None
 
     if cache_on_scan and anchor and getattr(anchor, 'ai_summary', None):
         stored = (anchor.ai_summary or '').strip()
@@ -59,16 +94,25 @@ def build_narrative_for_entity(
             cached = True
 
     if not markdown:
-        try:
-            root_val = (data.get('dossier') or {}).get('root_entity') or {}
-            consolidated = merge_scan_payloads(entity_id, user_id)
-            facts = extract_technical_facts(consolidated, root_val.get('value', ''))
-            markdown = generate_narrative_report(
-                data, style=style, length=length, technical_facts=facts,
-            )
-        except Exception as e:
-            logger.error('Groq narrative entity=%s: %s', entity_id, e)
-            markdown = FALLBACK_NARRATIVE_MD + f'\n\n_Détail technique : {e}_\n'
+        if not os.environ.get('GROQ_API_KEY'):
+            groq_note = 'GROQ_API_KEY non configurée sur le serveur'
+            markdown = FALLBACK_NARRATIVE_MD + f'\n\n_{groq_note}_\n'
+        else:
+            try:
+                root_val = (data.get('dossier') or {}).get('root_entity') or {}
+                try:
+                    consolidated = merge_scan_payloads(entity_id, user_id)
+                except Exception as ex:
+                    logger.warning('merge_scan_payloads entity=%s: %s', entity_id, ex)
+                    consolidated = {}
+                facts = extract_technical_facts(consolidated, root_val.get('value', ''))
+                markdown = generate_narrative_report(
+                    data, style=style, length=length, technical_facts=facts,
+                )
+            except Exception as e:
+                logger.error('Groq narrative entity=%s: %s', entity_id, e)
+                markdown = FALLBACK_NARRATIVE_MD + f'\n\n_Détail technique : {e}_\n'
+                groq_note = str(e)
         if (
             cache_on_scan and anchor and markdown
             and '## Introduction' in markdown
@@ -80,23 +124,28 @@ def build_narrative_for_entity(
             except Exception:
                 db.session.rollback()
 
-    html = ''
-    try:
-        html = markdown_to_html(markdown or FALLBACK_NARRATIVE_MD)
-    except Exception as e:
-        logger.warning('markdown_to_html: %s', e)
-        html = f'<p>{markdown or FALLBACK_NARRATIVE_MD}</p>'
+    html = markdown_to_html(markdown or FALLBACK_NARRATIVE_MD)
 
-    return {
+    anchor_id = None
+    if anchor is not None:
+        try:
+            anchor_id = int(anchor.id)
+        except Exception:
+            anchor_id = None
+
+    out = {
         'entity_id': entity_id,
-        'anchor_scan_id': anchor.id if anchor else None,
+        'anchor_scan_id': anchor_id,
         'markdown': markdown or FALLBACK_NARRATIVE_MD,
         'html': html,
         'style': style,
         'length': length,
         'cached': cached,
-        'dossier_title': data['dossier'].get('title'),
+        'dossier_title': (data.get('dossier') or {}).get('title'),
     }
+    if groq_note:
+        out['groq_error'] = groq_note
+    return out
 
 
 def narrative_pdf_context(entity_id: int, user_id: int, **kwargs) -> tuple:

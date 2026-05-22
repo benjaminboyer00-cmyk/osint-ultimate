@@ -86,8 +86,18 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
     if not ent:
         return None
 
-    graph = build_graph_json(entity_id, owner_id)
-    links_detail = build_entity_links_json(entity_id, owner_id) or {}
+    try:
+        graph = build_graph_json(entity_id, owner_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            'build_graph_json entity=%s owner=%s: %s', entity_id, owner_id, e,
+        )
+        graph = {'nodes': [], 'edges': [], 'root_id': entity_id}
+    try:
+        links_detail = build_entity_links_json(entity_id, owner_id) or {}
+    except Exception:
+        links_detail = {}
     entity_ids = {int(n['id']) for n in graph.get('nodes', []) if n.get('id')}
 
     entities = []

@@ -94,7 +94,7 @@ def invite_collaborator(
     notif = CollaborationNotification(
         user_id=invitee.id,
         message=msg[:500],
-        link=f'/invitations',
+        link=f'/invitations#inv-{row.id}',
         notification_type='invite',
         read=False,
     )
@@ -152,19 +152,70 @@ def accept_invitation(collaboration_id: int, user_id: int) -> dict:
     row = db.session.get(DossierCollaborator, collaboration_id)
     if not row or row.user_id != user_id:
         raise ValueError('Invitation introuvable')
+    dossier_url = f'/expert/dossier/{row.root_entity_id}'
     if row.accepted_at:
-        raise ValueError('Invitation déjà acceptée')
+        return {
+            'root_entity_id': row.root_entity_id,
+            'role': row.role,
+            'dossier_url': dossier_url,
+            'already_accepted': True,
+        }
     row.accepted_at = datetime.utcnow()
     log_activity(row.root_entity_id, user_id, 'invite_accepted', {
         'role': row.role,
         'collaboration_id': row.id,
     })
+    _mark_invite_notifications_read(user_id, row.id, row.root_entity_id, dossier_url)
     db.session.commit()
     return {
         'root_entity_id': row.root_entity_id,
         'role': row.role,
-        'dossier_url': f'/expert/dossier/{row.root_entity_id}',
+        'dossier_url': dossier_url,
+        'already_accepted': False,
     }
+
+
+def _mark_invite_notifications_read(
+    user_id: int, collab_id: int, root_entity_id: int, dossier_url: str,
+) -> None:
+    """Met à jour les notifications d'invite pour pointer vers le dossier."""
+    rows = db.session.query(CollaborationNotification).filter_by(
+        user_id=user_id, notification_type='invite', read=False,
+    ).all()
+    for n in rows:
+        link = n.link or ''
+        if f'inv-{collab_id}' in link or link == '/invitations' or not link:
+            n.link = dossier_url
+            n.read = True
+
+
+def list_shared_dossiers(user_id: int) -> list[dict]:
+    """Dossiers où l'utilisateur est collaborateur (invitation acceptée)."""
+    rows = (
+        db.session.query(DossierCollaborator)
+        .filter_by(user_id=user_id)
+        .filter(DossierCollaborator.accepted_at.isnot(None))
+        .order_by(DossierCollaborator.accepted_at.desc())
+        .all()
+    )
+    out = []
+    for row in rows:
+        ent = db.session.get(Entity, row.root_entity_id)
+        owner = db.session.get(User, ent.user_id) if ent else None
+        inviter = db.session.get(User, row.invited_by_user_id)
+        out.append({
+            'collaboration_id': row.id,
+            'root_entity_id': row.root_entity_id,
+            'role': row.role,
+            'accepted_at': row.accepted_at.isoformat() if row.accepted_at else None,
+            'dossier_type': ent.entity_type if ent else '',
+            'dossier_value': ent.value if ent else '',
+            'owner_username': owner.username if owner else '',
+            'invited_by': inviter.username if inviter else '',
+            'dossier_url': f'/expert/dossier/{row.root_entity_id}',
+            'graph_url': f'/graph?entity_id={row.root_entity_id}',
+        })
+    return out
 
 
 def list_collaborators(root_entity_id: int, requester_id: int) -> list[dict]:
