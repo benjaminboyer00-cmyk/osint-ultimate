@@ -9,7 +9,7 @@ Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
 |--------|-------------|-------------------|
 | `SECRET_KEY` | Sessions Flask | `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `DATABASE_URL` | PostgreSQL Supabase (port **5432**, mode Session) | Supabase → Settings → Database → URI |
-| `OPENROUTER_KEY` | Résumé IA + assistant Express | https://openrouter.ai/keys |
+| `GROQ_API_KEY` | Résumé IA + assistant Express | https://console.groq.com/keys |
 | `FERNET_KEY` | Chiffrement clés API par utilisateur | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 
 ## Recommandés
@@ -17,8 +17,7 @@ Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
 | Secret | Description |
 |--------|-------------|
 | `SESSION_COOKIE_SECURE` | `true` sur HF |
-| `OPENROUTER_REFERER` | URL du Space HF |
-| `OPENROUTER_MODEL` | Modèle forcé si erreur « Provider returned error » — essayer `google/gemma-2-9b-it:free` |
+| `GROQ_MODEL` | Optionnel — défaut `llama-3.3-70b-versatile` |
 
 ## Optionnels — enrichissement des scans
 

@@ -30,10 +30,10 @@ Feuille de route complète : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
 |--------|-------------|-------------|
 | `SECRET_KEY` | ✅ | Clé Flask (sessions/cookies). Générer : `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `DATABASE_URL` | ✅ | URI Supabase **Session mode** (port 5432). Ajouter `?sslmode=require` si absent |
-| `OPENROUTER_KEY` | ✅ | Clé API [OpenRouter](https://openrouter.ai/keys) pour le résumé IA |
+| `GROQ_API_KEY` | ✅ | Clé API [Groq](https://console.groq.com/keys) pour le résumé IA |
 | `FERNET_KEY` | ✅ | Chiffrement des clés API utilisateur. Générer : `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `SESSION_COOKIE_SECURE` | Recommandé | `true` sur HF (HTTPS) |
-| `OPENROUTER_REFERER` | Optionnel | URL du Space (déjà une valeur par défaut dans le code) |
+| `GROQ_MODEL` | Optionnel | Défaut : `llama-3.3-70b-versatile` |
 | `HIBP_API_KEY` | Optionnel | Fuites email (Have I Been Pwned) |
 | `SHODAN_API_KEY` | Optionnel | Enrichissement scan IP |
 | `GITHUB_TOKEN` | Optionnel | Limite rate GitHub API |
@@ -74,7 +74,7 @@ python app.py
 | `/health` | Santé app + connexion DB |
 | `/login` `/register` | Authentification |
 | `/history` | Historique (connecté) |
-| `/ai-summary` | Résumé OpenRouter |
+| `/ai-summary` | Résumé IA (Groq) |
 
 ## Déploiement
 
@@ -88,5 +88,5 @@ Vérifier après build : `https://votre-space.hf.space/health` → `"database": 
 
 - Flask 3 + SQLAlchemy + **Supabase PostgreSQL**
 - Flask-Migrate (Alembic)
-- Flask-Login, Socket.IO, OpenRouter IA
+- Flask-Login, Socket.IO, Groq IA
 - Gunicorn + Gevent (port 7860)

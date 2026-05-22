@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OSINT ULTIMATE V4.0 – Auth, Supabase PostgreSQL, Scans async, IA OpenRouter, PWA
+OSINT ULTIMATE V5.0 – Auth, Supabase PostgreSQL, Scans async, IA Groq, PWA
 """
 import os, re, json, socket, hashlib, threading, queue, random
 from datetime import datetime
@@ -80,18 +80,59 @@ def safe_get(url, timeout=15, **kwargs):
     except Exception:
         return None
 
-# ---------- OPENROUTER IA ----------
-def summarize_osint_with_openrouter(text, api_key=None, system: str | None = None):
-    """Résume des résultats OSINT via OpenRouter (multi-modèles + repli)."""
-    from services.openrouter import chat_completion
+# ---------- GROQ IA ----------
+GROQ_API_BASE = 'https://api.groq.com/openai/v1'
+GROQ_DEFAULT_MODEL = 'llama-3.3-70b-versatile'
+
+
+def summarize_osint_with_groq(text, api_key=None, system: str | None = None):
+    """Résume des résultats OSINT via l'API Groq (format OpenAI)."""
+    default_msg = 'Résumé IA indisponible. Vérifiez GROQ_API_KEY dans les secrets du Space.'
+    key = api_key or os.environ.get('GROQ_API_KEY')
+    if not key:
+        return default_msg
+
     if isinstance(text, dict):
-        text = json.dumps(text, ensure_ascii=False)
-    prompt = (
-        'Analyse et résume ces résultats OSINT en français. '
-        'Sois concis, structuré, et mets en évidence les points importants '
-        f'et risques potentiels:\n\n{str(text)[:4000]}'
-    )
-    return chat_completion(prompt, api_key=api_key, system=system)
+        json_data = json.dumps(text, ensure_ascii=False)
+    else:
+        json_data = str(text)
+    json_data = json_data[:4000]
+
+    messages = []
+    if system:
+        messages.append({'role': 'system', 'content': system})
+    messages.append({
+        'role': 'user',
+        'content': (
+            'Analyse et résume ces résultats OSINT en français. '
+            'Sois concis, structuré, et mets en évidence les points importants '
+            f'et risques potentiels:\n\n{json_data}'
+        ),
+    })
+
+    model = os.environ.get('GROQ_MODEL', GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
+
+    try:
+        r = requests.post(
+            f'{GROQ_API_BASE}/chat/completions',
+            headers={
+                'Authorization': f'Bearer {key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'model': model,
+                'messages': messages,
+            },
+            timeout=45,
+        )
+        if r.status_code == 200:
+            data = r.json()
+            content = (data.get('choices') or [{}])[0].get('message', {}).get('content', '')
+            if content:
+                return content.strip()
+        return f'{default_msg} (erreur API Groq {r.status_code}).'
+    except Exception as exc:
+        return f'{default_msg} (connexion : {exc}).'
 
 def init_database():
     """Applique les migrations Alembic (appelé aussi par entrypoint.sh)."""
@@ -1120,18 +1161,15 @@ def ai_summary():
         if scan and scan.ai_summary:
             return jsonify({'summary': scan.ai_summary, 'cached': True})
 
-    try:
-        summary = summarize_osint_with_openrouter(text)
-        if scan:
-            if scan.user_id and current_user.is_authenticated and scan.user_id != current_user.id:
-                return jsonify({'error': 'Accès refusé'}), 403
-            scan.ai_summary = summary
-            db.session.commit()
-        return jsonify({'summary': summary})
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 500
-    except Exception as e:
-        return jsonify({'error': f'OpenRouter: {e}'}), 500
+    summary = summarize_osint_with_groq(text)
+    if summary.startswith('Résumé IA indisponible'):
+        return jsonify({'error': summary}), 500
+    if scan:
+        if scan.user_id and current_user.is_authenticated and scan.user_id != current_user.id:
+            return jsonify({'error': 'Accès refusé'}), 403
+        scan.ai_summary = summary
+        db.session.commit()
+    return jsonify({'summary': summary})
 
 
 @app.route('/scan/<int:scan_id>/view')

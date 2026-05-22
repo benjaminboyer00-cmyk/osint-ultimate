@@ -61,7 +61,7 @@ def express_card():
 @views_bp.route('/express/assist', methods=['POST'])
 def express_assist():
     """Assistant IA pédagogique pour le mode Express."""
-    from services.openrouter import chat_completion, fallback_explain
+    from services.groq import chat_completion, fallback_explain
     data = request.json or {}
     card = data.get('card', {})
     result = data.get('result', {})
@@ -82,10 +82,10 @@ def express_assist():
         return jsonify({
             'assistant': parts[0].strip(),
             'actions': actions,
-            'source': 'openrouter',
+            'source': 'groq',
         })
     except Exception as e:
-        current_app.logger.warning('Express assist OpenRouter: %s', e)
+        current_app.logger.warning('Express assist Groq: %s', e)
         fallback = fallback_explain(card, result)
         return jsonify({
             'assistant': fallback,

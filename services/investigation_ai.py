@@ -1,7 +1,7 @@
 """Enquête guidée par IA."""
 import json
 import re
-from services.openrouter import chat_completion, fallback_explain
+from services.groq import chat_completion, fallback_explain
 from services.target_detector import detect_target_type
 
 
@@ -32,7 +32,7 @@ def investigate_step(user_message: str, context: dict | None = None) -> dict:
 
     try:
         reply = chat_completion(prompt, system=system)
-        source = 'openrouter'
+        source = 'groq'
     except Exception as e:
         reply = fallback_explain(
             {'type': module, 'target': target},

@@ -17,7 +17,7 @@
 | Auth (inscription, login, historique) | ✅ |
 | 12+ modules de scan (site, email, phone, IP, réseaux sociaux…) | ✅ |
 | Socket.IO + worker async | ✅ |
-| Résumé IA OpenRouter (cache en base) | ✅ |
+| Résumé IA Groq (cache en base) | ✅ |
 | Export JSON + PDF (WeasyPrint) | ✅ |
 | Déploiement Docker / HF Spaces | ✅ |
 
@@ -71,7 +71,7 @@
 |----|-------|----------|--------|
 | P2.1.1 | Prompt Express pédagogique + prochaines étapes | P0 | ✅ |
 | P2.1.2 | Rapport contextuel multi-sources (Expert) | P1 | 🔲 |
-| P2.1.3 | Choix modèle IA via secret `OPENROUTER_MODEL` | P2 | 🔲 |
+| P2.1.3 | Choix modèle IA via secret `GROQ_MODEL` | P2 | ✅ |
 | P2.1.4 | Chat investigation (historique conversation) | P3 | 🔲 |
 
 ### 2.2 Moteur de corrélation
