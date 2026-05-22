@@ -346,6 +346,9 @@
         <input type="text" id="target" placeholder="ex: example.com" autocomplete="off" spellcheck="false">
         <button id="scan-btn" onclick="launchScan()">Scanner</button>
     </div>
+    <div id="stealth-opts" style="margin:.5rem 0;font-size:.82rem;color:var(--dim)">
+        <label><input type="checkbox" id="stealth-scan"> Mode furtif (délais aléatoires, rotation User-Agent{% if not authenticated %}, proxy si configuré après connexion{% endif %})</label>
+    </div>
 
     <!-- Email options -->
     <div id="email-opts" class="email-opts">
@@ -584,10 +587,11 @@ async function launchScan(){
         : [];
 
     try {
+        const stealth = document.getElementById('stealth-scan')?.checked;
         const resp = await fetch('/scan', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({module: currentModule, target, options: opts})
+            body: JSON.stringify({module: currentModule, target, options: opts, stealth})
         });
         const data = await resp.json();
         if(data.scan_id){

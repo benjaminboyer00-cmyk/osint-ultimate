@@ -4,35 +4,80 @@
     <meta charset="UTF-8">
     <title>Rapport OSINT #{{ scan.id }}</title>
     <style>
-        body { font-family: sans-serif; font-size: 12px; color: #222; margin: 2cm; }
-        h1 { font-size: 18px; color: #006644; }
-        h2 { font-size: 14px; margin-top: 1.2em; border-bottom: 1px solid #ccc; }
-        .meta { color: #666; margin-bottom: 1.5em; }
-        .ai { background: #f0f7ff; padding: 12px; border-left: 4px solid #0066cc; margin: 1em 0; white-space: pre-wrap; }
-        pre { background: #f5f5f5; padding: 8px; white-space: pre-wrap; word-break: break-all; font-size: 10px; }
-        .footer { margin-top: 2em; font-size: 10px; color: #888; }
+        @page {
+            size: A4;
+            margin: 2cm 1.8cm 2.2cm 1.8cm;
+            @top-center { content: element(header); }
+            @bottom-center { content: element(footer); }
+        }
+        body { font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif; font-size: 11px; color: #1a1a2e; line-height: 1.45; }
+        #header {
+            position: running(header);
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 6px;
+        }
+        #footer {
+            position: running(footer);
+            text-align: center;
+            font-size: 8px;
+            color: #888;
+            border-top: 1px solid #ddd;
+            padding-top: 6px;
+        }
+        .cover { text-align: center; margin-bottom: 2em; padding-bottom: 1.5em; border-bottom: 3px solid #006644; }
+        .cover h1 { font-size: 22px; color: #006644; margin: 0 0 .3em 0; }
+        .cover .sub { font-size: 12px; color: #555; }
+        .meta { background: #f4f6f8; padding: 12px 14px; border-radius: 6px; margin-bottom: 1.5em; font-size: 10px; }
+        .meta strong { color: #006644; }
+        h2 { font-size: 13px; color: #006644; margin-top: 1.4em; border-bottom: 1px solid #ccc; padding-bottom: 4px; page-break-after: avoid; }
+        .ai { background: #eef6ff; padding: 12px; border-left: 4px solid #0066cc; margin: 1em 0; white-space: pre-wrap; font-size: 10px; }
+        pre { background: #f5f5f5; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; font-size: 9px; border: 1px solid #e8e8e8; border-radius: 4px; }
+        .graph-img { max-width: 100%; margin: 1em 0; border: 1px solid #ddd; }
+        .sources { font-size: 9px; color: #666; margin-top: 2em; }
+        .hash { font-family: monospace; font-size: 8px; color: #999; margin-top: 1em; }
     </style>
 </head>
 <body>
-    <h1>Rapport OSINT Ultimate V4</h1>
-    <p class="meta">
-        Module : <strong>{{ scan.module }}</strong><br>
-        Cible : <strong>{{ scan.target }}</strong><br>
-        Mode : {{ scan.mode or 'expert' }}<br>
-        Date : {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}<br>
-        {% if scan.completed_at %}Terminé : {{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}
-    </p>
+    <div id="header">OSINT Ultimate V5 — Rapport confidentiel — {{ generated_at }}</div>
+    <div id="footer">Page générée automatiquement — Sources publiques — Conformité RGPD — {{ report_hash or '—' }}</div>
+
+    <div class="cover">
+        <h1>Rapport d'investigation OSINT</h1>
+        <p class="sub">OSINT Ultimate · Version 5.0</p>
+    </div>
+
+    <div class="meta">
+        <strong>Module :</strong> {{ scan.module }} &nbsp;|&nbsp;
+        <strong>Cible :</strong> {{ scan.target }}<br>
+        <strong>Mode :</strong> {{ scan.mode or 'expert' }} &nbsp;|&nbsp;
+        <strong>Début :</strong> {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
+        {% if scan.completed_at %} &nbsp;|&nbsp; <strong>Fin :</strong> {{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}
+    </div>
+
     {% if ai_summary %}
-    <h2>Résumé IA</h2>
+    <h2>Synthèse IA (Groq)</h2>
     <div class="ai">{{ ai_summary }}</div>
     {% endif %}
+
+    {% if graph_image %}
+    <h2>Graphe de corrélation</h2>
+    <img class="graph-img" src="{{ graph_image }}" alt="Graphe de corrélation">
+    {% endif %}
+
+    <h2>Données collectées</h2>
+    <p class="sources">Les sections ci-dessous reprennent les sources interrogées et leurs réponses brutes.</p>
+
     {% for section, content in data.items() %}
     {% if not section.startswith('_') %}
     <h2>{{ section }}</h2>
     <pre>{{ content | tojson(indent=2) }}</pre>
     {% endif %}
     {% endfor %}
-    <p class="footer">Document généré par OSINT Ultimate — sources publiques uniquement. Usage conforme au RGPD.
-    {% if report_hash %}<br>Empreinte SHA-256 (tronquée) : {{ report_hash }}{% endif %}</p>
+
+    <p class="hash">Empreinte document (SHA-256, 32 car.) : {{ report_hash or 'N/A' }}</p>
+    <p class="sources">Ce document compile des informations accessibles publiquement. L'utilisateur est responsable de l'usage conforme à la réglementation applicable.</p>
 </body>
 </html>

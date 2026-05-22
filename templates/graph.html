@@ -2,77 +2,209 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graphe de corrélation – OSINT Ultimate</title>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <style>
-        body{margin:0;background:#07080f;color:#c8cfe8;font-family:Inter,sans-serif}
-        header{padding:1rem 1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
-        header a{color:#4d9fff}
-        #cy{width:100%;height:calc(100vh - 70px);border-top:1px solid rgba(255,255,255,.08)}
-        select{padding:.5rem;background:#14171c;color:#c8cfe8;border:1px solid rgba(255,255,255,.1);border-radius:8px}
+        :root { --bg:#07080f; --text:#c8cfe8; --dim:#5a6180; --accent:#00e5a0; --accent2:#4d9fff; --border:rgba(255,255,255,.1); }
+        *{box-sizing:border-box}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
+        header{padding:.75rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)}
+        header a{color:var(--accent2);text-decoration:none;font-size:.85rem}
+        .toolbar{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+        .toolbar button,.toolbar select{
+            padding:.45rem .85rem;background:#14171c;color:var(--text);
+            border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.8rem;
+        }
+        .main{flex:1;display:flex;min-height:0}
+        #cy{flex:1;min-height:200px}
+        aside{
+            width:280px;max-width:40vw;border-left:1px solid var(--border);
+            padding:1rem;font-size:.82rem;overflow-y:auto;display:none;
+        }
+        aside.open{display:block}
+        aside h3{font-size:.9rem;color:var(--accent);margin-bottom:.5rem}
+        .legend{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)}
+        .legend-item{display:flex;align-items:center;gap:.5rem;margin:.35rem 0;font-size:.75rem}
+        .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+        .edge-sample{width:24px;height:2px;background:var(--accent2)}
+        @media(max-width:768px){
+            .main{flex-direction:column}
+            aside{width:100%;max-width:none;border-left:none;border-top:1px solid var(--border)}
+        }
     </style>
 </head>
 <body>
 <header>
     <a href="{{ url_for('views.expert') }}">← Expert</a>
-    <strong>Graphe de relations</strong>
-    <button onclick="loadLinks()" style="padding:.5rem 1rem;background:#14171c;color:#c8cfe8;border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer">📋 Liens</button>
-    <button onclick="exportPng()" style="padding:.5rem 1rem;background:#14171c;color:#c8cfe8;border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer">🖼️ PNG</button>
-    <select id="entity-select" onchange="loadGraph(this.value)">
-        <option value="">— Choisir une entité —</option>
-        {% for e in entities %}
-        <option value="{{ e.id }}" {% if entity_id == e.id %}selected{% endif %}>
-            {{ e.entity_type }}: {{ e.value[:50] }}
-        </option>
-        {% endfor %}
-    </select>
+    <strong>Graphe OSINT</strong>
+    <div class="toolbar">
+        <select id="entity-select" onchange="loadGraph(this.value)">
+            <option value="">— Entité —</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}" {% if entity_id == e.id %}selected{% endif %}>
+                {{ e.entity_type }}: {{ e.value[:40] }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="button" onclick="exportPng()">PNG</button>
+        <button type="button" onclick="exportSvg()">SVG</button>
+        <button type="button" onclick="loadLinksPanel()">Liens</button>
+        <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
+    </div>
 </header>
-<div id="cy"></div>
+<div class="main">
+    <div id="cy"></div>
+    <aside id="panel" class="open">
+        <h3 id="panel-title">Sélectionnez un nœud</h3>
+        <p id="panel-desc" style="color:var(--dim)">Cliquez sur un nœud pour lancer une analyse ou ouvrir le dossier.</p>
+        <button type="button" id="btn-scan" style="display:none;margin-top:.5rem;width:100%;padding:.6rem;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer">🔍 Analyser cette entité</button>
+        <button type="button" id="btn-dossier" style="display:none;margin-top:.4rem;width:100%;padding:.5rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:8px;cursor:pointer">📁 Voir le dossier</button>
+        <div class="legend">
+            <strong style="font-size:.75rem;color:var(--dim)">LÉGENDE — Nœuds</strong>
+            <div class="legend-item"><span class="dot" style="background:#00e5a0"></span> email</div>
+            <div class="legend-item"><span class="dot" style="background:#4d9fff"></span> phone</div>
+            <div class="legend-item"><span class="dot" style="background:#ff6b9d"></span> username</div>
+            <div class="legend-item"><span class="dot" style="background:#ffa502"></span> domain</div>
+            <div class="legend-item"><span class="dot" style="background:#a29bfe"></span> platform / ip</div>
+            <strong style="font-size:.75rem;color:var(--dim);display:block;margin-top:.6rem">LIENS</strong>
+            <div class="legend-item"><span class="edge-sample"></span> corrélation (type sur la flèche)</div>
+        </div>
+        <div id="links-list" style="margin-top:.75rem"></div>
+    </aside>
+</div>
 <script>
+const NODE_COLORS = {
+    email:'#00e5a0', phone:'#4d9fff', username:'#ff6b9d',
+    domain:'#ffa502', platform:'#a29bfe', ip:'#a29bfe', unknown:'#5a6180'
+};
+const MODULE_FOR_TYPE = {
+    email:'email', phone:'phone', username:'sherlock',
+    domain:'whois', platform:'sherlock', ip:'ip', unknown:'pseudo'
+};
+
+let selectedNode = null;
+let graphData = null;
+
 const cy = cytoscape({
     container: document.getElementById('cy'),
     style: [
         { selector: 'node', style: {
-            'background-color': '#00e5a0', 'label': 'data(label)', 'color': '#c8cfe8',
-            'font-size': '10px', 'text-wrap': 'wrap', 'text-max-width': '80px',
-            'width': 40, 'height': 40 }},
+            'background-color': 'data(color)',
+            'label': 'data(label)',
+            'color': '#c8cfe8',
+            'font-size': '9px',
+            'text-wrap': 'wrap',
+            'text-max-width': '70px',
+            'width': 42,
+            'height': 42,
+            'border-width': 2,
+            'border-color': '#07080f',
+        }},
+        { selector: 'node:selected', style: {
+            'border-color': '#fff',
+            'border-width': 3,
+        }},
         { selector: 'edge', style: {
-            'width': 2, 'line-color': '#4d9fff', 'target-arrow-color': '#4d9fff',
-            'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
-            'label': 'data(label)', 'font-size': '8px', 'color': '#8090b0' }},
+            'width': 2,
+            'line-color': '#4d9fff',
+            'target-arrow-color': '#4d9fff',
+            'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier',
+            'label': 'data(label)',
+            'font-size': '7px',
+            'color': '#8090b0',
+        }},
     ],
-    layout: { name: 'cose', animate: true },
+    layout: { name: 'cose', animate: true, padding: 40 },
 });
 
+cy.on('tap', 'node', evt => {
+    const n = evt.target.data();
+    selectedNode = n;
+    cy.$('node:selected').unselect();
+    evt.target.select();
+    document.getElementById('panel-title').textContent = n.type + ' : ' + (n.value || n.label);
+    document.getElementById('panel-desc').textContent = 'ID entité ' + n.id;
+    document.getElementById('btn-scan').style.display = 'block';
+    document.getElementById('btn-dossier').style.display = 'block';
+    document.getElementById('dossier-link').style.display = 'inline';
+    document.getElementById('dossier-link').href = '/expert/dossier/' + n.id;
+});
+
+document.getElementById('btn-scan').onclick = () => {
+    if (!selectedNode) return;
+    fetch('/graph/scan-node', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            entity_id: parseInt(selectedNode.id, 10),
+            entity_type: selectedNode.type,
+            value: selectedNode.value
+        })
+    }).then(r => r.json()).then(d => {
+        alert(d.scan_id ? `Scan #${d.scan_id} lancé (${d.module})` : (d.error || 'Erreur'));
+    });
+};
+
+document.getElementById('btn-dossier').onclick = () => {
+    if (selectedNode) window.location = '/expert/dossier/' + selectedNode.id;
+};
+
 async function loadGraph(entityId){
-    if(!entityId) return;
+    if (!entityId) return;
     const r = await fetch(`/graph/data/${entityId}`);
-    if(!r.ok){ alert('Impossible de charger le graphe'); return; }
-    render(await r.json());
+    if (!r.ok) { alert('Graphe indisponible'); return; }
+    graphData = await r.json();
+    render(graphData);
 }
 
 function render(data){
     cy.elements().remove();
-    const nodes = (data.nodes||[]).map(n => ({ data: { id: n.id, label: n.label, type: n.type }}));
-    const edges = (data.edges||[]).map(e => ({ data: { id: e.id, source: e.source, target: e.target, label: e.label }}));
+    const nodes = (data.nodes || []).map(n => ({
+        data: {
+            id: n.id,
+            label: (n.type || '') + '\n' + (n.value || '').slice(0, 20),
+            type: n.type,
+            value: n.value,
+            color: NODE_COLORS[n.type] || NODE_COLORS.unknown,
+        }
+    }));
+    const edges = (data.edges || []).map(e => ({
+        data: { id: e.id, source: e.source, target: e.target, label: e.label }
+    }));
     cy.add([...nodes, ...edges]);
-    cy.layout({ name: 'cose', animate: true }).run();
+    cy.layout({ name: 'cose', animate: true, padding: 40 }).run();
 }
 
 function exportPng(){
-    const png = cy.png({ full: true, scale: 2, bg: '#07080f' });
     const a = document.createElement('a');
-    a.href = png; a.download = 'osint-graph.png'; a.click();
+    a.href = cy.png({ full: true, scale: 2, bg: '#07080f' });
+    a.download = 'osint-graphe.png';
+    a.click();
 }
 
-async function loadLinks(){
+function exportSvg(){
+    const svg = cy.svg({ full: true, bg: '#07080f' });
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'osint-graphe.svg';
+    a.click();
+}
+
+async function loadLinksPanel(){
     const id = document.getElementById('entity-select').value;
-    if(!id) return;
+    if (!id) return;
     const r = await fetch(`/graph/links/${id}`);
     const d = await r.json();
-    if(d.links){
-        alert(d.links.map(l => `${l.type}: ${l.related?.value || l.target?.value}`).join('\n') || 'Aucun lien');
-    }
+    const el = document.getElementById('links-list');
+    if (!d.links?.length) { el.innerHTML = '<p style="color:var(--dim)">Aucun lien</p>'; return; }
+    el.innerHTML = d.links.map(l =>
+        `<div style="margin:.35rem 0;padding:.4rem;background:rgba(255,255,255,.04);border-radius:6px">
+            <strong>${l.type}</strong><br><span style="color:var(--dim)">${l.related?.value || ''}</span>
+        </div>`
+    ).join('');
 }
 
 {% if entity_id %}

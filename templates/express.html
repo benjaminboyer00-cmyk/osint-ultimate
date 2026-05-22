@@ -2,171 +2,264 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recherche Express – OSINT Ultimate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>OSINT Ultimate — Recherche Express</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg:#07080f; --panel:rgba(14,17,28,.92); --text:#c8cfe8; --dim:#5a6180;
-                --accent:#00e5a0; --accent2:#4d9fff; --err:#ff4757; --warn:#ffa502; --border:rgba(255,255,255,.08); }
+        :root {
+            --bg:#07080f; --text:#c8cfe8; --dim:#5a6180;
+            --accent:#00e5a0; --accent2:#4d9fff; --err:#ff4757; --warn:#ffa502;
+            --border:rgba(255,255,255,.1);
+        }
         *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
-        .wrap{max-width:720px;margin:0 auto}
-        nav{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;font-size:.85rem}
+        html{-webkit-text-size-adjust:100%}
+        body{
+            font-family:Inter,system-ui,sans-serif;
+            background:var(--bg);color:var(--text);
+            min-height:100dvh;display:flex;flex-direction:column;
+        }
+        nav{
+            display:flex;flex-wrap:wrap;gap:.6rem 1rem;
+            padding:1rem 1.25rem;font-size:.8rem;
+            border-bottom:1px solid var(--border);
+        }
         nav a{color:var(--accent2);text-decoration:none}
-        h1{font-size:1.8rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--accent),var(--accent2));
-           -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-        .sub{color:var(--dim);margin-bottom:1.5rem;font-size:.95rem}
-        .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin-bottom:1.5rem}
-        .tile{padding:.9rem;border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;
-              background:rgba(255,255,255,.03);transition:.2s}
-        .tile:hover,.tile.active{border-color:var(--accent);background:rgba(0,229,160,.08)}
-        .tile span{font-size:1.5rem;display:block;margin-bottom:.3rem}
-        .search-box{display:flex;gap:.6rem;margin-bottom:1rem}
-        #target{flex:1;padding:1rem 1.2rem;border-radius:40px;border:1.5px solid var(--border);
-                background:rgba(255,255,255,.04);color:var(--text);font-size:1rem}
-        #target:focus{outline:none;border-color:var(--accent)}
-        #go{background:var(--accent);color:#000;border:none;padding:1rem 2rem;border-radius:40px;
-             font-weight:700;cursor:pointer}
-        #go:disabled{opacity:.4;cursor:not-allowed}
-        .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;
-              padding:1.5rem;display:none;margin-top:1rem}
+        .hero{
+            flex:1;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            padding:1.5rem 1rem 2rem;width:100%;max-width:640px;margin:0 auto;
+        }
+        .logo{
+            font-size:clamp(1.5rem,5vw,2rem);font-weight:800;margin-bottom:.35rem;
+            background:linear-gradient(135deg,var(--accent),var(--accent2));
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text;
+        }
+        .tagline{color:var(--dim);font-size:clamp(.85rem,2.5vw,1rem);text-align:center;margin-bottom:1.75rem;line-height:1.5}
+        .search-wrap{width:100%;position:relative}
+        .search-inner{
+            display:flex;align-items:stretch;
+            background:rgba(255,255,255,.05);
+            border:2px solid var(--border);
+            border-radius:999px;
+            transition:border-color .2s,box-shadow .2s;
+            overflow:hidden;
+        }
+        .search-inner:focus-within{
+            border-color:var(--accent);
+            box-shadow:0 0 0 4px rgba(0,229,160,.12);
+        }
+        #target{
+            flex:1;min-width:0;border:none;background:transparent;
+            padding:1rem 1.1rem;font-size:16px;color:var(--text);
+            outline:none;
+        }
+        #go{
+            border:none;background:var(--accent);color:#000;
+            font-weight:700;font-size:.95rem;
+            padding:0 1.35rem;cursor:pointer;
+            white-space:nowrap;
+        }
+        #go:disabled{opacity:.45}
+        #type-badge{
+            display:none;margin-top:.75rem;font-size:.82rem;color:var(--accent);
+            text-align:center;
+        }
+        #type-badge.show{display:block}
+        .examples{
+            margin-top:1rem;display:flex;flex-wrap:wrap;
+            gap:.4rem;justify-content:center;
+        }
+        .chip{
+            font-size:.75rem;padding:.35rem .75rem;border-radius:20px;
+            border:1px solid var(--border);color:var(--dim);
+            cursor:pointer;background:transparent;
+        }
+        .chip:hover{border-color:var(--accent2);color:var(--text)}
+        .prog{height:3px;width:100%;max-width:640px;margin:0 auto;background:rgba(255,255,255,.06);display:none}
+        .prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .35s}
+        .results{width:100%;max-width:640px;margin:0 auto;padding:0 1rem 2rem}
+        .card{
+            background:rgba(14,17,28,.95);border:1px solid var(--border);
+            border-radius:16px;padding:1.25rem;display:none;
+        }
         .card.show{display:block}
-        .card h2{font-size:1.1rem;color:var(--accent);margin-bottom:1rem}
-        .hl{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.9rem}
-        .hl .k{color:var(--dim)}
-        .risk{color:var(--warn);margin:.4rem 0;font-size:.88rem}
-        .steps{color:var(--accent2);font-size:.88rem;margin-top:1rem}
-        .steps li{margin:.3rem 0}
-        .assistant{margin-top:1rem;padding:1rem;background:rgba(77,159,255,.08);
-                   border-radius:12px;font-size:.9rem;line-height:1.6;white-space:pre-wrap}
-        .actions{display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap}
-        .btn{padding:.45rem 1rem;border-radius:20px;border:1px solid var(--border);
-             background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;font-size:.82rem;text-decoration:none}
+        .card h2{font-size:1.05rem;color:var(--accent);margin-bottom:.75rem}
+        .hl{display:flex;flex-wrap:wrap;gap:.25rem .75rem;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.88rem}
+        .hl .k{color:var(--dim);min-width:5rem}
+        .hl .v{flex:1;word-break:break-word}
+        .risk{color:var(--warn);font-size:.85rem;margin:.35rem 0}
+        .steps{color:var(--accent2);font-size:.85rem;padding-left:1.1rem;margin-top:.75rem}
+        .actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem}
+        .btn{
+            padding:.55rem 1rem;border-radius:24px;border:1px solid var(--border);
+            background:rgba(255,255,255,.06);color:var(--text);
+            font-size:.82rem;cursor:pointer;text-decoration:none;
+            min-height:44px;display:inline-flex;align-items:center;
+        }
         .btn-primary{border-color:var(--accent);color:var(--accent)}
-        .legal{font-size:.75rem;color:var(--dim);margin-top:2rem;line-height:1.5}
-        .prog{height:4px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;display:none}
-        .prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s}
+        .assistant{
+            margin-top:1rem;padding:1rem;background:rgba(77,159,255,.08);
+            border-radius:12px;font-size:.88rem;line-height:1.65;
+        }
+        .legal{
+            font-size:.72rem;color:var(--dim);text-align:center;
+            padding:1rem;max-width:640px;margin:0 auto;line-height:1.5;
+        }
+        @media(max-width:480px){
+            #go{padding:0 1rem;font-size:.85rem}
+            .hero{padding-top:1rem}
+            nav{justify-content:center}
+        }
     </style>
 </head>
 <body>
-<div class="wrap">
-    <nav>
-        <a href="{{ url_for('views.express') }}"><strong>Express</strong></a>
-        <a href="{{ url_for('views.expert') }}">Espace Expert</a>
-        <a href="{{ url_for('views.privacy') }}">RGPD</a>
-        {% if authenticated %}
-        <a href="{{ url_for('history') }}">Historique</a>
-        <a href="{{ url_for('views.settings') }}">Paramètres</a>
-        <a href="{{ url_for('logout') }}">Déconnexion ({{ username }})</a>
-        {% else %}
-        <a href="{{ url_for('login') }}">Connexion</a>
-        {% endif %}
-    </nav>
+<nav>
+    <a href="{{ url_for('views.express') }}"><strong>Express</strong></a>
+    <a href="{{ url_for('views.expert') }}">Expert</a>
+    {% if authenticated %}
+    <a href="{{ url_for('history') }}">Historique</a>
+    <a href="{{ url_for('logout') }}">Déconnexion</a>
+    {% else %}
+    <a href="{{ url_for('login') }}">Connexion</a>
+    {% endif %}
+    <a href="{{ url_for('views.privacy') }}">RGPD</a>
+</nav>
 
-    <h1>Recherche Express</h1>
-    <p class="sub">Collez un numéro, email, pseudo ou site — nous détectons le type automatiquement.</p>
+<section class="hero">
+    <div class="logo">OSINT Ultimate</div>
+    <p class="tagline">Une recherche, tous les types — email, téléphone, site, IP ou pseudo détectés automatiquement.</p>
 
-    <div class="tiles" id="tiles">
-        <div class="tile" data-hint="ex: +33 6 12 34 56 78"><span>📞</span>Téléphone</div>
-        <div class="tile" data-hint="ex: contact@mail.com"><span>📧</span>Email</div>
-        <div class="tile" data-hint="ex: pseudonyme"><span>🔍</span>Pseudo</div>
-        <div class="tile" data-hint="ex: example.com"><span>🌐</span>Site</div>
-        <div class="tile" data-hint="ex: 8.8.8.8"><span>🖥️</span>IP</div>
+    <div class="search-wrap">
+        <div class="search-inner">
+            <input type="search" id="target" placeholder="Rechercher…" autocomplete="off" enterkeyhint="search">
+            <button type="button" id="go" onclick="runExpress()">Analyser</button>
+        </div>
+        <p id="type-badge"></p>
+        <div class="examples">
+            <button type="button" class="chip" data-ex="contact@exemple.fr">Email</button>
+            <button type="button" class="chip" data-ex="+33 6 12 34 56 78">Téléphone</button>
+            <button type="button" class="chip" data-ex="exemple.com">Site</button>
+            <button type="button" class="chip" data-ex="8.8.8.8">IP</button>
+            <button type="button" class="chip" data-ex="pseudonyme">Pseudo</button>
+        </div>
     </div>
+</section>
 
-    <div class="search-box">
-        <input type="text" id="target" placeholder="Entrez votre cible ici…" autocomplete="off">
-        <button id="go" onclick="runExpress()">Analyser</button>
-    </div>
-    <div class="prog" id="prog"><div class="prog-bar" id="prog-bar"></div></div>
-
-    <div id="card" class="card"></div>
-
-    <p class="legal">⚖️ Cette recherche utilise uniquement des sources publiquement accessibles.
-    Usage responsable conforme au RGPD. Ne stockez pas de données sans base légale.</p>
-</div>
+<div class="prog" id="prog"><div class="prog-bar" id="prog-bar"></div></div>
+<div class="results"><div id="card" class="card"></div></div>
+<p class="legal">Sources publiques uniquement. Usage responsable et conforme au RGPD.</p>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 const socket = io({ transports: ['websocket','polling'] });
+const TYPE_LABELS = {
+    email:'📧 Email', phone:'📞 Téléphone', ip:'🖥️ Adresse IP',
+    site:'🌐 Site web', sherlock:'🔍 Pseudo', pseudo:'🔍 Pseudo', whois:'📋 Domaine'
+};
 let activeScanId = null, lastResult = null, lastCard = null, detectedModule = 'pseudo';
+const targetEl = document.getElementById('target');
+const badgeEl = document.getElementById('type-badge');
 
-document.querySelectorAll('.tile').forEach(t => {
-    t.addEventListener('click', () => {
-        document.querySelectorAll('.tile').forEach(x => x.classList.remove('active'));
-        t.classList.add('active');
-        document.getElementById('target').placeholder = t.dataset.hint || '';
-    });
+document.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => { targetEl.value = c.dataset.ex; updateBadge(); });
 });
+targetEl.addEventListener('input', debounce(updateBadge, 400));
+targetEl.addEventListener('keydown', e => { if (e.key === 'Enter') runExpress(); });
+
+function debounce(fn, ms){
+    let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+async function updateBadge(){
+    const v = targetEl.value.trim();
+    if (!v) { badgeEl.classList.remove('show'); return; }
+    const d = await fetch('/express/detect', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ target: v })
+    }).then(r => r.json());
+    detectedModule = d.module || 'pseudo';
+    badgeEl.textContent = 'Type détecté : ' + (TYPE_LABELS[detectedModule] || detectedModule);
+    badgeEl.classList.add('show');
+}
 
 socket.on('scan_done', ({ scan_id, result }) => {
     if (scan_id !== activeScanId) return;
-    finishProgress();
-    lastResult = result;
-    showCard(result);
+    finishProgress(); lastResult = result; showCard(result);
 });
-
 socket.on('scan_error', ({ error }) => {
     finishProgress();
-    document.getElementById('card').innerHTML = `<p style="color:var(--err)">❌ ${error}</p>`;
-    document.getElementById('card').classList.add('show');
+    showError(error);
 });
 
 async function runExpress(){
-    const target = document.getElementById('target').value.trim();
-    if(!target) return;
+    const target = targetEl.value.trim();
+    if (!target) return;
     const go = document.getElementById('go');
     go.disabled = true;
     document.getElementById('card').classList.remove('show');
     startProgress();
-
-    const det = await fetch('/express/detect',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({target})}).then(r=>r.json());
-    detectedModule = det.module || 'pseudo';
-
-    const resp = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({module:detectedModule,target,mode:'express'})});
+    await updateBadge();
+    const resp = await fetch('/scan', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ module: detectedModule, target, mode: 'express' })
+    });
     const data = await resp.json();
-    if(data.scan_id){
+    if (data.scan_id) {
         activeScanId = data.scan_id;
         pollScan(data.scan_id);
     } else {
         finishProgress();
-        document.getElementById('card').innerHTML = `<p style="color:var(--err)">${data.error||'Erreur'}</p>`;
-        document.getElementById('card').classList.add('show');
+        showError(data.error || 'Erreur');
     }
     go.disabled = false;
 }
 
 function pollScan(id){
-    const iv = setInterval(async ()=>{
+    const iv = setInterval(async () => {
         const r = await fetch(`/scan/${id}`);
         const d = await r.json();
-        if(d.status && d.status !== 'completed') return;
+        if (d.status && d.status !== 'completed') return;
         clearInterval(iv);
-        if(activeScanId !== id) return;
+        if (activeScanId !== id) return;
         finishProgress();
         lastResult = d;
         showCard(d);
     }, 2000);
-    setTimeout(()=>clearInterval(iv), 120000);
+    setTimeout(() => clearInterval(iv), 120000);
+}
+
+function showError(msg){
+    const el = document.getElementById('card');
+    el.innerHTML = `<p style="color:var(--err)">❌ ${msg}</p>`;
+    el.classList.add('show');
 }
 
 async function showCard(result){
-    const card = await fetch('/express/card',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({module:detectedModule,target:document.getElementById('target').value.trim(),result})
-    }).then(r=>r.json());
+    const card = await fetch('/express/card', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            module: detectedModule,
+            target: targetEl.value.trim(),
+            result
+        })
+    }).then(r => r.json());
     lastCard = card;
-    let html = `<h2>${card.title||'Résultat'}</h2><p style="color:var(--dim);margin-bottom:1rem">${card.type} · ${card.target}</p>`;
-    (card.highlights||[]).forEach(h => html += `<div class="hl"><span class="k">${h.label}</span><span>${h.value}</span></div>`);
-    (card.risks||[]).forEach(r => html += `<div class="risk">⚠️ ${r}</div>`);
-    if(card.next_steps?.length){
-        html += '<ul class="steps">'+card.next_steps.map(s=>`<li>${s}</li>`).join('')+'</ul>';
+    let html = `<h2>${card.title || 'Résultat'}</h2>`;
+    html += `<p style="color:var(--dim);font-size:.85rem;margin-bottom:1rem">${card.type} · ${card.target}</p>`;
+    (card.highlights || []).forEach(h => {
+        html += `<div class="hl"><span class="k">${h.label}</span><span class="v">${h.value}</span></div>`;
+    });
+    (card.risks || []).forEach(r => { html += `<div class="risk">⚠️ ${r}</div>`; });
+    if (card.next_steps?.length) {
+        html += '<ul class="steps">' + card.next_steps.map(s => `<li>${s}</li>`).join('') + '</ul>';
     }
     html += `<div class="actions">
-        <button class="btn" onclick="askAssistant()">🧠 Comprendre ces résultats</button>`;
-    if(activeScanId && {{ 'true' if authenticated else 'false' }}){
+        <button type="button" class="btn" onclick="askAssistant()">🧠 Comprendre</button>`;
+    const authed = {{ 'true' if authenticated else 'false' }};
+    if (authed && activeScanId) {
         html += `<a class="btn btn-primary" href="/report/${activeScanId}">📄 PDF</a>`;
+        html += `<a class="btn" href="/export/${activeScanId}/csv">📊 CSV</a>`;
     }
     html += `<a class="btn" href="/expert">Mode Expert</a></div>
         <div class="assistant" id="assistant" style="display:none"></div>`;
@@ -178,40 +271,42 @@ async function showCard(result){
 async function askAssistant(){
     const box = document.getElementById('assistant');
     box.style.display = 'block';
-    box.textContent = '⏳ Analyse en cours…';
-    const r = await fetch('/express/assist',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({card:lastCard,result:lastResult})});
-    const d = await r.json();
-    if(d.assistant){
-        box.innerHTML = '';
+    box.textContent = '⏳ Analyse…';
+    const d = await fetch('/express/assist', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ card: lastCard, result: lastResult })
+    }).then(r => r.json());
+    box.innerHTML = '';
+    if (d.assistant) {
         const p = document.createElement('div');
         p.textContent = d.assistant;
         p.style.whiteSpace = 'pre-wrap';
         box.appendChild(p);
-        if(d.source === 'fallback') box.style.borderLeft = '3px solid var(--warn)';
-        (d.actions||[]).forEach(act => {
+        (d.actions || []).forEach(act => {
             const btn = document.createElement('button');
-            btn.textContent = act;
+            btn.type = 'button';
             btn.className = 'btn';
-            btn.style.cssText='display:block;margin:.4rem 0;cursor:pointer';
-            btn.onclick = () => { window.location = '{{ url_for("views.expert") }}'; };
+            btn.style.marginTop = '.4rem';
+            btn.textContent = act;
+            btn.onclick = () => { targetEl.value = act.replace(/^→\s*/, '').split('«').pop()?.replace(/»/,'').trim() || targetEl.value; runExpress(); };
             box.appendChild(btn);
         });
     } else {
-        box.textContent = 'Erreur: '+(d.error||'?');
+        box.textContent = d.error || 'Erreur';
     }
 }
 
 function startProgress(){
     document.getElementById('prog').style.display = 'block';
-    document.getElementById('prog-bar').style.width = '30%';
+    document.getElementById('prog-bar').style.width = '25%';
 }
 function finishProgress(){
     document.getElementById('prog-bar').style.width = '100%';
-    setTimeout(()=>{document.getElementById('prog').style.display='none';
-        document.getElementById('prog-bar').style.width='0';},600);
+    setTimeout(() => {
+        document.getElementById('prog').style.display = 'none';
+        document.getElementById('prog-bar').style.width = '0';
+    }, 500);
 }
-document.getElementById('target').addEventListener('keydown',e=>{if(e.key==='Enter')runExpress();});
 </script>
 </body>
 </html>

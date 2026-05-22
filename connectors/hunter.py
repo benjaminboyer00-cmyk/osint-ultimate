@@ -1,5 +1,5 @@
 """Hunter.io — emails professionnels par domaine."""
-from services.cache import get_cached, set_cached
+from services.cache import get_cached, set_cached, get_ttl_hours
 from services.http_client import safe_get
 
 
@@ -43,5 +43,5 @@ def search_domain(domain: str, api_key: str, options=None) -> dict:
         'Liste': emails,
         'Email pattern': d.get('pattern'),
     }
-    set_cached('hunter', domain, out, ttl_hours=48)
+    set_cached('hunter', domain, out, ttl_hours=get_ttl_hours('hunter'))
     return out

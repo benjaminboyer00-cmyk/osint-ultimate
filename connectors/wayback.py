@@ -1,5 +1,5 @@
 """Archive.org Wayback Machine."""
-from services.cache import get_cached, set_cached
+from services.cache import get_cached, set_cached, get_ttl_hours
 from services.http_client import safe_get
 
 
@@ -41,5 +41,5 @@ def search_url(url: str, options=None, limit: int = 10) -> dict:
     else:
         results['Erreur'] = 'Wayback Machine inaccessible'
 
-    set_cached('wayback', domain, results, ttl_hours=168)
+    set_cached('wayback', domain, results, ttl_hours=get_ttl_hours('wayback'))
     return results

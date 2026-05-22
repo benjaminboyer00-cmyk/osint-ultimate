@@ -558,10 +558,17 @@ def scan_ip(ip, options=None):
                 pass
         results['Ports ouverts'] = open_ports or ['Aucun détecté']
 
-    # Shodan (clé globale ou utilisateur via options)
+    # Shodan (clé globale ou utilisateur via options) + cache
     shodan_key = (options or {}).get('_shodan_key') or os.environ.get('SHODAN_API_KEY')
     if shodan_key:
-        sh = safe_get(f'https://api.shodan.io/shodan/host/{ip}?key={shodan_key}')
+        from services.cache import get_cached, set_cached, get_ttl_hours
+        cached_sh = get_cached('shodan', ip)
+        if cached_sh:
+            results['Shodan'] = cached_sh
+            results['Shodan']['_cached'] = True
+        sh = None if cached_sh else safe_get(
+            f'https://api.shodan.io/shodan/host/{ip}?key={shodan_key}', options=options
+        )
         if sh and sh.status_code == 200:
             d = sh.json()
             results['Shodan'] = {
@@ -589,6 +596,7 @@ def scan_ip(ip, options=None):
                     for k, v in list(d.get('vulns', {}).items())[:10]
                     if isinstance(v, dict)
                 ]
+            set_cached('shodan', ip, results['Shodan'], ttl_hours=get_ttl_hours('shodan'))
         elif sh and sh.status_code == 401:
             results['Shodan'] = {'Erreur': 'Clé Shodan invalide'}
         elif sh and sh.status_code == 429:
@@ -952,6 +960,9 @@ threading.Thread(target=worker, daemon=True).start()
 
 
 def run_scan_async(module, target, options=None, user_id=None, mode='expert', scheduled_scan_id=None):
+    if isinstance(options, list):
+        options = {'email_checks': options}
+    options = options or {}
     scan = Scan(
         module=module, target=target, user_id=user_id, status='pending',
         mode=mode, scheduled_scan_id=scheduled_scan_id,
@@ -989,7 +1000,13 @@ def scan_start():
     data = request.json or {}
     module = data.get('module', '')
     target = data.get('target', '').strip()
-    options = data.get('options', [])
+    raw_opts = data.get('options', [])
+    if isinstance(raw_opts, dict):
+        options = raw_opts
+    else:
+        options = {'email_checks': raw_opts} if raw_opts else {}
+    if data.get('stealth'):
+        options['_stealth_mode'] = True
     mode = data.get('mode', 'expert')
     if not target:
         return jsonify({'error': 'Cible manquante'}), 400
@@ -1071,20 +1088,28 @@ def export(scan_id):
                      download_name=f'osint_{scan.module}_{scan_id}.json')
 
 
-@app.route('/report/<int:scan_id>')
+@app.route('/report/<int:scan_id>', methods=['GET', 'POST'])
 @login_required
 def report_pdf(scan_id):
     scan = db.session.get(Scan, scan_id)
     if not scan: abort(404)
     if scan.user_id != current_user.id: abort(403)
+    graph_image = request.args.get('graph', '')
+    if request.method == 'POST' and request.json:
+        graph_image = request.json.get('graph_png', graph_image)
     try:
         from weasyprint import HTML as WeasyHTML
-        data = json.loads(scan.result_json)
+        data = json.loads(scan.result_json or '{}')
         report_hash = hashlib.sha256(
             json.dumps(data, sort_keys=True, ensure_ascii=False).encode()
         ).hexdigest()[:32]
-        html_str = render_template('report.html', scan=scan, data=data,
-                                   ai_summary=scan.ai_summary, report_hash=report_hash)
+        generated_at = datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
+        html_str = render_template(
+            'report.html', scan=scan, data=data,
+            ai_summary=scan.ai_summary, report_hash=report_hash,
+            graph_image=graph_image or None,
+            generated_at=generated_at,
+        )
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
         return send_file(BytesIO(pdf_bytes), mimetype='application/pdf',
                          as_attachment=True,

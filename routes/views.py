@@ -131,6 +131,8 @@ def settings():
     db.session.commit()
     from models import Webhook
     wh = Webhook.query.filter_by(user_id=current_user.id).first()
+    from services.quota_monitor import check_all_for_user
+    quotas = check_all_for_user(current_user, fernet)
     return render_template(
         'settings.html',
         user_keys=user_keys,
@@ -139,6 +141,7 @@ def settings():
         proxy_list=current_user.proxy_list or '',
         stealth_mode=current_user.stealth_mode,
         webhook_url=wh.url if wh else '',
+        quotas=quotas,
     )
 
 
@@ -221,6 +224,35 @@ def graph_data(entity_id):
         g['links_detail'] = links.get('links', [])
         g['entity'] = links.get('entity')
     return jsonify(g)
+
+
+@views_bp.route('/graph/scan-node', methods=['POST'])
+@login_required
+def graph_scan_node():
+    """Lance un scan depuis un nœud du graphe."""
+    from app import run_scan_async, SCAN_FUNCTIONS
+    from services.target_detector import detect_target_type
+    data = request.json or {}
+    entity_id = data.get('entity_id')
+    value = (data.get('value') or '').strip()
+    etype = data.get('entity_type', '')
+    if entity_id:
+        ent = Entity.query.filter_by(id=entity_id, user_id=current_user.id).first()
+        if not ent:
+            return jsonify({'error': 'Entité non trouvée'}), 404
+        value = ent.value
+        etype = ent.entity_type
+    if not value:
+        return jsonify({'error': 'Valeur manquante'}), 400
+    module_map = {
+        'email': 'email', 'phone': 'phone', 'username': 'sherlock',
+        'domain': 'whois', 'platform': 'sherlock', 'ip': 'ip',
+    }
+    module = module_map.get(etype) or detect_target_type(value)
+    if module not in SCAN_FUNCTIONS:
+        module = detect_target_type(value)
+    scan_id = run_scan_async(module, value, user_id=current_user.id)
+    return jsonify({'scan_id': scan_id, 'module': module, 'target': value})
 
 
 @views_bp.route('/graph/links/<int:entity_id>')

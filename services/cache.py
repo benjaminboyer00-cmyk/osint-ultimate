@@ -5,7 +5,29 @@ from datetime import datetime, timedelta
 from extensions import db
 from models import ApiCache
 
+import os
+
 DEFAULT_TTL_HOURS = 24
+
+# TTL par connecteur (heures) — surcharge via CACHE_TTL_<PROVIDER>
+PROVIDER_TTL = {
+    'hunter': 48,
+    'dehashed': 72,
+    'wayback': 168,
+    'shodan': 24,
+    'groq': 0,
+    'hibp': 48,
+}
+
+
+def get_ttl_hours(provider: str) -> int:
+    env_key = f'CACHE_TTL_{provider.upper()}'
+    if os.environ.get(env_key):
+        try:
+            return int(os.environ[env_key])
+        except ValueError:
+            pass
+    return PROVIDER_TTL.get(provider, DEFAULT_TTL_HOURS)
 
 
 def cache_key(provider: str, query: str) -> str:
@@ -24,7 +46,11 @@ def get_cached(provider: str, query: str) -> dict | None:
         return None
 
 
-def set_cached(provider: str, query: str, data: dict, ttl_hours: int = DEFAULT_TTL_HOURS):
+def set_cached(provider: str, query: str, data: dict, ttl_hours: int | None = None):
+    if ttl_hours is None:
+        ttl_hours = get_ttl_hours(provider)
+    if ttl_hours <= 0:
+        return
     ck = cache_key(provider, query)
     row = ApiCache.query.filter_by(cache_key=ck).first()
     exp = datetime.utcnow() + timedelta(hours=ttl_hours)

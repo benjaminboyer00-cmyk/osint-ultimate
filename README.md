@@ -8,21 +8,31 @@ app_port: 7860
 pinned: false
 ---
 
-# OSINT Ultimate V4.2
+# OSINT Ultimate V5.0
 
 Plateforme OSINT (Flask) déployée sur [Hugging Face Spaces](https://huggingface.co/spaces/benji4565/osint_ultimate_backend), base PostgreSQL [Supabase](https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz).
+
+Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
+
+## Aperçu visuel
+
+Ajoutez vos captures dans `docs/images/` puis elles s'affichent ici :
+
+| Express | Graphe | Expert |
+|---------|--------|--------|
+| ![Express](docs/images/express.png) | ![Graphe](docs/images/graph.png) | ![Expert](docs/images/expert.png) |
+
+*(Placeholders — remplacer par de vraies captures pour la release GitHub.)*
 
 ## Parcours utilisateur
 
 | URL | Public cible |
 |-----|----------------|
-| `/express` | Recherche rapide, détection auto, carte synthèse, assistant IA |
-| `/expert` | Console multi-modules, exports, graphe |
-| `/graph` | Visualisation des corrélations (Cytoscape) |
-| `/settings` | Clés API personnelles + token REST |
+| `/express` | Recherche type Google : un champ, détection auto du type, mobile-first |
+| `/expert` | Console multi-modules, mode furtif, exports PDF/CSV/JSON |
+| `/graph` | Graphe interactif : clic → analyse, PNG/SVG, légende |
+| `/settings` | Clés API, proxies rotatifs, quotas, webhook |
 | `/api/v1/docs` | Documentation OpenAPI |
-
-Feuille de route complète : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
 
 ## Secrets Hugging Face (Settings → Repository secrets)
 
@@ -38,6 +48,8 @@ Feuille de route complète : **`ROADMAP.md`** · Secrets : **`SECRETS.md`**
 | `SHODAN_API_KEY` | Optionnel | Enrichissement scan IP |
 | `GITHUB_TOKEN` | Optionnel | Limite rate GitHub API |
 | `NUMVERIFY_KEY` | Optionnel | Validation téléphone |
+| `REDIS_URL` | Optionnel | Broker Celery (`redis://…`) pour file de tâches |
+| `CACHE_TTL_*` | Optionnel | TTL cache par provider (ex. `CACHE_TTL_SHODAN=48`) |
 
 ### Où trouver `DATABASE_URL` sur Supabase
 
@@ -84,9 +96,10 @@ git push huggingface main
 
 Vérifier après build : `https://votre-space.hf.space/health` → `"database": "connected"`.
 
-## Stack V4
+## Stack V5
 
 - Flask 3 + SQLAlchemy + **Supabase PostgreSQL**
-- Flask-Migrate (Alembic)
-- Flask-Login, Socket.IO, Groq IA
+- Flask-Migrate (Alembic), cache API (`api_cache`)
+- Flask-Login, Socket.IO, Groq IA, corrélation entités
+- Celery + Redis (optionnel, scaffold `tasks.py`)
 - Gunicorn + Gevent (port 7860)

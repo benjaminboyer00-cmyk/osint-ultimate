@@ -1,6 +1,6 @@
 """Dehashed — fuites de données."""
 import base64
-from services.cache import get_cached, set_cached
+from services.cache import get_cached, set_cached, get_ttl_hours
 from services.http_client import safe_get
 
 
@@ -49,5 +49,5 @@ def search(query: str, api_key: str, email: str = '', options=None) -> dict:
         'Fuites trouvées': len(leaks),
         'Entrées': leaks or ['Aucune entrée'],
     }
-    set_cached('dehashed', q, out, ttl_hours=72)
+    set_cached('dehashed', q, out, ttl_hours=get_ttl_hours('dehashed'))
     return out
