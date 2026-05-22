@@ -10,6 +10,7 @@ requests
 python-whois
 dnspython
 beautifulsoup4
+cloudscraper>=1.2.71
 phonenumbers
 python-nmap
 Pillow

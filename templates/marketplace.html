@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketplace connecteurs — OSINT Ultimate</title>
+    <style>
+        :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--border:rgba(255,255,255,.1)}
+        body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:1000px;margin:0 auto}
+        h1{color:var(--accent)}a{color:var(--accent2);text-decoration:none;margin-right:1rem;font-size:.85rem}
+        .intro{color:var(--dim);font-size:.9rem;margin:1rem 0 1.5rem}
+        .filters{margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap}
+        .filters button{padding:.4rem .8rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:.8rem}
+        .filters button.active{background:var(--accent);color:#000;border-color:var(--accent)}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+        .card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:1rem;opacity:.55}
+        .card.installed{opacity:1;border-color:rgba(0,229,160,.35)}
+        .card h3{margin:0;font-size:.95rem;display:flex;align-items:center;gap:.4rem}
+        .card p{font-size:.8rem;color:var(--dim);margin:.5rem 0}
+        .tag{font-size:.68rem;padding:.12rem .4rem;border-radius:4px;background:rgba(77,159,255,.15);color:var(--accent2)}
+        .status{font-size:.68rem;padding:.12rem .4rem;border-radius:4px}
+        .status.active{background:rgba(0,229,160,.15);color:var(--accent)}
+        .status.beta{background:rgba(255,200,50,.15);color:#ffc832}
+        nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:1rem}
+        nav a.active{color:var(--accent);font-weight:600}
+    </style>
+</head>
+<body>
+<nav>
+    <a href="{{ url_for('views.express') }}">Express</a>
+    <a href="{{ url_for('views.expert') }}">Expert</a>
+    <a href="{{ url_for('views.recipes_page') }}">Recettes</a>
+    <a href="{{ url_for('views.marketplace_page') }}" class="active">Marketplace</a>
+</nav>
+<h1>🔌 Marketplace connecteurs</h1>
+<p class="intro">
+    Catalogue des sources OSINT intégrées. Les connecteurs <strong>installés</strong> sont disponibles dans Expert et les recettes.
+    Contribuer : voir <code>CONTRIBUTING.md</code> et <code>connectors/base.py</code>.
+</p>
+<div class="filters" id="filters">
+    <button class="active" data-cat="all">Tous</button>
+    <button data-cat="identité">Identité</button>
+    <button data-cat="réseaux">Réseaux</button>
+    <button data-cat="infrastructure">Infrastructure</button>
+    <button data-cat="menace">Menace</button>
+    <button data-cat="fuites">Fuites</button>
+    <button data-cat="orchestration">Orchestration</button>
+</div>
+<div class="grid" id="grid">
+{% for c in connectors %}
+    <div class="card {{ 'installed' if c.installed else '' }}" data-category="{{ c.category }}">
+        <h3>
+            {{ c.name }}
+            <span class="status {{ c.status }}">{{ c.status }}</span>
+        </h3>
+        <p>{{ c.description }}</p>
+        <p>
+            <span class="tag">{{ c.category }}</span>
+            {% if c.api_key %}<span class="tag">clé API : {{ c.api_key }}</span>{% endif %}
+            {% if c.installed %}<span class="tag" style="color:var(--accent)">✓ installé</span>{% else %}<span class="tag">à venir</span>{% endif %}
+        </p>
+        <p style="font-size:.72rem;color:var(--dim)">Entrées : {{ c.inputs | join(', ') }}</p>
+    </div>
+{% endfor %}
+</div>
+<script>
+document.querySelectorAll('#filters button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#filters button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.dataset.cat;
+        document.querySelectorAll('#grid .card').forEach(card => {
+            card.style.display = (cat === 'all' || card.dataset.category === cat) ? '' : 'none';
+        });
+    });
+});
+</script>
+</body>
+</html>

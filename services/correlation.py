@@ -21,22 +21,30 @@ def _get_or_create_entity(etype: str, value: str, user_id, scan_id: int) -> Enti
     return ent
 
 
-def _link(src: Entity, tgt: Entity, link_type: str, proof: str, scan_id: int, user_id):
+def _link(src: Entity, tgt: Entity, link_type: str, proof: str, scan_id: int, user_id, module: str = 'unknown'):
+    from services.link_scoring import upsert_link_scored
     existing = EntityLink.query.filter_by(
         user_id=user_id,
         source_id=src.id,
         target_id=tgt.id,
         link_type=link_type,
     ).first()
+    mod = module
+    if '—' in proof:
+        mod = proof.split('—')[0].strip().lower() or module
     if not existing:
-        db.session.add(EntityLink(
+        row = EntityLink(
             user_id=user_id,
             source_id=src.id,
             target_id=tgt.id,
             link_type=link_type,
             source_proof=proof[:500],
             scan_id=scan_id,
-        ))
+        )
+        upsert_link_scored(row, mod, link_type)
+        db.session.add(row)
+    else:
+        upsert_link_scored(existing, mod, link_type)
 
 
 def _link_to_root(root_entity_id: int | None, new_ent: Entity, scan_id: int, user_id: int, proof: str):
@@ -220,11 +228,14 @@ def build_graph_json(entity_id: int, user_id: int) -> dict:
                 add_node(other)
                 edge_id = f'{link.source_id}-{link.target_id}-{link.link_type}'
                 if edge_id not in {ed['id'] for ed in edges}:
+                    conf = link.confidence if link.confidence is not None else 0.5
                     edges.append({
                         'id': edge_id,
                         'source': str(link.source_id),
                         'target': str(link.target_id),
                         'label': link.link_type,
+                        'confidence': conf,
+                        'width': max(1, int(conf * 6)),
                     })
                 explore(other_id, depth + 1, max_depth)
 

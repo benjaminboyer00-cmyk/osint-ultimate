@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport OSINT #{{ scan.id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2.2cm 1.8cm 2.4cm 1.8cm;
+            @top-center { content: element(page-header); }
+            @bottom-center { content: element(page-footer); }
+        }
+        body {
+            font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif;
+            font-size: 10.5px; color: #1a1a2e; line-height: 1.5;
+        }
+        #page-header {
+            position: running(page-header);
+            font-size: 8px; color: #555; text-align: center;
+            border-bottom: 1px solid #ccc; padding-bottom: 5px;
+        }
+        #page-footer {
+            position: running(page-footer);
+            font-size: 7.5px; color: #777; text-align: center;
+            border-top: 1px solid #ccc; padding-top: 5px;
+        }
+        .cover {
+            page-break-after: always;
+            text-align: center;
+            padding-top: 3cm;
+        }
+        .cover .classif {
+            display: inline-block;
+            border: 2px solid #006644;
+            color: #006644;
+            font-weight: bold;
+            padding: 6px 20px;
+            margin-bottom: 1.5em;
+            font-size: 11px;
+            letter-spacing: 2px;
+        }
+        .cover h1 { font-size: 24px; color: #006644; margin: 0 0 .4em 0; }
+        .cover .sub { font-size: 13px; color: #444; margin-bottom: 2em; }
+        .cover .meta-line { font-size: 10px; color: #666; margin: .3em 0; }
+        h2 {
+            font-size: 14px; color: #006644;
+            border-bottom: 2px solid #006644;
+            padding-bottom: 4px;
+            margin-top: 1.6em;
+            page-break-after: avoid;
+        }
+        h3 { font-size: 11px; color: #333; margin-top: 1em; }
+        .exec {
+            background: #f0f7f4;
+            border-left: 4px solid #006644;
+            padding: 14px 16px;
+            margin: 1em 0;
+            font-size: 10.5px;
+            white-space: pre-wrap;
+        }
+        .meta-box {
+            background: #f4f6f8;
+            padding: 12px 14px;
+            border-radius: 4px;
+            margin: 1em 0;
+            font-size: 9.5px;
+        }
+        table.trace {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5px;
+            margin: 1em 0;
+        }
+        table.trace th {
+            background: #006644;
+            color: #fff;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        table.trace td {
+            border: 1px solid #ddd;
+            padding: 5px 8px;
+            vertical-align: top;
+        }
+        table.trace tr:nth-child(even) { background: #f9f9f9; }
+        pre {
+            background: #f5f5f5;
+            padding: 8px 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 8.5px;
+            border: 1px solid #e0e0e0;
+            page-break-inside: avoid;
+        }
+        .graph-img {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            margin: 1em 0;
+            page-break-inside: avoid;
+        }
+        .signature {
+            margin-top: 2em;
+            padding: 16px;
+            border: 2px solid #006644;
+            background: #f8fffc;
+            page-break-inside: avoid;
+        }
+        .hash {
+            font-family: 'DejaVu Sans Mono', monospace;
+            font-size: 7px;
+            word-break: break-all;
+            line-height: 1.45;
+            margin: 3px 0;
+        }
+        .legal {
+            font-size: 8.5px;
+            color: #555;
+            margin-top: 1.5em;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        .ai { background: #eef6ff; padding: 12px; border-left: 4px solid #0066cc; white-space: pre-wrap; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div id="page-header">
+        OSINT Ultimate V{{ app_version }} — {{ classification }} — Scan #{{ scan.id }} — {{ generated_at }}
+    </div>
+    <div id="page-footer">
+        Empreinte document {{ signature_hash[:16] }}… — Page générée automatiquement — Usage professionnel — RGPD
+    </div>
+
+    <div class="cover">
+        <div class="classif">{{ classification }}</div>
+        <h1>Rapport d'investigation OSINT</h1>
+        <p class="sub">Plateforme de preuve &amp; conformité</p>
+        <p class="meta-line"><strong>Cible :</strong> {{ scan.target }}</p>
+        <p class="meta-line"><strong>Enquêteur :</strong> {{ investigator }}</p>
+        <p class="meta-line"><strong>Date du rapport :</strong> {{ generated_at }}</p>
+        <p class="meta-line"><strong>Référence :</strong> OSINT-RPT-{{ scan.id }}</p>
+    </div>
+
+    <h2>Résumé exécutif</h2>
+    <div class="exec">{{ executive_summary }}</div>
+
+    <h2>Méthodologie</h2>
+    <div class="meta-box">
+        <strong>Plateforme :</strong> {{ methodology.platform }}<br>
+        <strong>Module principal :</strong> {{ methodology.module }} &nbsp;|&nbsp;
+        <strong>Mode :</strong> {{ methodology.mode }}<br>
+        <strong>Collecte :</strong> {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
+        {% if scan.completed_at %} → {{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}<br>
+        <strong>Sources documentées :</strong> {{ methodology.sources_count }}<br>
+        <strong>Principe :</strong> agrégation de données publiquement accessibles ; aucune intrusion système.
+    </div>
+
+    <h2>Chaîne de traçabilité</h2>
+    <p style="font-size:9px;color:#666;margin-bottom:8px">
+        Chaque ligne atteste d'une source interrogée et de l'horodatage de collecte associé au scan #{{ scan.id }}.
+    </p>
+    <table class="trace">
+        <thead>
+            <tr>
+                <th>Horodatage (UTC)</th>
+                <th>Source</th>
+                <th>Type</th>
+                <th>Détail</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in traceability %}
+            <tr>
+                <td>{{ row.horodatage }}</td>
+                <td>{{ row.source }}</td>
+                <td>{{ row.type }}</td>
+                <td>{{ row.detail }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if ai_summary %}
+    <h2>Synthèse analytique (IA)</h2>
+    <div class="ai">{{ ai_summary }}</div>
+    {% endif %}
+
+    {% if graph_image %}
+    <h2>Graphe de corrélation</h2>
+    <p style="font-size:9px;color:#666">Figure 1 — Relations entre entités découvertes.</p>
+    <img class="graph-img" src="{{ graph_image }}" alt="Graphe">
+    {% endif %}
+
+    <h2>Annexe — Données collectées</h2>
+    {% if data.get('_note_pdf') %}
+    <p style="font-size:9px;color:#a60"><strong>Note :</strong> {{ data._note_pdf }}</p>
+    {% endif %}
+    {% for section, content in data.items() %}
+    {% if not section.startswith('_') %}
+    <h3>{{ section }}</h3>
+    <pre>{{ content | tojson(indent=2) }}</pre>
+    {% endif %}
+    {% endfor %}
+
+    <div class="signature">
+        <h2 style="margin-top:0;border:none;font-size:13px">Certificat d'intégrité numérique</h2>
+        <p style="font-size:9px">
+            Les empreintes SHA-256 ci-dessous permettent de vérifier que le contenu n'a pas été altéré
+            depuis la génération du rapport. Conservez ce document avec les hash pour audit.
+        </p>
+        <p><strong>Empreinte du contenu (SHA-256)</strong></p>
+        <p class="hash">{{ content_hash }}</p>
+        <p><strong>Signature du document (SHA-256)</strong></p>
+        <p class="hash">{{ signature_hash }}</p>
+        <p><strong>Référence rapport</strong> OSINT-RPT-{{ scan.id }} · {{ report_hash }}</p>
+    </div>
+
+    <div class="legal">
+        <h2 style="font-size:11px">Mentions légales &amp; conformité</h2>
+        <p>
+            Ce rapport a été généré automatiquement à partir de sources publiquement accessibles.
+            Il ne constitue pas un avis juridique. Conformément au RGPD (UE 2016/679) et aux recommandations CNIL,
+            l'utilisateur doit s'assurer d'une base légale appropriée (intérêt légitime, mission de sécurité, etc.)
+            et limiter la conservation aux finalités documentées.
+        </p>
+        <p>
+            <strong>Droits des personnes concernées :</strong> accès, rectification, effacement — contactez l'administrateur
+            de la plateforme via la page <em>Politique de confidentialité</em> (/privacy).
+        </p>
+        <p>
+            <strong>Vérification :</strong> recalculez le SHA-256 du JSON source (export /scan/{{ scan.id }}) et comparez
+            à l'empreinte du contenu ci-dessus.
+        </p>
+    </div>
+</body>
+</html>

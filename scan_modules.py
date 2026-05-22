@@ -5,6 +5,8 @@ from connectors.epieos import search as epieos_search
 from connectors.wayback import search_url as wayback_search
 from connectors.whois_domain import lookup as whois_lookup
 from connectors.messaging import check_phone_presence
+from connectors.otx import search as otx_search
+from connectors.urlhaus import search as urlhaus_search
 
 
 def _opt(options, key, env_name=''):
@@ -13,17 +15,76 @@ def _opt(options, key, env_name=''):
 
 
 def scan_hunter(target, options=None):
+    from connectors.scraper_fallback import fallback_scrape_emails
+    from services.quota_fallback import hunter_needs_fallback, wrap_scraping_result
+
     key = _opt(options, '_hunter_key', 'HUNTER_API_KEY')
     domain = target.strip()
     if '@' in domain:
         domain = domain.split('@')[1]
-    return hunter_domain(domain, key, options)
+
+    result = hunter_domain(domain, key, options)
+    if not hunter_needs_fallback(result):
+        return result
+
+    from services.scrape_policy import scrape_fallback_allowed
+    if not scrape_fallback_allowed(options):
+        if isinstance(result, dict):
+            result['Message'] = (
+                'Quota API atteint. Fallback scraping désactivé (Paramètres → OPSEC).'
+            )
+        return result
+
+    scraped = fallback_scrape_emails(domain, options)
+    return wrap_scraping_result(
+        {
+            'Domaine': domain,
+            'Organisation': result.get('Organisation') if isinstance(result, dict) else None,
+            'Emails trouvés': len(scraped),
+            'Liste': scraped,
+            'Message': (
+                'Quota API Hunter atteint ou réponse vide. '
+                'Emails extraits via recherche publique (DuckDuckGo HTML).'
+            ),
+        },
+        {},
+        provider='hunter',
+    )
 
 
 def scan_dehashed(target, options=None):
+    from connectors.scraper_fallback import fallback_scrape_dehashed_hints
+    from services.quota_fallback import dehashed_needs_fallback, wrap_scraping_result
+
     key = _opt(options, '_dehashed_key', 'DEHASHED_API_KEY')
     email = _opt(options, '_dehashed_email', 'DEHASHED_EMAIL')
-    return dehashed_search(target, key, email, options)
+    result = dehashed_search(target, key, email, options)
+
+    if not dehashed_needs_fallback(result):
+        return result
+
+    from services.scrape_policy import scrape_fallback_allowed
+    if not scrape_fallback_allowed(options):
+        if isinstance(result, dict):
+            result['Message'] = (
+                'Quota API atteint. Fallback scraping désactivé (Paramètres → OPSEC).'
+            )
+        return result
+
+    hints = fallback_scrape_dehashed_hints(target, options)
+    return wrap_scraping_result(
+        {
+            'Requête': target.strip(),
+            'Fuites trouvées': 0,
+            'Entrées': hints or ['Aucun indice public trouvé (scraping)'],
+            'Message': (
+                'Quota API Dehashed atteint. '
+                'Indices publics uniquement (pas de base de fuites certifiée).'
+            ),
+        },
+        {},
+        provider='dehashed',
+    )
 
 
 def scan_epieos(target, options=None):
@@ -37,6 +98,15 @@ def scan_wayback(target, options=None):
 
 def scan_whois(target, options=None):
     return whois_lookup(target)
+
+
+def scan_otx(target, options=None):
+    key = _opt(options, '_otx_key', 'OTX_API_KEY')
+    return otx_search(target, key, options)
+
+
+def scan_urlhaus(target, options=None):
+    return urlhaus_search(target, options)
 
 
 def scan_messaging(target, options=None):
@@ -71,5 +141,7 @@ EXTRA_SCAN_FUNCTIONS = {
     'wayback': scan_wayback,
     'whois': scan_whois,
     'messaging': scan_messaging,
+    'otx': scan_otx,
+    'urlhaus': scan_urlhaus,
     'multi': scan_multi,
 }

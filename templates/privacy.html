@@ -5,26 +5,110 @@
     <title>Confidentialité – OSINT Ultimate</title>
     <style>
         body{font-family:Inter,sans-serif;background:#07080f;color:#c8cfe8;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.7}
-        h1{color:#00e5a0}a{color:#4d9fff}
+        h1{color:#00e5a0}h2{color:#8fd4b8;margin-top:1.5em}a{color:#4d9fff}
+        table{width:100%;border-collapse:collapse;font-size:.9em;margin:1em 0}
+        th,td{border:1px solid #2a3048;padding:8px;text-align:left}
+        th{background:#12152a;color:#00e5a0}
     </style>
 </head>
 <body>
     <p><a href="{{ url_for('views.express') }}">← Accueil</a></p>
-    <h1>Politique de confidentialité & RGPD</h1>
+    <h1>Politique de confidentialité &amp; RGPD</h1>
+
+    <h2>Responsable du traitement</h2>
+    <p>
+        L'hébergeur du Space Hugging Face et l'administrateur de l'instance agissent comme responsables
+        du traitement des données de compte et d'usage. Pour toute demande : contact via l'administrateur du dépôt.
+    </p>
+
     <h2>Données collectées</h2>
     <ul>
-        <li><strong>Compte</strong> : nom d'utilisateur, email, mot de passe (hashé).</li>
-        <li><strong>Scans</strong> : cibles recherchées, résultats JSON, horodatage (liés à votre compte si connecté).</li>
-        <li><strong>Clés API</strong> : stockées chiffrées (Fernet) si vous les configurez dans Paramètres.</li>
-        <li><strong>Entités & liens</strong> : graphe de corrélation pour vos investigations.</li>
+        <li><strong>Compte</strong> : nom d'utilisateur, email, mot de passe (hashé bcrypt).</li>
+        <li><strong>Scans</strong> : cibles, résultats JSON, horodatage, résumé IA optionnel.</li>
+        <li><strong>Clés API tierces</strong> : stockées chiffrées (Fernet) dans Paramètres.</li>
+        <li><strong>Graphe</strong> : entités, liens, scores de confiance pour vos investigations.</li>
+        <li><strong>Cache API</strong> : réponses mises en cache (clé + TTL), sans données personnelles supplémentaires.</li>
+        <li><strong>Rapports PDF</strong> : empreintes SHA-256 calculées à la volée ; le PDF n'est pas stocké par défaut.</li>
     </ul>
+
+    <h2>Journal des traitements (synthèse)</h2>
+    <table>
+        <thead>
+            <tr><th>Traitement</th><th>Finalité</th><th>Base légale</th><th>Durée</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Scan OSINT</td>
+                <td>Investigation sur sources publiques</td>
+                <td>Intérêt légitime / mission pro</td>
+                <td>Tant que le compte existe</td>
+            </tr>
+            <tr>
+                <td>Cache connecteurs</td>
+                <td>Performance &amp; quotas API</td>
+                <td>Intérêt légitime</td>
+                <td>24–168 h (TTL)</td>
+            </tr>
+            <tr>
+                <td>Export PDF signé</td>
+                <td>Preuve &amp; audit</td>
+                <td>Intérêt légitime</td>
+                <td>Fichier local utilisateur</td>
+            </tr>
+            <tr>
+                <td>Agent d'enquête IA</td>
+                <td>Planification automatisée</td>
+                <td>Intérêt légitime</td>
+                <td>Session en cours</td>
+            </tr>
+        </tbody>
+    </table>
+
     <h2>Base légale</h2>
-    <p>Les recherches portent sur des <strong>sources publiquement accessibles</strong>. Vous êtes responsable de l'usage conforme au RGPD et aux lois locales.</p>
-    <h2>Vos droits</h2>
-    <p>Contactez l'administrateur du Space pour : accès, rectification, suppression de compte et export de vos données.</p>
+    <p>
+        Les recherches portent sur des <strong>sources publiquement accessibles</strong>.
+        Vous êtes responsable de l'usage conforme au RGPD (UE 2016/679), à la CNIL et aux lois locales.
+        Ne traitez pas de données sensibles sans base légale explicite.
+    </p>
+
+    <h2>Vos droits (RGPD art. 15–22)</h2>
+    <ul>
+        <li><strong>Accès</strong> : export JSON de vos scans via l'API ou l'historique.</li>
+        <li><strong>Rectification</strong> : mise à jour du profil (email, mot de passe).</li>
+        <li><strong>Effacement</strong> : suppression du compte et des scans associés — demande à l'administrateur.</li>
+        <li><strong>Limitation / opposition</strong> : suspension des scans programmés ou du compte.</li>
+        <li><strong>Portabilité</strong> : export CSV/JSON/PDF depuis Expert ou <code>/api/v1/export</code>.</li>
+    </ul>
+    <p>
+        Délai de réponse maximal : <strong>30 jours</strong> (prolongation possible si demande complexe).
+    </p>
+
+    <h2>Suppression des données</h2>
+    <p>
+        Pour demander l'effacement de votre compte et de l'historique de scans :
+        contactez l'administrateur avec votre identifiant utilisateur.
+        Les caches API expirent automatiquement selon le TTL du connecteur.
+    </p>
+
+    <h2>Vérification d'intégrité des rapports</h2>
+    <p>
+        Chaque export PDF inclut des empreintes SHA-256 (en-têtes HTTP <code>X-Document-Hash</code>,
+        <code>X-Content-Hash</code>). Vous pouvez vérifier un hash via
+        <code>GET /report/{id}/verify?hash=…</code> (session connectée).
+    </p>
+
     <h2>Rétention</h2>
     <p>Données hébergées sur Supabase (PostgreSQL). Cache API : TTL 24–168 h selon le connecteur.</p>
+
     <h2>Sécurité</h2>
-    <p>HTTPS obligatoire sur Hugging Face. Ne partagez pas votre clé API REST.</p>
+    <p>HTTPS obligatoire sur Hugging Face. Ne partagez pas votre clé API REST. Secrets chiffrés au repos (Fernet).</p>
+
+    <h2>Sous-traitants</h2>
+    <ul>
+        <li>Hugging Face (hébergement)</li>
+        <li>Supabase (base de données)</li>
+        <li>Groq (synthèse IA, si clé configurée)</li>
+        <li>Connecteurs tiers (Shodan, Hunter, etc. — selon vos clés)</li>
+    </ul>
 </body>
 </html>

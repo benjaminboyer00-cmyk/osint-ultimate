@@ -22,8 +22,15 @@ def search_domain(domain: str, api_key: str, options=None) -> dict:
         return {'Erreur': 'Requête Hunter.io échouée'}
     if r.status_code == 401:
         return {'Erreur': 'Clé Hunter.io invalide'}
+    if r.status_code == 429:
+        return {'Erreur': 'Hunter HTTP 429 — quota / rate limit atteint', '_quota': True}
+    if r.status_code == 402:
+        return {'Erreur': 'Hunter — plan / quota insuffisant', '_quota': True}
     if r.status_code != 200:
-        return {'Erreur': f'Hunter HTTP {r.status_code}'}
+        err = f'Hunter HTTP {r.status_code}'
+        if r.status_code in (403, 503):
+            return {'Erreur': err, '_quota': True}
+        return {'Erreur': err}
 
     d = r.json().get('data', {})
     emails = []

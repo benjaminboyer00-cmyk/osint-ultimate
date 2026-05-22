@@ -120,6 +120,7 @@ def settings():
             'dehashed': request.form.get('dehashed', '').strip(),
             'dehashed_email': request.form.get('dehashed_email', '').strip(),
             'epieos': request.form.get('epieos', '').strip(),
+            'otx': request.form.get('otx', '').strip(),
             'numverify': request.form.get('numverify', '').strip(),
             'github': request.form.get('github', '').strip(),
         }
@@ -128,6 +129,7 @@ def settings():
         current_user.set_api_keys(keys, fernet)
         current_user.proxy_list = request.form.get('proxy_list', '').strip() or None
         current_user.stealth_mode = request.form.get('stealth_mode') == 'on'
+        current_user.scrape_fallback_enabled = request.form.get('scrape_fallback_enabled') == 'on'
         wh = request.form.get('webhook_url', '').strip()
         if wh:
             from models import Webhook
@@ -155,6 +157,7 @@ def settings():
         username=current_user.username,
         proxy_list=current_user.proxy_list or '',
         stealth_mode=current_user.stealth_mode,
+        scrape_fallback_enabled=getattr(current_user, 'scrape_fallback_enabled', True),
         webhook_url=wh.url if wh else '',
         quotas=quotas,
     )
@@ -189,27 +192,70 @@ def dossier_add_entity(entity_id):
     return redirect(url_for('views.dossier', entity_id=entity_id))
 
 
-@views_bp.route('/investigate', methods=['GET', 'POST'])
+@views_bp.route('/investigate')
 @login_required
-def investigate_chat():
-    from models import InvestigationMessage
-    from services.investigation_ai import investigate_step
-    if request.method == 'POST':
-        data = request.json or {}
-        msg = (data.get('message') or '').strip()
-        if not msg:
-            return jsonify({'error': 'message vide'}), 400
-        out = investigate_step(msg, data.get('context', {}))
-        db.session.add(InvestigationMessage(user_id=current_user.id, role='user', content=msg))
-        db.session.add(InvestigationMessage(
-            user_id=current_user.id, role='assistant', content=out['reply'],
-            suggested_actions=json.dumps(out.get('actions', [])),
-        ))
-        db.session.commit()
-        return jsonify(out)
-    history = InvestigationMessage.query.filter_by(user_id=current_user.id)\
-        .order_by(InvestigationMessage.created_at.desc()).limit(30).all()
-    return render_template('investigate.html', history=history, username=current_user.username)
+def investigate_page():
+    """Enquête guidée — agent IA chef d'orchestre."""
+    from models import Investigation
+    recent = Investigation.query.filter_by(user_id=current_user.id)\
+        .order_by(Investigation.created_at.desc()).limit(10).all()
+    return render_template(
+        'investigate.html',
+        username=current_user.username,
+        recent_investigations=recent,
+    )
+
+
+@views_bp.route('/investigate/start', methods=['POST'])
+@login_required
+def investigate_start():
+    from app import app, socketio, fernet
+    from services.investigation_agent import start_investigation
+    data = request.json or {}
+    query = (data.get('query') or data.get('objective') or '').strip()
+    if not query:
+        return jsonify({'error': 'Objectif manquant'}), 400
+    inv_id = start_investigation(current_user.id, query, app, socketio, fernet)
+    return jsonify({
+        'investigation_id': inv_id,
+        'status': 'started',
+        'message': 'Enquête lancée — suivez la progression en direct.',
+    })
+
+
+@views_bp.route('/investigate/<int:inv_id>/status')
+@login_required
+def investigate_status(inv_id):
+    from models import Investigation
+    import json as _json
+    inv = Investigation.query.filter_by(id=inv_id, user_id=current_user.id).first()
+    if not inv:
+        return jsonify({'error': 'Enquête introuvable'}), 404
+    steps = []
+    if inv.steps_json:
+        try:
+            steps = _json.loads(inv.steps_json)
+        except Exception:
+            pass
+    return jsonify({
+        'id': inv.id,
+        'status': inv.status,
+        'objective': inv.objective,
+        'summary': inv.result_summary,
+        'steps': steps,
+        'root_entity_id': inv.root_entity_id,
+        'graph_url': url_for('views.graph_view', entity_id=inv.root_entity_id) if inv.root_entity_id else None,
+    })
+
+
+@views_bp.route('/graph/suggestions/<int:entity_id>')
+@login_required
+def graph_suggestions(entity_id):
+    from services.graph_enquiry import suggest_next_node
+    s = suggest_next_node(entity_id, current_user.id)
+    if not s:
+        return jsonify({'error': 'Aucune suggestion'}), 404
+    return jsonify(s)
 
 
 
@@ -269,17 +315,29 @@ def graph_scan_node():
         return jsonify({'error': 'Valeur manquante'}), 400
     module_map = {
         'email': 'email', 'phone': 'phone', 'username': 'sherlock',
-        'domain': 'whois', 'platform': 'sherlock', 'ip': 'ip',
+        'domain': 'site', 'platform': 'sherlock', 'ip': 'ip', 'unknown': 'site',
     }
     module = module_map.get(etype) or detect_target_type(value)
     if module not in SCAN_FUNCTIONS:
         module = detect_target_type(value)
+    if module not in SCAN_FUNCTIONS:
+        return jsonify({'error': f'Aucun module pour le type {etype}'}), 400
+
     root_entity_id = data.get('root_entity_id')
     opts = {}
     if root_entity_id:
         opts['_root_entity_id'] = int(root_entity_id)
+
     scan_id = run_scan_async(module, value, options=opts, user_id=current_user.id)
-    return jsonify({'scan_id': scan_id, 'module': module, 'target': value})
+    if not scan_id:
+        return jsonify({'error': 'Échec du lancement du scan'}), 500
+    return jsonify({
+        'scan_id': scan_id,
+        'module': module,
+        'target': value,
+        'status': 'started',
+        'poll_url': f'/scan/{scan_id}',
+    })
 
 
 @views_bp.route('/graph/links/<int:entity_id>')
@@ -322,10 +380,12 @@ def monitoring_page():
         target = request.form.get('target', '').strip()
         module = request.form.get('module') or None
         frequency = request.form.get('frequency', 'daily')
+        notify = request.form.get('notify_on_change') == 'on'
         try:
             if target:
                 create_monitoring_job(
                     current_user.id, target, module=module, frequency=frequency,
+                    notify_on_change=notify,
                 )
                 flash('Surveillance activée.', 'success')
         except ValueError as e:
@@ -353,6 +413,7 @@ def monitoring_quick():
     try:
         job = create_monitoring_job(
             current_user.id, target, module=module or None, frequency=frequency,
+            notify_on_change=bool(data.get('notify_on_change')),
         )
         return jsonify({
             'ok': True,
@@ -402,3 +463,100 @@ def scheduled_toggle(job_id):
 @login_required
 def scheduled_delete(job_id):
     return monitoring_delete(job_id)
+
+
+@views_bp.route('/recipes')
+def recipes_page():
+    from services.recipes import list_recipes
+    recipes = list_recipes(
+        current_user.id if current_user.is_authenticated else None,
+    )
+    return render_template(
+        'recipes.html',
+        recipes=recipes,
+        authenticated=current_user.is_authenticated,
+        username=current_user.username if current_user.is_authenticated else None,
+    )
+
+
+@views_bp.route('/recipes/new', methods=['POST'])
+@login_required
+def recipes_create():
+    from services.recipes import create_recipe
+    data = request.json or request.form
+    modules = data.get('modules')
+    if isinstance(modules, str):
+        import json as _json
+        modules = _json.loads(modules)
+    target_types = data.get('target_types')
+    if isinstance(target_types, str):
+        import json as _json
+        target_types = _json.loads(target_types)
+    try:
+        create_recipe(current_user.id, {
+            'name': data.get('name'),
+            'description': data.get('description'),
+            'modules': modules,
+            'target_types': target_types,
+            'is_public': data.get('is_public') in (True, 'true', 'on', '1'),
+        })
+        if request.is_json:
+            return jsonify({'ok': True})
+        flash('Recette créée.', 'success')
+    except ValueError as e:
+        if request.is_json:
+            return jsonify({'error': str(e)}), 400
+        flash(str(e), 'error')
+    return redirect(url_for('views.recipes_page'))
+
+
+@views_bp.route('/recipes/<recipe_ref>/run', methods=['POST'])
+def recipes_run(recipe_ref):
+    from services.recipes import launch_recipe
+    data = request.json or {}
+    target = (data.get('target') or request.form.get('target') or '').strip()
+    mode = data.get('mode', 'expert')
+    user_id = current_user.id if current_user.is_authenticated else None
+    try:
+        scan_id, recipe = launch_recipe(recipe_ref, target, user_id, mode=mode)
+        return jsonify({
+            'scan_id': scan_id,
+            'status': 'started',
+            'recipe': recipe.get('name'),
+            'poll_url': f'/scan/{scan_id}',
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@views_bp.route('/recipes/<int:recipe_id>/delete', methods=['POST'])
+@login_required
+def recipes_delete(recipe_id):
+    from services.recipes import delete_recipe
+    delete_recipe(recipe_id, current_user.id)
+    return redirect(url_for('views.recipes_page'))
+
+
+@views_bp.route('/recipes/<recipe_ref>/fork', methods=['POST'])
+@login_required
+def recipes_fork(recipe_ref):
+    from services.recipes import fork_recipe
+    r = fork_recipe(recipe_ref, current_user.id)
+    if not r:
+        return jsonify({'error': 'Recette introuvable'}), 404
+    if request.is_json:
+        return jsonify({'ok': True, 'recipe_id': r.id})
+    flash('Recette copiée dans votre bibliothèque.', 'success')
+    return redirect(url_for('views.recipes_page'))
+
+
+@views_bp.route('/marketplace')
+def marketplace_page():
+    from services.connector_catalog import get_catalog
+    connectors = get_catalog(installed_only=False)
+    return render_template(
+        'marketplace.html',
+        connectors=connectors,
+        authenticated=current_user.is_authenticated,
+        username=current_user.username if current_user.is_authenticated else None,
+    )

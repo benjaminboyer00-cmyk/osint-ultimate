@@ -26,6 +26,57 @@
 - Liste de proxies rotatifs dans les paramètres.
 - Mode furtif global (settings) ou par scan (checkbox Expert).
 
+## Phase 10 — Celery + Redis (V5.2)
+
+- **`services/task_queue.py`** : si `REDIS_URL` + `USE_CELERY=auto`, les scans passent par `osint.run_scan` (Celery) au lieu du thread.
+- **`tasks.py`** : réutilise `process_scan_by_id` (même logique, polling client).
+- **Beat** : tâche `osint.scheduled_tick` toutes les 5 min — activer avec `USE_CELERY_BEAT=true` + `scripts/run_celery_beat.sh`.
+- Scripts : `scripts/run_celery_worker.sh`.
+
+```bash
+export REDIS_URL=redis://localhost:6379/0
+./scripts/run_celery_worker.sh
+# optionnel surveillance :
+USE_CELERY_BEAT=true ./scripts/run_celery_beat.sh
+```
+
+## Fallback scraping (quota API) — V5.2
+
+- **Hunter / Dehashed** : si 429/quota ou réponse vide (Hunter), bascule sur `connectors/scraper_fallback.py` (DuckDuckGo HTML, BeautifulSoup).
+- Métadonnées : `_source: scraping_fallback`, `_degraded: true` + bannière orange Expert/Express.
+- Timeouts multi-scan : **20 s** / module, **60 s** global.
+- **`cloudscraper`** dans `requirements.txt` — pages Cloudflare (`fetch_url_protected`, module `site`).
+- **Paramètres → OPSEC** : case « Fallback scraping » (`user.scrape_fallback_enabled`, migration 007).
+- Env : `SCRAPE_FALLBACK_ENABLED`, `CLOUDSCRAPER_ENABLED` (désactivation globale admin).
+
+## Phase 8 — Recettes & marketplace (V5.2)
+
+- **`/recipes`** : 6 recettes officielles + création / partage communautaire + lancement scan multi.
+- **`/marketplace`** : catalogue connecteurs (statut, catégorie, clé API requise).
+- API : `GET/POST /api/v1/recipes`, `POST /api/v1/recipes/{id}/run`, `GET /api/v1/connectors`.
+- Migration `006_v7_recipes` (table `recipe`).
+
+## Phase 9 — Menace & alertes (V5.2)
+
+- Connecteurs **OTX** (`connectors/otx.py`) et **URLhaus** (`connectors/urlhaus.py`).
+- Recette builtin **Menace — IOC check**.
+- **Alertes surveillance** : `notify_on_change` + webhook `monitoring.alert` (hausse menace, erreurs scan).
+
+## Phase 7 — Rapport de preuve (V5.1)
+
+- Template **`report_pro.html`** : page de garde, résumé exécutif, méthodologie, chaîne de traçabilité, annexe données, certificat d'intégrité, mentions légales.
+- **`services/report_builder.py`** : extraction sources/modules/horodatages depuis le scan.
+- **`services/report_export.py`** : export unifié (UI `/report/{id}` + API `GET /api/v1/export/{id}/pdf`).
+- En-têtes HTTP : `X-Document-Hash`, `X-Content-Hash`, `X-Signature-Hash`, `X-Scan-Id`.
+- **`GET /report/{id}/verify?hash=…`** : vérification d'intégrité côté session.
+- **`/privacy`** enrichi : journal des traitements, droits RGPD, suppression, vérification PDF.
+
+## Phase 6 — Enquête guidée & scoring (V5.1)
+
+- **Agent IA** (`/investigate`) : planification Groq + exécution séquentielle des modules, timeline Socket.IO.
+- **Scoring graphe** : confiance sur les liens (`entity_link.confidence`), épaisseur des arêtes, **Mode Enquête** (suggestion du prochain nœud).
+- API : `POST /api/v1/investigate`, `GET /api/v1/entity/{id}/suggestions`.
+
 ## Correctifs post-release
 
 - **Cache** : `ApiCache` possède une colonne `query` qui masquait `Model.query` — le cache utilise `db.session.query(ApiCache)`.

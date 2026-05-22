@@ -37,6 +37,7 @@ def create_monitoring_job(
     module: str | None = None,
     frequency: str = 'daily',
     webhook_url: str | None = None,
+    notify_on_change: bool = False,
 ) -> ScheduledScan:
     target = (target or '').strip()
     if not target:
@@ -51,6 +52,7 @@ def create_monitoring_job(
         enabled=True,
         next_run_at=datetime.utcnow(),
         webhook_url=webhook_url,
+        notify_on_change=notify_on_change,
     )
     db.session.add(job)
     db.session.commit()

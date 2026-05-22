@@ -26,9 +26,10 @@ EXPRESS_STRATEGIES = {
     'ip': ['ip'],
 }
 
-MODULE_TIMEOUT_SEC = 14
-GLOBAL_TIMEOUT_SEC = 50
-RETRY_TIMEOUT_SEC = 20
+# API ~4s + fallback scrape DuckDuckGo ~8–12s → marge 20s / module
+MODULE_TIMEOUT_SEC = 20
+GLOBAL_TIMEOUT_SEC = 60
+RETRY_TIMEOUT_SEC = 25
 
 
 def _resolve_target_for_module(module: str, target: str, category: str) -> str:
@@ -127,7 +128,12 @@ def launch_multi_scan(
                         sources[m] = 'error'
                     else:
                         results[section] = payload
-                        sources[m] = payload.get('_cached') and 'cache' or 'live'
+                        if payload.get('_source') == 'scraping_fallback':
+                            sources[m] = 'scraping_fallback'
+                        elif payload.get('_cached'):
+                            sources[m] = 'cache'
+                        else:
+                            sources[m] = 'live'
                 except Exception as e:
                     timeouts.append(mod)
                     errors[mod] = str(e)[:200]
@@ -161,6 +167,9 @@ def launch_multi_scan(
             'timeouts': timeouts,
             'errors': errors,
             'sources': sources,
+            'degraded': [
+                mod for mod, src in sources.items() if src == 'scraping_fallback'
+            ],
         },
         **results,
     }

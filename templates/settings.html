@@ -18,7 +18,7 @@
 </head>
 <body>
     <p><a href="{{ url_for('views.expert') }}">Expert</a> <a href="{{ url_for('views.express') }}">Express</a>
-       <a href="{{ url_for('views.investigate_chat') }}">Enquête IA</a></p>
+       <a href="{{ url_for('views.investigate_page') }}">Enquête guidée IA</a></p>
     <h1>Paramètres — {{ username }}</h1>
     {% with messages = get_flashed_messages() %}
       {% if messages %}<p class="ok">{{ messages[0] }}</p>{% endif %}
@@ -51,6 +51,11 @@
         <label>Proxies (séparés par virgule)</label>
         <textarea name="proxy_list" rows="2" placeholder="http://proxy:8080">{{ proxy_list }}</textarea>
         <label><input type="checkbox" name="stealth_mode" {% if stealth_mode %}checked{% endif %}> Mode furtif (délais + User-Agent aléatoire)</label>
+        <label><input type="checkbox" name="scrape_fallback_enabled" {% if scrape_fallback_enabled %}checked{% endif %}>
+            Fallback scraping (Hunter/Dehashed quota → DuckDuckGo / cloudscraper)</label>
+        <p style="font-size:.78rem;color:#5a6180;margin-top:.25rem">
+            Décochez pour conformité stricte : en cas de quota API, aucun scrape de secours ne sera lancé.
+        </p>
         <label>Webhook URL (notification fin de scan)</label>
         <input type="url" name="webhook_url" value="{{ webhook_url }}" placeholder="https://…">
 
@@ -61,6 +66,7 @@
         <label>Dehashed API key</label><input type="password" name="dehashed" value="{{ user_keys.get('dehashed','') }}">
         <label>Dehashed email (compte API)</label><input type="text" name="dehashed_email" value="{{ user_keys.get('dehashed_email','') }}">
         <label>Epieos</label><input type="password" name="epieos" value="{{ user_keys.get('epieos','') }}">
+        <label>AlienVault OTX</label><input type="password" name="otx" value="{{ user_keys.get('otx','') }}">
         <label>Numverify</label><input type="password" name="numverify" value="{{ user_keys.get('numverify','') }}">
         <label>GitHub</label><input type="password" name="github" value="{{ user_keys.get('github','') }}">
         <button type="submit">Enregistrer tout</button>

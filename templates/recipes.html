@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recettes — OSINT Ultimate</title>
+    <style>
+        :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--border:rgba(255,255,255,.1)}
+        body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:960px;margin:0 auto}
+        h1{color:var(--accent)}a{color:var(--accent2);text-decoration:none;margin-right:1rem;font-size:.85rem}
+        .intro{color:var(--dim);font-size:.9rem;line-height:1.5;margin:1rem 0}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin:1.5rem 0}
+        .card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:1.1rem}
+        .card h3{margin:0 0 .4rem;font-size:1rem;color:var(--accent)}
+        .card p{font-size:.82rem;color:var(--dim);margin:.4rem 0}
+        .mods{font-size:.75rem;color:var(--accent2);word-break:break-word}
+        .badge{font-size:.7rem;background:rgba(0,229,160,.12);color:var(--accent);padding:.15rem .45rem;border-radius:4px;margin-right:.3rem}
+        .run-row{display:flex;gap:.4rem;margin-top:.75rem;flex-wrap:wrap}
+        input[type=text]{flex:1;min-width:140px;padding:.5rem;border-radius:6px;border:1px solid var(--border);background:#14171c;color:var(--text);font-size:.85rem}
+        button{padding:.45rem .9rem;background:var(--accent);color:#000;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.8rem}
+        button.sec{background:transparent;border:1px solid var(--border);color:var(--text)}
+        .box{background:rgba(255,255,255,.04);padding:1.25rem;border-radius:12px;border:1px solid var(--border);margin:1.5rem 0}
+        label{display:block;font-size:.78rem;color:var(--dim);margin:.4rem 0 .2rem}
+        textarea,input,select{width:100%;padding:.55rem;border-radius:6px;border:1px solid var(--border);background:#14171c;color:var(--text);font-size:.85rem;box-sizing:border-box}
+        nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:1rem}
+        nav a.active{color:var(--accent);font-weight:600}
+        .err{color:#ff6b7a;font-size:.85rem}
+        .ok{color:var(--accent);font-size:.85rem}
+    </style>
+</head>
+<body>
+<nav>
+    <a href="{{ url_for('views.express') }}">Express</a>
+    <a href="{{ url_for('views.expert') }}">Expert</a>
+    <a href="{{ url_for('views.recipes_page') }}" class="active">Recettes</a>
+    <a href="{{ url_for('views.marketplace_page') }}">Marketplace</a>
+    {% if authenticated %}<a href="{{ url_for('logout') }}">Déconnexion</a>{% else %}<a href="{{ url_for('login') }}">Connexion</a>{% endif %}
+</nav>
+<h1>📋 Recettes d'investigation</h1>
+<p class="intro">
+    Enchaînements de modules prêts à l'emploi. Lancez une recette avec une cible — un scan multi s'exécute automatiquement.
+    {% if authenticated %}Créez les vôtres et partagez-les à la communauté.{% else %}<a href="{{ url_for('login') }}">Connectez-vous</a> pour sauvegarder vos recettes.{% endif %}
+</p>
+
+<div class="grid" id="recipe-grid">
+{% for r in recipes %}
+    <div class="card" data-id="{{ r.id }}">
+        <h3>{{ r.name }}</h3>
+        <p>{{ r.description }}</p>
+        <p>
+            {% for t in r.target_types %}<span class="badge">{{ t }}</span>{% endfor %}
+            {% if r.is_public and not r.builtin %}<span class="badge">communauté</span>{% endif %}
+            {% if r.builtin %}<span class="badge">officiel</span>{% endif %}
+        </p>
+        <p class="mods">{{ r.modules | join(' → ') }}</p>
+        <p style="font-size:.72rem;color:var(--dim)">Par {{ r.author }} · {{ r.usage_count }} utilisation(s)</p>
+        <div class="run-row">
+            <input type="text" placeholder="Cible…" class="target-in">
+            <button type="button" class="run-btn">Lancer</button>
+            {% if authenticated and r.owner_id and r.owner_id == current_user.id %}
+            <form method="post" action="{{ url_for('views.recipes_delete', recipe_id=r.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ?')">
+                <button type="submit" class="sec">Suppr.</button>
+            </form>
+            {% endif %}
+            {% if authenticated and (r.builtin or (r.is_public and r.owner_id and r.owner_id != current_user.id)) %}
+            <form method="post" action="{{ url_for('views.recipes_fork', recipe_ref=r.id) }}">
+                <button type="submit" class="sec">Copier</button>
+            </form>
+            {% endif %}
+        </div>
+        <p class="run-msg" style="display:none;font-size:.78rem;margin-top:.4rem"></p>
+    </div>
+{% endfor %}
+</div>
+
+{% if authenticated %}
+<div class="box">
+    <h2 style="color:var(--accent);font-size:1.1rem;margin-top:0">Créer une recette</h2>
+    <form id="create-form">
+        <label>Nom</label>
+        <input name="name" required placeholder="Ex. Audit domaine client">
+        <label>Description</label>
+        <textarea name="description" rows="2" placeholder="Objectif de la recette…"></textarea>
+        <label>Modules (séparés par virgule)</label>
+        <input name="modules" required placeholder="site, whois, wayback, hunter">
+        <label>Types de cible (virgule)</label>
+        <input name="target_types" placeholder="domain, site">
+        <label><input type="checkbox" name="is_public"> Partager avec la communauté</label>
+        <button type="submit" style="margin-top:1rem">Enregistrer</button>
+    </form>
+    <p id="create-msg" class="ok" style="display:none"></p>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('.run-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const card = btn.closest('.card');
+        const id = card.dataset.id;
+        const target = card.querySelector('.target-in').value.trim();
+        const msg = card.querySelector('.run-msg');
+        if (!target) { msg.textContent = 'Saisissez une cible'; msg.className = 'err'; msg.style.display = 'block'; return; }
+        msg.textContent = 'Lancement…'; msg.className = 'ok'; msg.style.display = 'block';
+        const r = await fetch(`/recipes/${id}/run`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({target, mode: 'expert'})
+        });
+        const d = await r.json();
+        if (d.scan_id) {
+            msg.innerHTML = `Scan #${d.scan_id} — <a href="/expert?scan=${d.scan_id}" style="color:var(--accent2)">suivre</a>`;
+        } else {
+            msg.textContent = d.error || 'Erreur';
+            msg.className = 'err';
+        }
+    });
+});
+{% if authenticated %}
+document.getElementById('create-form')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const modules = f.modules.value.split(',').map(s => s.trim()).filter(Boolean);
+    const target_types = f.target_types.value.split(',').map(s => s.trim()).filter(Boolean);
+    const r = await fetch('/recipes/new', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            name: f.name.value,
+            description: f.description.value,
+            modules,
+            target_types,
+            is_public: f.is_public.checked
+        })
+    });
+    const d = await r.json();
+    const el = document.getElementById('create-msg');
+    if (d.ok) { el.textContent = 'Recette créée — rechargez la page.'; el.style.display = 'block'; }
+    else { el.textContent = d.error || 'Erreur'; el.className = 'err'; el.style.display = 'block'; }
+});
+{% endif %}
+</script>
+</body>
+</html>

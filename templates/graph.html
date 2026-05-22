@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graphe de corrélation – OSINT Ultimate</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <style>
         :root { --bg:#07080f; --text:#c8cfe8; --dim:#5a6180; --accent:#00e5a0; --accent2:#4d9fff; --border:rgba(255,255,255,.1); }
@@ -51,6 +52,7 @@
         <button type="button" onclick="exportPng()">PNG</button>
         <button type="button" onclick="exportSvg()">SVG</button>
         <button type="button" onclick="loadLinksPanel()">Liens</button>
+        <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">🎯 Mode Enquête</button>
         <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
     </div>
 </header>
@@ -59,6 +61,7 @@
     <aside id="panel" class="open">
         <h3 id="panel-title">Sélectionnez un nœud</h3>
         <p id="panel-desc" style="color:var(--dim)">Cliquez sur un nœud pour lancer une analyse ou ouvrir le dossier.</p>
+        <p id="scan-status" style="display:none;margin-top:.4rem;font-size:.8rem;color:var(--accent2)"></p>
         <button type="button" id="btn-scan" style="display:none;margin-top:.5rem;width:100%;padding:.6rem;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer">🔍 Analyser cette entité</button>
         <button type="button" id="btn-dossier" style="display:none;margin-top:.4rem;width:100%;padding:.5rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:8px;cursor:pointer">📁 Voir le dossier</button>
         <div class="legend">
@@ -69,8 +72,10 @@
             <div class="legend-item"><span class="dot" style="background:#ffa502"></span> domain</div>
             <div class="legend-item"><span class="dot" style="background:#a29bfe"></span> platform / ip</div>
             <strong style="font-size:.75rem;color:var(--dim);display:block;margin-top:.6rem">LIENS</strong>
-            <div class="legend-item"><span class="edge-sample"></span> corrélation (type sur la flèche)</div>
+            <div class="legend-item"><span class="edge-sample"></span> épaisseur = confiance</div>
+            <div class="legend-item"><span class="dot" style="background:#ffd700;border:2px solid #fff"></span> priorité (mode enquête)</div>
         </div>
+        <p id="enquiry-tip" style="display:none;margin-top:.5rem;font-size:.75rem;color:#ffd700"></p>
         <div id="links-list" style="margin-top:.75rem"></div>
     </aside>
 </div>
@@ -86,6 +91,9 @@ const MODULE_FOR_TYPE = {
 
 let selectedNode = null;
 let graphData = null;
+let activeGraphScanId = null;
+const graphSocket = io({ transports: ['websocket', 'polling'] });
+const scanStatusEl = document.getElementById('scan-status');
 
 const cy = cytoscape({
     container: document.getElementById('cy'),
@@ -107,14 +115,19 @@ const cy = cytoscape({
             'border-width': 3,
         }},
         { selector: 'edge', style: {
-            'width': 2,
+            'width': 'data(width)',
             'line-color': '#4d9fff',
+            'opacity': 'data(opacity)',
             'target-arrow-color': '#4d9fff',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'label': 'data(label)',
             'font-size': '7px',
             'color': '#8090b0',
+        }},
+        { selector: 'node.suggested', style: {
+            'border-color': '#ffd700',
+            'border-width': 4,
         }},
     ],
     layout: { name: 'cose', animate: true, padding: 40 },
@@ -133,21 +146,82 @@ cy.on('tap', 'node', evt => {
     document.getElementById('dossier-link').href = '/expert/dossier/' + n.id;
 });
 
-document.getElementById('btn-scan').onclick = () => {
+document.getElementById('btn-scan').onclick = async () => {
     if (!selectedNode) return;
-    fetch('/graph/scan-node', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            entity_id: parseInt(selectedNode.id, 10),
-            entity_type: selectedNode.type,
-            value: selectedNode.value,
-            root_entity_id: graphData?.root_id ? parseInt(graphData.root_id, 10) : parseInt(selectedNode.id, 10)
-        })
-    }).then(r => r.json()).then(d => {
-        alert(d.scan_id ? `Scan #${d.scan_id} lancé (${d.module})` : (d.error || 'Erreur'));
-    });
+    const btn = document.getElementById('btn-scan');
+    btn.disabled = true;
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = '⏳ Lancement du scan…';
+    try {
+        const r = await fetch('/graph/scan-node', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                entity_id: parseInt(selectedNode.id, 10),
+                entity_type: selectedNode.type,
+                value: selectedNode.value || '',
+                root_entity_id: graphData?.root_id
+                    ? parseInt(graphData.root_id, 10)
+                    : parseInt(selectedNode.id, 10),
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok || !d.scan_id) {
+            scanStatusEl.textContent = '❌ ' + (d.error || 'Erreur');
+            btn.disabled = false;
+            return;
+        }
+        activeGraphScanId = d.scan_id;
+        scanStatusEl.textContent = `⏳ Scan #${d.scan_id} (${d.module}) en cours…`;
+        pollGraphScan(d.scan_id);
+    } catch (e) {
+        scanStatusEl.textContent = '❌ ' + e.message;
+        btn.disabled = false;
+    }
 };
+
+function pollGraphScan(scanId){
+    const iv = setInterval(async () => {
+        if (activeGraphScanId !== scanId) { clearInterval(iv); return; }
+        try {
+            const r = await fetch(`/scan/${scanId}`);
+            const d = await r.json();
+            if (d.status && d.status !== 'completed') return;
+            clearInterval(iv);
+            if (d.error) {
+                scanStatusEl.textContent = '❌ ' + d.error;
+            } else {
+                scanStatusEl.textContent = `✅ Scan #${scanId} terminé — graphe mis à jour`;
+                const rootId = graphData?.root_id || document.getElementById('entity-select').value;
+                if (rootId) loadGraph(rootId);
+            }
+            document.getElementById('btn-scan').disabled = false;
+        } catch (e) { /* ignore */ }
+    }, 2000);
+    setTimeout(() => clearInterval(iv), 180000);
+}
+
+graphSocket.on('scan_done', ({ scan_id }) => {
+    if (activeGraphScanId !== scan_id) return;
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = `✅ Scan #${scan_id} terminé — actualisation du graphe…`;
+    const rootId = graphData?.root_id || document.getElementById('entity-select').value;
+    if (rootId) loadGraph(rootId);
+    document.getElementById('btn-scan').disabled = false;
+    activeGraphScanId = null;
+});
+
+graphSocket.on('scan_error', ({ scan_id, error }) => {
+    if (activeGraphScanId !== scan_id) return;
+    scanStatusEl.textContent = '❌ ' + (error || 'Erreur scan');
+    document.getElementById('btn-scan').disabled = false;
+    activeGraphScanId = null;
+});
+
+graphSocket.on('scan_progress', ({ scan_id, module, target }) => {
+    if (activeGraphScanId !== scan_id) return;
+    scanStatusEl.textContent = `⏳ Scan #${scan_id} : ${module} sur ${target}…`;
+});
 
 document.getElementById('btn-dossier').onclick = () => {
     if (selectedNode) window.location = '/expert/dossier/' + selectedNode.id;
@@ -172,9 +246,18 @@ function render(data){
             color: NODE_COLORS[n.type] || NODE_COLORS.unknown,
         }
     }));
-    const edges = (data.edges || []).map(e => ({
-        data: { id: e.id, source: e.source, target: e.target, label: e.label }
-    }));
+    const edges = (data.edges || []).map(e => {
+        const conf = e.confidence != null ? e.confidence : 0.5;
+        const pct = Math.round(conf * 100);
+        return {
+            data: {
+                id: e.id, source: e.source, target: e.target,
+                label: (e.label || '') + (pct ? ` (${pct}%)` : ''),
+                width: e.width || Math.max(1, Math.round(conf * 6)),
+                opacity: 0.4 + conf * 0.6,
+            }
+        };
+    });
     cy.add([...nodes, ...edges]);
     cy.layout({ name: 'cose', animate: true, padding: 40 }).run();
 }
@@ -193,6 +276,24 @@ function exportSvg(){
     a.href = URL.createObjectURL(blob);
     a.download = 'osint-graphe.svg';
     a.click();
+}
+
+async function runEnquiryMode(){
+    const id = document.getElementById('entity-select').value;
+    if (!id) { alert('Sélectionnez une entité racine'); return; }
+    cy.$('node').removeClass('suggested');
+    const r = await fetch(`/graph/suggestions/${id}`);
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || 'Aucune suggestion'); return; }
+    const node = cy.getElementById(d.node_id);
+    if (node.length) {
+        node.addClass('suggested');
+        cy.animate({ center: { eles: node }, zoom: 1.5 }, { duration: 400 });
+        document.getElementById('enquiry-tip').style.display = 'block';
+        document.getElementById('enquiry-tip').textContent = '⭐ ' + d.reason;
+        selectedNode = node.data();
+        document.getElementById('btn-scan').style.display = 'block';
+    }
 }
 
 async function loadLinksPanel(){

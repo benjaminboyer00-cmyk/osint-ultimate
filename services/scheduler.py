@@ -9,6 +9,17 @@ def start_scheduler(app):
     if _scheduler is not None:
         return _scheduler
 
+    import os
+    try:
+        from services.task_queue import use_celery
+        if use_celery() and os.environ.get('USE_CELERY_BEAT', '').lower() in ('1', 'true', 'yes'):
+            app.logger.info(
+                'APScheduler désactivé — lancer: celery -A celery_app:celery_app beat'
+            )
+            return None
+    except Exception:
+        pass
+
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
     except ImportError:

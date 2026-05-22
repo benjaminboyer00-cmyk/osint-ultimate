@@ -65,6 +65,16 @@
         <br><strong>Généré le :</strong> {{ generated_at }}
     </div>
 
+    <h2>Méthodologie</h2>
+    <p class="sources">
+        Investigation réalisée via OSINT Ultimate (sources publiques). Module principal : <strong>{{ scan.module }}</strong>.
+        {% if data.get('_meta') and data._meta.get('modules') %}
+        Modules parallèles : {{ data._meta.modules | join(', ') }}.
+        {% endif %}
+        Les horodatages de collecte correspondent aux champs « Début » et « Fin » ci-dessus.
+        Ce document est une compilation à usage professionnel ; l'investigateur reste responsable de l'usage conforme (RGPD, CNIL).
+    </p>
+
     {% if ai_summary %}
     <h2>Synthèse IA (Groq)</h2>
     <div class="ai">{{ ai_summary }}</div>

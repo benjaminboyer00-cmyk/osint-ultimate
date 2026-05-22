@@ -151,6 +151,17 @@ pytest tests/ -v
 
 ---
 
+## Agent d'enquête guidée
+
+- Code : `services/investigation_agent.py`
+- UI : `/investigate` — Socket.IO (`investigation_started`, `investigation_step`, `investigation_done`)
+- Pour ajouter un module à l'agent : l'enregistrer dans `MODULES_SPEC` et `SCAN_FUNCTIONS`
+
+## Scoring graphe
+
+- `services/link_scoring.py` — mettre à jour `upsert_link_scored` depuis `correlation._link`
+- `services/graph_enquiry.py` — suggestion proactive (`/graph/suggestions/<entity_id>`)
+
 ## Surveillance & Celery
 
 - UI : `/monitoring` — graphe lié via `entity_id` ou `?target=`  

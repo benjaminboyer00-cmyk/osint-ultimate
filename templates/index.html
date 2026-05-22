@@ -293,6 +293,16 @@
             border-radius: var(--r); font-size: .85rem;
         }
         .timeout-banner ul { margin: .5rem 0 0 1rem; color: var(--warning); }
+        .degraded-banner {
+            background: rgba(255, 160, 50, .12);
+            border: 1px solid rgba(255, 160, 50, .45);
+            border-radius: 10px;
+            padding: .75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: .85rem;
+            color: #ffb347;
+        }
+        .badge.b-scrape { background: rgba(255, 160, 50, .2); color: #ffb347; font-size: .7rem; margin-left: .4rem; }
         .timeout-banner button {
             margin-top: .6rem; padding: .45rem 1rem; background: var(--accent2);
             color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
@@ -381,7 +391,9 @@
                 <a href="/history" class="history-link">📋 Historique</a>
                 <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
                 <a href="{{ url_for('views.monitoring_page') }}" class="history-link" title="Surveillance">📡</a>
-                <a href="{{ url_for('views.investigate_chat') }}" class="history-link">🧠 IA</a>
+                <a href="{{ url_for('views.investigate_page') }}" class="history-link" title="Enquête guidée IA">🧠 Enquête</a>
+                <a href="{{ url_for('views.recipes_page') }}" class="history-link" title="Recettes">📋</a>
+                <a href="{{ url_for('views.marketplace_page') }}" class="history-link" title="Connecteurs">🔌</a>
                 <a href="{{ url_for('views.settings') }}" class="history-link">⚙️</a>
                 <a href="/logout" class="auth-btn">Déconnexion</a>
             {% else %}
@@ -783,6 +795,7 @@ function renderResult(data){
     const meta = data._meta;
     const entries = Object.entries(data).filter(([k]) => !k.startsWith('_'));
     let html = renderTimeoutBanner(meta);
+    html += renderDegradedBanner(meta);
     for(const [key, value] of entries){
         const badge = getBadge(key, value);
         html += `<div class="acc-item">
@@ -864,7 +877,17 @@ function toggleAcc(hdr){
     hdr.classList.toggle('open');
 }
 
+function renderDegradedBanner(meta){
+    const mods = meta?.degraded || [];
+    if(!mods.length) return '';
+    return `<div class="degraded-banner"><strong>⚠ Résultats partiels</strong> — Quota API dépassé pour : `
+        + mods.join(', ')
+        + `. Bascule automatique sur scraping public (DuckDuckGo). Données non certifiées par l'API.</div>`;
+}
+
 function getBadge(key, value){
+    if(value && typeof value === 'object' && (value._degraded || value._source === 'scraping_fallback'))
+        return '<span class="badge b-scrape">scraping</span>';
     const s = String(value || '');
     if(s.includes('✓') || s === 'true' || s.includes('Valide') || s.includes('Existe'))
         return '<span class="badge b-ok">OK</span>';

@@ -132,6 +132,9 @@
     <div class="mode-switch" role="tablist" aria-label="Mode de recherche">
         <a href="{{ url_for('views.express') }}" class="active" aria-current="page">Express</a>
         <a href="{{ url_for('views.expert') }}">Expert</a>
+    <a href="{{ url_for('views.investigate_page') }}">Enquête IA</a>
+    <a href="{{ url_for('views.recipes_page') }}">Recettes</a>
+    <a href="{{ url_for('views.marketplace_page') }}">Marketplace</a>
     </div>
     {% if authenticated %}
     <a href="{{ url_for('history') }}">Historique</a>
@@ -274,6 +277,10 @@ async function showCard(result){
         html += `<div class="hl"><span class="k">${h.label}</span><span class="v">${h.value}</span></div>`;
     });
     (card.risks || []).forEach(r => { html += `<div class="risk">⚠️ ${r}</div>`; });
+    if (card.degraded?.length) {
+        html += `<p class="risk" style="border-color:rgba(255,160,50,.5);color:#ffb347">`
+            + `⚠ Quota API (${card.degraded.join(', ')}) — données complétées par scraping public. Non certifiées API.</p>`;
+    }
     if (card.timeouts?.length) {
         html += `<p class="risk">⏱ Certains services sont lents (${card.timeouts.join(', ')}). `
             + `Réessayez ou consultez l'analyse détaillée en mode Expert.</p>`;

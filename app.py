@@ -2,7 +2,7 @@
 """
 OSINT ULTIMATE V5.0 – Auth, Supabase PostgreSQL, Scans async, IA Groq, PWA
 """
-import os, re, json, socket, hashlib, threading, queue, random
+import os, re, json, socket, hashlib, threading, random
 from datetime import datetime
 from urllib.parse import urlparse
 from io import BytesIO
@@ -232,7 +232,13 @@ def scan_site(target, options=None):
 
     # ── HTTP + IP + Geo ──
     try:
-        http_resp = safe_get(f'https://{domain}') or safe_get(f'http://{domain}')
+        http_resp = safe_get(f'https://{domain}', options=options) or safe_get(f'http://{domain}', options=options)
+        if not http_resp or (http_resp.status_code in (403, 503, 520, 521, 522, 523)):
+            from connectors.scraper_fallback import fetch_url_protected
+            cf = fetch_url_protected(f'https://{domain}', options)
+            if cf and cf.text:
+                http_resp = cf
+                results['_http_via'] = 'cloudscraper'
         if http_resp:
             results['HTTP'] = {
                 'Statut':   http_resp.status_code,
@@ -896,80 +902,18 @@ from scan_modules import EXTRA_SCAN_FUNCTIONS
 SCAN_FUNCTIONS.update(EXTRA_SCAN_FUNCTIONS)
 
 # ============================================================
-#  ASYNC WORKER
+#  ASYNC SCANS (thread dédié — fiable avec Gunicorn gevent)
 # ============================================================
-scan_queue = queue.Queue()
-
-def worker():
-    while True:
-        task = scan_queue.get()
-        if task is None:
-            break
-        scan_id, func, args, kwargs = task
-        with app.app_context():
-            scan = db.session.get(Scan, scan_id)
-            scan.status = 'running'
-            db.session.commit()
-            try:
-                opts = kwargs.get('options') or {}
-                if scan.user_id:
-                    from services.user_keys import get_key
-                    u = db.session.get(User, scan.user_id)
-                    opts = dict(opts)
-                    for opt_k, ukey, env in [
-                        ('_shodan_key', 'shodan', 'SHODAN_API_KEY'),
-                        ('_hibp_key', 'hibp', 'HIBP_API_KEY'),
-                        ('_hunter_key', 'hunter', 'HUNTER_API_KEY'),
-                        ('_dehashed_key', 'dehashed', 'DEHASHED_API_KEY'),
-                        ('_dehashed_email', 'dehashed_email', 'DEHASHED_EMAIL'),
-                        ('_epieos_key', 'epieos', 'EPIEOS_API_KEY'),
-                        ('_github_key', 'github', 'GITHUB_TOKEN'),
-                    ]:
-                        opts[opt_k] = get_key(u, ukey, env, fernet) or os.environ.get(env, '')
-                    if u.proxy_list:
-                        opts['_proxy_list'] = u.proxy_list
-                    if u.stealth_mode:
-                        opts['_stealth_mode'] = True
-                    kwargs['options'] = opts
-                result = func(*args, **kwargs)
-                scan.result_json = json.dumps(result, ensure_ascii=False, default=str)
-                scan.status = 'completed'
-                scan.completed_at = datetime.utcnow()
-                db.session.commit()
-                try:
-                    from services.correlation import process_scan_correlations, process_multi_correlations
-                    root_ent = (kwargs.get('options') or {}).get('_root_entity_id')
-                    if scan.module == 'multi' or (isinstance(result, dict) and result.get('_meta', {}).get('multi')):
-                        process_multi_correlations(
-                            scan_id, scan.target, result, scan.user_id, root_entity_id=root_ent,
-                        )
-                    else:
-                        process_scan_correlations(
-                            scan_id, scan.module, scan.target, result, scan.user_id,
-                            root_entity_id=root_ent,
-                        )
-                except Exception as corr_err:
-                    app.logger.warning('Corrélation: %s', corr_err)
-                try:
-                    from services.webhooks import notify_scan_complete
-                    notify_scan_complete(scan, result, scan.user_id)
-                except Exception:
-                    pass
-                socketio.emit('scan_done', {'scan_id': scan_id, 'result': result})
-            except Exception as e:
-                scan.result_json = json.dumps({'error': str(e)}, ensure_ascii=False)
-                scan.status = 'completed'
-                db.session.commit()
-                socketio.emit('scan_error', {'scan_id': scan_id, 'error': str(e)})
-        scan_queue.task_done()
-
-threading.Thread(target=worker, daemon=True).start()
-
-
 def run_scan_async(module, target, options=None, user_id=None, mode='expert', scheduled_scan_id=None):
+    from services.scan_runner import dispatch_scan
+
     if isinstance(options, list):
         options = {'email_checks': options}
     options = options or {}
+
+    if not SCAN_FUNCTIONS.get(module):
+        return None
+
     scan = Scan(
         module=module, target=target, user_id=user_id, status='pending',
         mode=mode, scheduled_scan_id=scheduled_scan_id,
@@ -977,10 +921,13 @@ def run_scan_async(module, target, options=None, user_id=None, mode='expert', sc
     db.session.add(scan)
     db.session.commit()
     scan_id = scan.id
-    func = SCAN_FUNCTIONS.get(module)
-    if not func:
-        return None
-    scan_queue.put((scan_id, func, (target,), {'options': options}))
+
+    # Stocker options pour le worker (root_entity_id, stealth, etc.)
+    if options:
+        scan.result_json = json.dumps({'_pending_options': options}, ensure_ascii=False)
+        db.session.commit()
+
+    dispatch_scan(scan_id, app, socketio, fernet)
     return scan_id
 
 
@@ -995,10 +942,17 @@ def health():
         db_ok = True
     except Exception:
         pass
+    celery_on = False
+    try:
+        from services.task_queue import use_celery
+        celery_on = use_celery()
+    except Exception:
+        pass
     return jsonify({
         'status': 'ok' if db_ok else 'degraded',
-        'version': app.config.get('APP_VERSION', '4.2'),
+        'version': app.config.get('APP_VERSION', '5.2'),
         'database': 'connected' if db_ok else 'error',
+        'celery': 'enabled' if celery_on else 'thread',
     }), 200 if db_ok else 503
 
 
@@ -1053,6 +1007,7 @@ def scan_retry_timeouts(scan_id):
                 ('_dehashed_key', 'dehashed', 'DEHASHED_API_KEY'),
                 ('_dehashed_email', 'dehashed_email', 'DEHASHED_EMAIL'),
                 ('_epieos_key', 'epieos', 'EPIEOS_API_KEY'),
+                ('_otx_key', 'otx', 'OTX_API_KEY'),
             ]:
                 opts[opt_k] = get_key(u, ukey, env, fernet) or os.environ.get(env, '')
     opts['_retry'] = True
@@ -1149,31 +1104,41 @@ def report_pdf(scan_id):
     graph_image = request.args.get('graph', '')
     if request.method == 'POST' and request.json:
         graph_image = request.json.get('graph_png', graph_image)
-    try:
-        from weasyprint import HTML as WeasyHTML
-        from services.report_signing import build_report_hashes
-        from services.report_pdf import prepare_report_data
-        raw_data = json.loads(scan.result_json or '{}')
-        data = prepare_report_data(raw_data)
-        generated_at = datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
-        hashes = build_report_hashes(scan, raw_data, generated_at)
-        html_str = render_template(
-            'report.html', scan=scan, data=data,
-            ai_summary=scan.ai_summary,
-            graph_image=graph_image or None,
-            generated_at=generated_at,
-            content_hash=hashes['content_hash'],
-            signature_hash=hashes['signature_hash'],
-            report_hash=hashes['content_hash_short'],
-        )
-        pdf_bytes = WeasyHTML(string=html_str).write_pdf()
-        return send_file(BytesIO(pdf_bytes), mimetype='application/pdf',
-                         as_attachment=True,
-                         download_name=f'osint_report_{scan_id}.pdf')
-    except ImportError:
-        return jsonify({'error': 'WeasyPrint non disponible sur ce serveur'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    raw_data = json.loads(scan.result_json or '{}')
+    from services.report_export import generate_pdf_response
+    _, response, err = generate_pdf_response(
+        scan, raw_data,
+        investigator=current_user.username,
+        classification=request.args.get('classification', 'CONFIDENTIEL'),
+        graph_image=graph_image or None,
+    )
+    if err:
+        return err
+    return response
+
+
+@app.route('/report/<int:scan_id>/verify')
+@login_required
+def report_verify(scan_id):
+    """Vérification d'intégrité : compare hash fourni aux empreintes du scan."""
+    from services.report_signing import build_report_hashes
+    scan = db.session.get(Scan, scan_id)
+    if not scan or scan.user_id != current_user.id:
+        return jsonify({'error': 'Scan non trouvé'}), 404
+    raw_data = json.loads(scan.result_json or '{}')
+    generated_at = request.args.get('generated_at', datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC'))
+    hashes = build_report_hashes(scan, raw_data, generated_at)
+    provided = request.args.get('hash', '')
+    match_content = provided == hashes['content_hash']
+    match_sig = provided == hashes['signature_hash']
+    return jsonify({
+        'scan_id': scan_id,
+        'valid': match_content or match_sig,
+        'match_content': match_content,
+        'match_signature': match_sig,
+        'content_hash': hashes['content_hash'],
+        'signature_hash': hashes['signature_hash'],
+    })
 
 
 @app.route('/upload', methods=['POST'])

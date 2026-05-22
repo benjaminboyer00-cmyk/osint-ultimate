@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     api_token     = db.Column(db.String(64), unique=True, index=True)
     proxy_list    = db.Column(db.Text)
     stealth_mode  = db.Column(db.Boolean, default=False)
+    scrape_fallback_enabled = db.Column(db.Boolean, default=True, nullable=False)
     locale        = db.Column(db.String(5), default='fr')
 
     scans = db.relationship('Scan', backref='owner', lazy='dynamic')
@@ -91,7 +92,10 @@ class EntityLink(db.Model):
     link_type    = db.Column(db.String(50), nullable=False)
     source_proof = db.Column(db.String(500))
     scan_id      = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
+    confidence   = db.Column(db.Float, default=0.5)
+    sources_json = db.Column(db.Text)
     created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class ScheduledScan(db.Model):
@@ -135,16 +139,21 @@ class Webhook(db.Model):
 
 
 class Investigation(db.Model):
-    """Dossier d'investigation."""
+    """Dossier d'investigation / enquête guidée par l'agent IA."""
     __tablename__ = 'investigation'
 
     id             = db.Column(db.Integer, primary_key=True)
     user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     title          = db.Column(db.String(200), nullable=False)
+    objective      = db.Column(db.Text)
+    status         = db.Column(db.String(20), default='pending', index=True)
+    steps_json     = db.Column(db.Text)
+    result_summary = db.Column(db.Text)
     root_entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=True)
     notes          = db.Column(db.Text)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at   = db.Column(db.DateTime)
 
 
 class InvestigationMessage(db.Model):
@@ -156,3 +165,22 @@ class InvestigationMessage(db.Model):
     content           = db.Column(db.Text, nullable=False)
     suggested_actions = db.Column(db.Text)
     created_at        = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Recipe(db.Model):
+    """Recette d'investigation partageable (séquence de modules)."""
+    __tablename__ = 'recipe'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    name           = db.Column(db.String(120), nullable=False)
+    description    = db.Column(db.Text)
+    target_types   = db.Column(db.Text)   # JSON: ["email","domain"]
+    modules_json   = db.Column(db.Text, nullable=False)  # JSON: ["email","dehashed",...]
+    is_public      = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    forked_from_id = db.Column(db.Integer, db.ForeignKey('recipe.id'), nullable=True)
+    usage_count    = db.Column(db.Integer, default=0, nullable=False)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    owner = db.relationship('User', backref=db.backref('recipes', lazy='dynamic'))

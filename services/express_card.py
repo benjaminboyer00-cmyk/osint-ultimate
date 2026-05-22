@@ -12,11 +12,20 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
         risks = []
         next_steps = []
         ok_mods = []
+        degraded = list(meta.get('degraded') or [])
         for key, val in (result or {}).items():
             if key.startswith('Module:') and isinstance(val, dict):
                 mod = key.replace('Module:', '').strip()
                 if val.get('_timeout'):
                     risks.append(f'{mod} : service lent (timeout)')
+                elif val.get('_degraded') or val.get('_source') == 'scraping_fallback':
+                    degraded.append(mod)
+                    n = val.get('Emails trouvés') or val.get('Fuites trouvées')
+                    label = f'⚠ Scraping public ({n} élément(s))' if n else '⚠ Quota API — scraping public'
+                    highlights.append({'label': mod, 'value': label})
+                    risks.append(
+                        val.get('Message', 'Résultats partiels : bascule automatique sur sources publiques.')[:120]
+                    )
                 elif val.get('Erreur') or val.get('error'):
                     risks.append(f'{mod} : {str(val.get("Erreur") or val.get("error"))[:80]}')
                 else:
@@ -41,6 +50,7 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
             'risks': risks[:8],
             'next_steps': next_steps,
             'timeouts': meta.get('timeouts', []),
+            'degraded': list(dict.fromkeys(degraded)),
             'expert_url': f'/expert?multi=1&target={quote(target)}&autolaunch=1',
         }
 
@@ -128,14 +138,20 @@ def build_express_card(module: str, target: str, result: dict) -> dict:
         next_steps.append('Passez en mode Expert pour une analyse approfondie.')
         next_steps.append('Générez un rapport PDF pour documenter l\'investigation.')
 
+    degraded = []
+    if result.get('_degraded') or result.get('_source') == 'scraping_fallback':
+        degraded.append(module)
+        risks.insert(0, result.get('Message', 'Résultats partiels via scraping public.')[:140])
+
     return {
         'module': module,
         'type': express_label(module),
         'target': target,
-        'status': 'ok',
+        'status': 'partial' if degraded else 'ok',
         'title': f'Résultat pour {target}',
         'highlights': highlights[:12],
         'risks': risks[:6],
         'next_steps': next_steps[:5],
+        'degraded': degraded,
         'raw_module': module,
     }

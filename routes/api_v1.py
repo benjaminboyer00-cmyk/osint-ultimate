@@ -5,7 +5,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 
 from extensions import db
-from models import User, Scan, ScheduledScan
+from models import User, Scan, ScheduledScan, Investigation
 from services.target_detector import detect_target_type
 from services.api_auth import require_api_key
 from services.correlation import get_rebound_suggestions
@@ -45,9 +45,52 @@ def openapi_docs():
             '/scheduled': {'get': {'summary': 'Lister surveillances'}, 'post': {'summary': 'Créer surveillance'}},
             '/scheduled/{job_id}': {'delete': {'summary': 'Supprimer surveillance'}},
             '/me': {'get': {'summary': 'Profil API (vérifie le token)'}},
+            '/investigate': {'post': {'summary': 'Lancer enquête guidée IA'}},
+            '/investigate/{inv_id}': {'get': {'summary': 'Statut enquête'}},
+            '/entity/{entity_id}/suggestions': {'get': {'summary': 'Prochain nœud (mode enquête)'}},
         },
     }
     return jsonify(spec)
+
+
+@api_bp.route('/investigate', methods=['POST'])
+@require_api_key
+def api_investigate_start():
+    from app import app, socketio, fernet
+    from services.investigation_agent import start_investigation
+    data = request.json or {}
+    query = (data.get('query') or data.get('objective') or '').strip()
+    if not query:
+        return jsonify({'error': 'query requis'}), 400
+    inv_id = start_investigation(request.api_user.id, query, app, socketio, fernet)
+    return jsonify({'investigation_id': inv_id, 'status': 'started'})
+
+
+@api_bp.route('/investigate/<int:inv_id>')
+@require_api_key
+def api_investigate_status(inv_id):
+    inv = Investigation.query.filter_by(id=inv_id, user_id=request.api_user.id).first()
+    if not inv:
+        return jsonify({'error': 'not found'}), 404
+    steps = json.loads(inv.steps_json or '[]') if inv.steps_json else []
+    return jsonify({
+        'id': inv.id,
+        'status': inv.status,
+        'objective': inv.objective,
+        'summary': inv.result_summary,
+        'steps': steps,
+        'root_entity_id': inv.root_entity_id,
+    })
+
+
+@api_bp.route('/entity/<int:entity_id>/suggestions')
+@require_api_key
+def api_entity_suggestions(entity_id):
+    from services.graph_enquiry import suggest_next_node
+    s = suggest_next_node(entity_id, request.api_user.id)
+    if not s:
+        return jsonify({'error': 'no suggestion'}), 404
+    return jsonify(s)
 
 
 @api_bp.route('/me')
@@ -123,21 +166,19 @@ def api_graph(entity_id):
 @api_bp.route('/export/<int:scan_id>/pdf')
 @require_api_key
 def api_export_pdf(scan_id):
-    from flask import render_template
     scan = db.session.get(Scan, scan_id)
     if not scan or scan.user_id != request.api_user.id:
         abort(404)
-    try:
-        from weasyprint import HTML as WeasyHTML
-        data = json.loads(scan.result_json or '{}')
-        html_str = render_template('report.html', scan=scan, data=data, ai_summary=scan.ai_summary)
-        pdf_bytes = WeasyHTML(string=html_str).write_pdf()
-        return send_file(
-            BytesIO(pdf_bytes), mimetype='application/pdf',
-            as_attachment=True, download_name=f'osint_report_{scan_id}.pdf',
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    raw_data = json.loads(scan.result_json or '{}')
+    from services.report_export import generate_pdf_response
+    _, response, err = generate_pdf_response(
+        scan, raw_data,
+        investigator=request.api_user.username,
+        classification=request.args.get('classification', 'CONFIDENTIEL'),
+    )
+    if err:
+        return err
+    return response
 
 
 @api_bp.route('/scheduled', methods=['GET', 'POST'])
@@ -233,6 +274,57 @@ def api_webhooks():
     db.session.add(h)
     db.session.commit()
     return jsonify({'id': h.id, 'url': h.url}), 201
+
+
+@api_bp.route('/recipes', methods=['GET', 'POST'])
+@require_api_key
+def api_recipes():
+    from services.recipes import list_recipes, create_recipe, _recipe_to_dict
+    if request.method == 'GET':
+        return jsonify({'recipes': list_recipes(request.api_user.id)})
+    data = request.json or {}
+    try:
+        r = create_recipe(request.api_user.id, data)
+        return jsonify(_recipe_to_dict(r, request.api_user.username)), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@api_bp.route('/recipes/<recipe_ref>', methods=['GET', 'DELETE'])
+@require_api_key
+def api_recipe_detail(recipe_ref):
+    from services.recipes import get_recipe, delete_recipe, _recipe_to_dict
+    if request.method == 'DELETE':
+        if str(recipe_ref).startswith('builtin-'):
+            return jsonify({'error': 'Recette système non supprimable'}), 400
+        if delete_recipe(int(recipe_ref), request.api_user.id):
+            return jsonify({'ok': True})
+        return jsonify({'error': 'Non trouvé'}), 404
+    r = get_recipe(recipe_ref, request.api_user.id)
+    if not r:
+        return jsonify({'error': 'Non trouvé'}), 404
+    return jsonify(r)
+
+
+@api_bp.route('/recipes/<recipe_ref>/run', methods=['POST'])
+@require_api_key
+def api_recipe_run(recipe_ref):
+    from services.recipes import launch_recipe
+    data = request.json or {}
+    target = (data.get('target') or '').strip()
+    try:
+        scan_id, recipe = launch_recipe(
+            recipe_ref, target, request.api_user.id, mode=data.get('mode', 'expert'),
+        )
+        return jsonify({'scan_id': scan_id, 'status': 'started', 'recipe': recipe.get('name')})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@api_bp.route('/connectors')
+def api_connectors():
+    from services.connector_catalog import get_catalog
+    return jsonify({'connectors': get_catalog(installed_only=False)})
 
 
 @api_bp.route('/examples')

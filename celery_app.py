@@ -20,6 +20,13 @@ if enabled:
         timezone='UTC',
         task_track_started=True,
         task_time_limit=600,
+        worker_prefetch_multiplier=1,
+        beat_schedule={
+            'scheduled-scans-every-5min': {
+                'task': 'osint.scheduled_tick',
+                'schedule': 300.0,
+            },
+        },
     )
 else:
     celery_app = None
