@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scans programmés – OSINT Ultimate</title>
+    <style>
+        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:2rem;max-width:800px;margin:0 auto}
+        h1{color:#00e5a0}
+        a{color:#4d9fff;margin-right:1rem}
+        table{width:100%;border-collapse:collapse;margin:1.5rem 0;font-size:.88rem}
+        th,td{padding:.6rem;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+        form.box{background:rgba(255,255,255,.04);padding:1.2rem;border-radius:12px;margin-bottom:2rem}
+        input,select{padding:.6rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#14171c;color:#c8cfe8;margin:.3rem 0}
+        button{padding:.5rem 1rem;background:#00e5a0;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+        .off{opacity:.5}
+    </style>
+</head>
+<body>
+    <p><a href="{{ url_for('views.expert') }}">Expert</a> <a href="{{ url_for('views.settings') }}">Paramètres</a></p>
+    <h1>⏱️ Scans programmés</h1>
+    <p style="color:#5a6180;font-size:.9rem">Surveillez une cible automatiquement (toutes les X heures). Nécessite une session connectée.</p>
+
+    <form class="box" method="post">
+        <label>Cible</label><br>
+        <input type="text" name="target" required placeholder="email, IP, pseudo…" style="width:100%">
+        <label>Module (optionnel, auto si vide)</label><br>
+        <select name="module">
+            <option value="">— Auto —</option>
+            <option value="email">Email</option>
+            <option value="phone">Téléphone</option>
+            <option value="ip">IP</option>
+            <option value="sherlock">Sherlock</option>
+            <option value="site">Site</option>
+        </select>
+        <label>Intervalle (heures)</label><br>
+        <input type="number" name="interval_hours" value="24" min="1" max="168">
+        <br><br>
+        <button type="submit">+ Ajouter surveillance</button>
+    </form>
+
+    {% if jobs %}
+    <table>
+        <thead><tr><th>Cible</th><th>Module</th><th>Toutes les</th><th>Prochain run</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+        {% for j in jobs %}
+        <tr class="{{ '' if j.enabled else 'off' }}">
+            <td>{{ j.target[:40] }}</td>
+            <td>{{ j.module }}</td>
+            <td>{{ j.interval_hours }}h</td>
+            <td>{{ j.next_run_at.strftime('%d/%m %H:%M') if j.next_run_at else '—' }}</td>
+            <td>{{ 'Actif' if j.enabled else 'Pause' }}</td>
+            <td>
+                <form method="post" action="{{ url_for('views.scheduled_toggle', job_id=j.id) }}" style="display:inline">
+                    <button type="submit">{{ 'Pause' if j.enabled else 'Activer' }}</button>
+                </form>
+                <form method="post" action="{{ url_for('views.scheduled_delete', job_id=j.id) }}" style="display:inline">
+                    <button type="submit" style="background:#ff4757">Suppr.</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#5a6180">Aucune surveillance active.</p>
+    {% endif %}
+
+    <p style="margin-top:2rem;font-size:.85rem;color:#5a6180">
+        API : <code>POST /api/v1/scheduled</code> avec header <code>X-API-Key</code>
+    </p>
+</body>
+</html>

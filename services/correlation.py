@@ -133,3 +133,59 @@ def build_graph_json(entity_id: int, user_id: int) -> dict:
 
     explore(ent.id)
     return {'nodes': list(nodes.values()), 'edges': edges, 'root_id': str(ent.id)}
+
+
+def build_entity_links_json(entity_id: int, user_id: int) -> dict | None:
+    """Expose les relations déduites pour une entité (API / graphe)."""
+    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    if not ent:
+        return None
+
+    links_q = EntityLink.query.filter(
+        EntityLink.user_id == user_id,
+        (EntityLink.source_id == entity_id) | (EntityLink.target_id == entity_id),
+    ).order_by(EntityLink.created_at.desc())
+
+    links_out = []
+    for link in links_q.all():
+        src = db.session.get(Entity, link.source_id)
+        tgt = db.session.get(Entity, link.target_id)
+        if not src or not tgt:
+            continue
+        direction = 'outgoing' if link.source_id == entity_id else 'incoming'
+        other = tgt if direction == 'outgoing' else src
+        links_out.append({
+            'id': link.id,
+            'type': link.link_type,
+            'direction': direction,
+            'proof': link.source_proof,
+            'scan_id': link.scan_id,
+            'created_at': link.created_at.isoformat() if link.created_at else None,
+            'source': {
+                'id': src.id,
+                'entity_type': src.entity_type,
+                'value': src.value,
+            },
+            'target': {
+                'id': tgt.id,
+                'entity_type': tgt.entity_type,
+                'value': tgt.value,
+            },
+            'related': {
+                'id': other.id,
+                'entity_type': other.entity_type,
+                'value': other.value,
+            },
+        })
+
+    return {
+        'entity': {
+            'id': ent.id,
+            'entity_type': ent.entity_type,
+            'value': ent.value,
+            'source_scan_id': ent.source_scan_id,
+            'created_at': ent.created_at.isoformat() if ent.created_at else None,
+        },
+        'links': links_out,
+        'count': len(links_out),
+    }

@@ -45,7 +45,7 @@
         .btn-primary{border-color:var(--accent);color:var(--accent)}
         .legal{font-size:.75rem;color:var(--dim);margin-top:2rem;line-height:1.5}
         .prog{height:4px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;display:none}
-        .prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2);transition:.3s}
+        .prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s}
     </style>
 </head>
 <body>
@@ -181,7 +181,12 @@ async function askAssistant(){
     const r = await fetch('/express/assist',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({card:lastCard,result:lastResult})});
     const d = await r.json();
-    box.textContent = d.assistant || ('Erreur: '+(d.error||'?'));
+    if(d.assistant){
+        box.textContent = d.assistant;
+        if(d.source === 'fallback') box.style.borderLeft = '3px solid var(--warn)';
+    } else {
+        box.textContent = 'Erreur: '+(d.error||'?');
+    }
 }
 
 function startProgress(){

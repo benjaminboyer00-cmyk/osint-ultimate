@@ -18,7 +18,7 @@ Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
 |--------|-------------|
 | `SESSION_COOKIE_SECURE` | `true` sur HF |
 | `OPENROUTER_REFERER` | URL du Space HF |
-| `OPENROUTER_MODEL` | Modèle forcé (ex. `openchat/openchat-7b:free`) |
+| `OPENROUTER_MODEL` | Modèle forcé si erreur « Provider returned error » — essayer `google/gemma-2-9b-it:free` |
 
 ## Optionnels — enrichissement des scans
 

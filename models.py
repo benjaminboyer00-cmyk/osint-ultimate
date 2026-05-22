@@ -19,6 +19,7 @@ class User(UserMixin, db.Model):
 
     scans = db.relationship('Scan', backref='owner', lazy='dynamic')
     entities = db.relationship('Entity', backref='owner', lazy='dynamic')
+    scheduled_scans = db.relationship('ScheduledScan', backref='owner', lazy='dynamic')
 
     def ensure_api_token(self):
         import secrets
@@ -58,7 +59,8 @@ class Scan(db.Model):
     timestamp    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     completed_at = db.Column(db.DateTime)
     status       = db.Column(db.String(20), default='pending', nullable=False, index=True)
-    mode         = db.Column(db.String(20), default='expert')  # express | expert
+    mode         = db.Column(db.String(20), default='expert')
+    scheduled_scan_id = db.Column(db.Integer, db.ForeignKey('scheduled_scan.id'), nullable=True)
 
 
 class Entity(db.Model):
@@ -87,3 +89,20 @@ class EntityLink(db.Model):
     source_proof = db.Column(db.String(500))
     scan_id      = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
     created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ScheduledScan(db.Model):
+    """Surveillance programmée d'une cible."""
+    __tablename__ = 'scheduled_scan'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    module        = db.Column(db.String(50), nullable=False)
+    target        = db.Column(db.String(500), nullable=False)
+    interval_hours = db.Column(db.Integer, default=24, nullable=False)
+    enabled       = db.Column(db.Boolean, default=True, nullable=False)
+    last_run_at   = db.Column(db.DateTime)
+    next_run_at   = db.Column(db.DateTime, index=True)
+    last_scan_id  = db.Column(db.Integer, db.ForeignKey('scan.id'), nullable=True)
+    notify_on_change = db.Column(db.Boolean, default=False)
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

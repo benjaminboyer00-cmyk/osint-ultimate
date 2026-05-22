@@ -306,6 +306,7 @@
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
                 <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
+                <a href="{{ url_for('views.scheduled_page') }}" class="history-link">⏱️</a>
                 <a href="{{ url_for('views.settings') }}" class="history-link">⚙️</a>
                 <a href="/logout" class="auth-btn">Déconnexion</a>
             {% else %}

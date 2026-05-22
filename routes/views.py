@@ -1,11 +1,12 @@
 """Routes vues : Express, Expert, paramètres."""
 import json
 import os
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from datetime import datetime, timedelta
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Scan, Entity
+from models import User, Scan, Entity, ScheduledScan
 from services.target_detector import detect_target_type
 from services.express_card import build_express_card
 
@@ -60,20 +61,29 @@ def express_card():
 @views_bp.route('/express/assist', methods=['POST'])
 def express_assist():
     """Assistant IA pédagogique pour le mode Express."""
-    from app import summarize_osint_with_openrouter
+    from services.openrouter import chat_completion, fallback_explain
     data = request.json or {}
     card = data.get('card', {})
     result = data.get('result', {})
+    prompt_ctx = json.dumps({'carte': card, 'donnees': result}, ensure_ascii=False)[:3500]
+    system = (
+        'Tu es un assistant OSINT pédagogique. Réponds en français simple, sans jargon. '
+        'Structure : 1) Ce que signifient les résultats 2) Risques éventuels 3) 2-3 prochaines étapes concrètes.'
+    )
     try:
-        prompt_ctx = json.dumps({'carte': card, 'donnees': result}, ensure_ascii=False)[:3500]
-        summary = summarize_osint_with_openrouter(
-            f"Tu es un assistant OSINT pédagogique pour le grand public. "
-            f"Explique en français simple ce que signifient ces résultats, les risques, "
-            f"et propose 2-3 prochaines étapes concrètes (sans jargon technique):\n\n{prompt_ctx}"
+        summary = chat_completion(
+            f'Explique ces résultats de recherche OSINT:\n\n{prompt_ctx}',
+            system=system,
         )
-        return jsonify({'assistant': summary})
+        return jsonify({'assistant': summary, 'source': 'openrouter'})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.warning('Express assist OpenRouter: %s', e)
+        fallback = fallback_explain(card, result)
+        return jsonify({
+            'assistant': fallback,
+            'source': 'fallback',
+            'warning': str(e),
+        })
 
 
 @views_bp.route('/settings', methods=['GET', 'POST'])
@@ -122,8 +132,78 @@ def graph_view():
 @views_bp.route('/graph/data/<int:entity_id>')
 @login_required
 def graph_data(entity_id):
-    from services.correlation import build_graph_json
+    from services.correlation import build_graph_json, build_entity_links_json
     g = build_graph_json(entity_id, current_user.id)
     if not g.get('nodes'):
         return jsonify({'error': 'Entité non trouvée'}), 404
+    links = build_entity_links_json(entity_id, current_user.id)
+    if links:
+        g['links_detail'] = links.get('links', [])
+        g['entity'] = links.get('entity')
     return jsonify(g)
+
+
+@views_bp.route('/graph/links/<int:entity_id>')
+@login_required
+def graph_links(entity_id):
+    from services.correlation import build_entity_links_json
+    data = build_entity_links_json(entity_id, current_user.id)
+    if not data:
+        return jsonify({'error': 'Entité non trouvée'}), 404
+    return jsonify(data)
+
+
+@views_bp.route('/settings/token/regenerate', methods=['POST'])
+@login_required
+def regenerate_token():
+    import secrets
+    current_user.api_token = secrets.token_hex(32)
+    db.session.commit()
+    flash('Nouvelle clé API générée.', 'success')
+    return redirect(url_for('views.settings'))
+
+
+@views_bp.route('/scheduled', methods=['GET', 'POST'])
+@login_required
+def scheduled_page():
+    if request.method == 'POST':
+        target = request.form.get('target', '').strip()
+        module = request.form.get('module') or detect_target_type(target)
+        hours = int(request.form.get('interval_hours', 24) or 24)
+        if target and 1 <= hours <= 168:
+            job = ScheduledScan(
+                user_id=current_user.id,
+                module=module,
+                target=target,
+                interval_hours=hours,
+                enabled=True,
+                next_run_at=datetime.utcnow(),
+            )
+            db.session.add(job)
+            db.session.commit()
+            flash('Surveillance programmée créée.', 'success')
+        return redirect(url_for('views.scheduled_page'))
+
+    jobs = ScheduledScan.query.filter_by(user_id=current_user.id)\
+        .order_by(ScheduledScan.next_run_at.asc()).all()
+    return render_template('scheduled.html', jobs=jobs, username=current_user.username)
+
+
+@views_bp.route('/scheduled/<int:job_id>/toggle', methods=['POST'])
+@login_required
+def scheduled_toggle(job_id):
+    job = db.session.get(ScheduledScan, job_id)
+    if job and job.user_id == current_user.id:
+        job.enabled = not job.enabled
+        db.session.commit()
+    return redirect(url_for('views.scheduled_page'))
+
+
+@views_bp.route('/scheduled/<int:job_id>/delete', methods=['POST'])
+@login_required
+def scheduled_delete(job_id):
+    job = db.session.get(ScheduledScan, job_id)
+    if job and job.user_id == current_user.id:
+        db.session.delete(job)
+        db.session.commit()
+    return redirect(url_for('views.scheduled_page'))

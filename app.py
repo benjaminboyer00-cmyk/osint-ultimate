@@ -81,58 +81,17 @@ def safe_get(url, timeout=15, **kwargs):
         return None
 
 # ---------- OPENROUTER IA ----------
-_forced_model = os.environ.get('OPENROUTER_MODEL', '').strip()
-OPENROUTER_MODELS = (
-    [_forced_model] if _forced_model else []
-) + [
-    'openchat/openchat-7b:free',
-    'google/gemma-2-9b-it:free',
-    'meta-llama/llama-3.2-3b-instruct:free',
-]
-
-def summarize_osint_with_openrouter(text, api_key=None):
-    """Résume des résultats OSINT via l'API OpenRouter."""
-    key = api_key or os.environ.get('OPENROUTER_KEY') or os.environ.get('ANTHROPIC_API_KEY')
-    if not key:
-        raise ValueError('OPENROUTER_KEY non configurée dans les secrets du Space')
+def summarize_osint_with_openrouter(text, api_key=None, system: str | None = None):
+    """Résume des résultats OSINT via OpenRouter (multi-modèles + repli)."""
+    from services.openrouter import chat_completion
     if isinstance(text, dict):
         text = json.dumps(text, ensure_ascii=False)
-    text = str(text)[:4000]
     prompt = (
         'Analyse et résume ces résultats OSINT en français. '
         'Sois concis, structuré, et mets en évidence les points importants '
-        f'et risques potentiels:\n\n{text}'
+        f'et risques potentiels:\n\n{str(text)[:4000]}'
     )
-    headers = {
-        'Authorization': f'Bearer {key}',
-        'Content-Type': 'application/json',
-        'HTTP-Referer': os.environ.get(
-            'OPENROUTER_REFERER',
-            'https://huggingface.co/spaces/benji4565/osint_ultimate_backend',
-        ),
-        'X-Title': 'OSINT Ultimate',
-    }
-    payload_base = {
-        'messages': [{'role': 'user', 'content': prompt}],
-    }
-    last_error = None
-    for model in OPENROUTER_MODELS:
-        try:
-            r = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers=headers,
-                json={**payload_base, 'model': model},
-                timeout=30,
-            )
-            if r.status_code == 200:
-                return r.json()['choices'][0]['message']['content']
-            err_body = r.json() if r.headers.get('content-type', '').startswith('application/json') else {}
-            last_error = err_body.get('error', {}).get('message') or f'HTTP {r.status_code}'
-            if r.status_code != 404:
-                break
-        except Exception as e:
-            last_error = str(e)
-    raise RuntimeError(last_error or 'Aucun modèle OpenRouter disponible')
+    return chat_completion(prompt, api_key=api_key, system=system)
 
 def init_database():
     """Applique les migrations Alembic (appelé aussi par entrypoint.sh)."""
@@ -932,8 +891,11 @@ def worker():
 threading.Thread(target=worker, daemon=True).start()
 
 
-def run_scan_async(module, target, options=None, user_id=None, mode='expert'):
-    scan = Scan(module=module, target=target, user_id=user_id, status='pending', mode=mode)
+def run_scan_async(module, target, options=None, user_id=None, mode='expert', scheduled_scan_id=None):
+    scan = Scan(
+        module=module, target=target, user_id=user_id, status='pending',
+        mode=mode, scheduled_scan_id=scheduled_scan_id,
+    )
     db.session.add(scan)
     db.session.commit()
     scan_id = scan.id
@@ -1153,6 +1115,13 @@ from routes.views import views_bp
 from routes.api_v1 import api_bp
 app.register_blueprint(views_bp)
 app.register_blueprint(api_bp, url_prefix='/api/v1')
+
+with app.app_context():
+    try:
+        from services.scheduler import start_scheduler
+        start_scheduler(app)
+    except Exception as sched_err:
+        app.logger.warning('Scheduler: %s', sched_err)
 
 
 if __name__ == '__main__':

@@ -17,3 +17,4 @@ python-docx
 PyPDF2
 weasyprint
 cryptography
+APScheduler>=3.10.0

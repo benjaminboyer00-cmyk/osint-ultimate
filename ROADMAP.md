@@ -91,6 +91,7 @@
 | ID | Tâche | Priorité | Statut |
 |----|-------|----------|--------|
 | P3.1.1 | API `GET /api/v1/entity/<id>/graph` | P0 | ✅ |
+| P3.1.1b | API `GET /api/v1/entity/<id>/links` | P0 | ✅ |
 | P3.1.2 | Vue graphe Cytoscape.js (Expert) | P1 | ✅ |
 | P3.1.3 | Clic nœud → relancer scan | P2 | 🔲 |
 | P3.2.1 | Dossier investigation (timeline) | P2 | 🔲 |
@@ -105,11 +106,12 @@
 |----|-------|----------|--------|
 | P4.1.1 | `POST /api/v1/search` | P0 | ✅ |
 | P4.1.2 | `GET /api/v1/results/{id}` | P0 | ✅ |
-| P4.1.3 | Auth par clé API (`X-API-Key`) | P0 | ✅ |
+| P4.1.3 | Auth par clé API (`X-API-Key` + Bearer) | P0 | ✅ |
+| P4.1.6 | `GET /api/v1/me` — vérifier token | P1 | ✅ |
 | P4.1.4 | OpenAPI `/api/docs` | P0 | ✅ |
 | P4.1.5 | `GET /api/v1/export/{id}/pdf` | P1 | ✅ |
 | P4.2.1 | Page `/settings` clés API utilisateur | P0 | ✅ |
-| P4.3.1 | Scans programmés (APScheduler) | P3 | 🔲 |
+| P4.3.1 | Scans programmés (APScheduler) | P3 | ✅ |
 | P4.3.2 | Notifications email changements | P3 | 🔲 |
 
 ---

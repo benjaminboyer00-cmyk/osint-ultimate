@@ -16,6 +16,7 @@
 <header>
     <a href="{{ url_for('views.expert') }}">← Expert</a>
     <strong>Graphe de relations</strong>
+    <button onclick="loadLinks()" style="padding:.5rem 1rem;background:#14171c;color:#c8cfe8;border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer">📋 Liens</button>
     <select id="entity-select" onchange="loadGraph(this.value)">
         <option value="">— Choisir une entité —</option>
         {% for e in entities %}
@@ -55,6 +56,16 @@ function render(data){
     const edges = (data.edges||[]).map(e => ({ data: { id: e.id, source: e.source, target: e.target, label: e.label }}));
     cy.add([...nodes, ...edges]);
     cy.layout({ name: 'cose', animate: true }).run();
+}
+
+async function loadLinks(){
+    const id = document.getElementById('entity-select').value;
+    if(!id) return;
+    const r = await fetch(`/graph/links/${id}`);
+    const d = await r.json();
+    if(d.links){
+        alert(d.links.map(l => `${l.type}: ${l.related?.value || l.target?.value}`).join('\n') || 'Aucun lien');
+    }
 }
 
 {% if entity_id %}

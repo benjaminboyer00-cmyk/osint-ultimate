@@ -28,6 +28,12 @@
     <h2 style="font-size:1rem;margin-top:1.5rem;color:#4d9fff">Clé API REST</h2>
     <p style="font-size:.85rem;color:#5a6180">Header : <code>X-API-Key</code> — Doc : <a href="/api/v1/docs">/api/v1/docs</a></p>
     <div class="token">{{ api_token }}</div>
+    <form method="post" action="{{ url_for('views.regenerate_token') }}" style="margin-top:.5rem">
+        <button type="submit" style="background:#4d9fff;color:#fff">🔄 Régénérer la clé API</button>
+    </form>
+    <p style="font-size:.8rem;color:#5a6180;margin-top:.5rem">Authentification : <code>X-API-Key: …</code> ou <code>Authorization: Bearer …</code></p>
+
+    <p style="margin-top:1.5rem"><a href="{{ url_for('views.scheduled_page') }}">⏱️ Gérer les scans programmés</a></p>
 
     <h2 style="font-size:1rem;margin-top:1rem;color:#4d9fff">Vos clés API (chiffrées)</h2>
     <form method="post">
