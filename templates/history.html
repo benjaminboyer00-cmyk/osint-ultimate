@@ -104,7 +104,7 @@
                 <td data-label="Cible">{{ scan.target[:60] }}{% if scan.target|length > 60 %}…{% endif %}</td>
                 <td data-label="Statut">{{ scan.status }}</td>
                 <td data-label="Actions" class="actions">
-                    <a href="{{ url_for('index') }}?scan_id={{ scan.id }}">Voir</a>
+                    <a href="{{ url_for('scan_view', scan_id=scan.id) }}">Voir</a>
                     <a href="{{ url_for('export', scan_id=scan.id) }}">JSON</a>
                     <a href="{{ url_for('report_pdf', scan_id=scan.id) }}">PDF</a>
                 </td>

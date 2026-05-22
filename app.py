@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OSINT ULTIMATE V3.0 – Full Async, Auth, DB, Reports, PWA
+OSINT ULTIMATE V4.0 – Auth, Supabase PostgreSQL, Scans async, IA OpenRouter, PWA
 """
 import os, re, json, socket, hashlib, threading, queue, random
 from datetime import datetime
@@ -22,38 +22,29 @@ from PIL.ExifTags import TAGS
 import docx
 import PyPDF2
 from cryptography.fernet import Fernet
+from sqlalchemy import text as sa_text
 from flask import (Flask, render_template, request, jsonify,
                    redirect, url_for, flash, send_file, abort)
 from flask_socketio import SocketIO
-from flask_login import (LoginManager, UserMixin, login_user, logout_user,
-                         login_required, current_user)
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from config import build_config
+from extensions import db, login_manager, migrate
+from models import User, Scan
+
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-# SQLite persistant sur HF Spaces si /data est monté (tier payant), sinon local
-_default_db = 'sqlite:////data/osint.db' if os.path.isdir('/data') else 'sqlite:///osint.db'
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'change-me-' + os.urandom(16).hex())
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', _default_db)
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# HF Spaces = HTTPS ; en local laisser false pour éviter les cookies rejetés en HTTP
-_on_hf = bool(os.environ.get('SPACE_ID') or os.environ.get('SYSTEM'))
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get(
-    'SESSION_COOKIE_SECURE', 'true' if _on_hf else 'false'
-).lower() == 'true'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
+app.config.update(build_config())
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-socketio = SocketIO(app, cors_allowed_origins='*')
-db = SQLAlchemy(app)
-login_manager = LoginManager(app)
+db.init_app(app)
+migrate.init_app(app, db)
+login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+socketio = SocketIO(app, cors_allowed_origins='*')
 
 # ---------- ENCRYPTION ----------
 _fenv = os.environ.get('FERNET_KEY')
@@ -140,44 +131,16 @@ def summarize_osint_with_openrouter(text, api_key=None):
             last_error = str(e)
     raise RuntimeError(last_error or 'Aucun modèle OpenRouter disponible')
 
-# ---------- MODELS ----------
-class User(UserMixin, db.Model):
-    id            = db.Column(db.Integer, primary_key=True)
-    username      = db.Column(db.String(80), unique=True, nullable=False)
-    email         = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))
-    api_keys_enc  = db.Column(db.Text)
+def init_database():
+    """Applique les migrations Alembic (appelé aussi par entrypoint.sh)."""
+    from flask_migrate import upgrade
+    with app.app_context():
+        try:
+            upgrade()
+        except Exception as exc:
+            app.logger.warning('Migration Alembic: %s — fallback create_all', exc)
+            db.create_all()
 
-    def set_password(self, pw):
-        self.password_hash = generate_password_hash(pw)
-
-    def check_password(self, pw):
-        return check_password_hash(self.password_hash, pw)
-
-    def get_api_keys(self):
-        if self.api_keys_enc:
-            try:
-                return json.loads(fernet.decrypt(self.api_keys_enc.encode()).decode())
-            except Exception:
-                return {}
-        return {}
-
-    def set_api_keys(self, d):
-        self.api_keys_enc = fernet.encrypt(json.dumps(d).encode()).decode()
-
-
-class Scan(db.Model):
-    id          = db.Column(db.Integer, primary_key=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    module      = db.Column(db.String(50))
-    target      = db.Column(db.String(500))
-    result_json = db.Column(db.Text)
-    timestamp   = db.Column(db.DateTime, default=datetime.utcnow)
-    status      = db.Column(db.String(20), default='pending')
-
-
-with app.app_context():
-    db.create_all()
 
 # ---------- AUTH ----------
 @login_manager.user_loader
@@ -214,6 +177,8 @@ def login():
         password = request.form.get('password', '')
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
+            user.last_login = datetime.utcnow()
+            db.session.commit()
             login_user(user, remember=True)
             return redirect(url_for('index'))
         flash('Identifiants invalides. Sur Hugging Face, recréez un compte après chaque redéploiement si la base n\'est pas persistante.', 'error')
@@ -907,6 +872,7 @@ def worker():
                 result = func(*args, **kwargs)
                 scan.result_json = json.dumps(result, ensure_ascii=False, default=str)
                 scan.status = 'completed'
+                scan.completed_at = datetime.utcnow()
                 db.session.commit()
                 socketio.emit('scan_done', {'scan_id': scan_id, 'result': result})
             except Exception as e:
@@ -934,11 +900,27 @@ def run_scan_async(module, target, options=None, user_id=None):
 # ============================================================
 #  ROUTES
 # ============================================================
+@app.route('/health')
+def health():
+    db_ok = False
+    try:
+        db.session.execute(sa_text('SELECT 1'))
+        db_ok = True
+    except Exception:
+        pass
+    return jsonify({
+        'status': 'ok' if db_ok else 'degraded',
+        'version': app.config.get('APP_VERSION', '4.0'),
+        'database': 'connected' if db_ok else 'error',
+    }), 200 if db_ok else 503
+
+
 @app.route('/')
 def index():
     return render_template('index.html',
         authenticated=current_user.is_authenticated,
-        username=current_user.username if current_user.is_authenticated else None)
+        username=current_user.username if current_user.is_authenticated else None,
+        version=app.config.get('APP_VERSION', '4.0'))
 
 
 @app.route('/scan', methods=['POST'])
@@ -963,8 +945,16 @@ def scan_result(scan_id):
     scan = db.session.get(Scan, scan_id)
     if not scan:
         return jsonify({'error': 'Scan non trouvé'}), 404
+    if scan.user_id:
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Connexion requise pour ce scan'}), 401
+        if scan.user_id != current_user.id:
+            return jsonify({'error': 'Accès refusé'}), 403
     if scan.status == 'completed':
-        return jsonify(json.loads(scan.result_json))
+        out = json.loads(scan.result_json)
+        if scan.ai_summary:
+            out['_ai_summary'] = scan.ai_summary
+        return jsonify(out)
     return jsonify({'status': scan.status})
 
 
@@ -1065,15 +1055,39 @@ def upload():
 def ai_summary():
     data = request.json or {}
     text = data.get('result', '')
+    scan_id = data.get('scan_id')
     if not text:
         return jsonify({'error': 'Aucun résultat de scan à résumer'}), 400
+
+    scan = None
+    if scan_id:
+        scan = db.session.get(Scan, int(scan_id))
+        if scan and scan.ai_summary:
+            return jsonify({'summary': scan.ai_summary, 'cached': True})
+
     try:
         summary = summarize_osint_with_openrouter(text)
+        if scan:
+            if scan.user_id and current_user.is_authenticated and scan.user_id != current_user.id:
+                return jsonify({'error': 'Accès refusé'}), 403
+            scan.ai_summary = summary
+            db.session.commit()
         return jsonify({'summary': summary})
     except ValueError as e:
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         return jsonify({'error': f'OpenRouter: {e}'}), 500
+
+
+@app.route('/scan/<int:scan_id>/view')
+@login_required
+def scan_view(scan_id):
+    scan = db.session.get(Scan, scan_id)
+    if not scan or scan.user_id != current_user.id:
+        abort(404)
+    if scan.status != 'completed':
+        return redirect(url_for('index'))
+    return redirect(url_for('index', scan_id=scan_id))
 
 
 # ---------- SOCKETIO ----------
@@ -1096,5 +1110,6 @@ def manifest():
 
 
 if __name__ == '__main__':
+    init_database()
     socketio.run(app, debug=False, host='0.0.0.0',
                  port=int(os.environ.get('PORT', 5000)))

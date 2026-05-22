@@ -14,5 +14,5 @@ pip install --no-cache-dir -r requirements.txt
 COPY . .
 # Hugging Face Spaces utilise le port 7860 par défaut
 EXPOSE 7860
-# Lancement de l'application avec Gunicorn et Gevent pour les WebSockets
-CMD ["gunicorn", "-k", "gevent", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]
+RUN chmod +x /code/entrypoint.sh
+ENTRYPOINT ["/code/entrypoint.sh"]

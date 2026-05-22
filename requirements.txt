@@ -4,6 +4,8 @@ flask
 flask-socketio
 flask-login
 flask-sqlalchemy
+flask-migrate
+psycopg2-binary
 requests
 python-whois
 dnspython
@@ -15,4 +17,3 @@ python-docx
 PyPDF2
 weasyprint
 cryptography
-selenium  # (si besoin pour certains scraps, à utiliser avec headless)

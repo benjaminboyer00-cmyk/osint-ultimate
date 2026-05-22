@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINT Ultimate V3.0</title>
+    <title>OSINT Ultimate V4.0</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -299,7 +299,7 @@
 
     <!-- Header -->
     <div class="hdr">
-        <div class="logo">⚡ OSINT ULTIMATE V3</div>
+        <div class="logo">⚡ OSINT ULTIMATE V{{ version|default('4.0') }}</div>
         <div class="hdr-right">
             {% if authenticated %}
                 <span class="user-badge">👤 {{ username }}</span>
@@ -744,7 +744,7 @@ async function getAI(){
     try {
         const r = await fetch('/ai-summary',{
             method:'POST', headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({result: lastResult})
+            body:JSON.stringify({result: lastResult, scan_id: activeScanId})
         });
         const d = await r.json();
         if(d.summary) aiText.textContent = d.summary;
@@ -770,6 +770,43 @@ function downloadJSON(){
     a.download=`osint_${currentModule}_${Date.now()}.json`;
     a.click(); URL.revokeObjectURL(a.href);
 }
+
+// ── Charger un scan depuis l'historique (?scan_id=) ────────
+async function loadScanFromHistory(scanId){
+    scanRunning = true;
+    resultEl.innerHTML = `<div class="skeleton" style="width:70%"></div>`;
+    try {
+        const r = await fetch(`/scan/${scanId}`);
+        const d = await r.json();
+        if(!r.ok){
+            resultEl.innerHTML = `<p style="color:var(--error)">❌ ${d.error||'Scan inaccessible'}</p>`;
+            resultEl.classList.add('has-error');
+            return;
+        }
+        if(d.status && d.status !== 'completed'){
+            resultEl.innerHTML = `<p>Scan en cours (${d.status})…</p>`;
+            return;
+        }
+        activeScanId = parseInt(scanId, 10);
+        const aiCached = d._ai_summary;
+        if(aiCached) delete d._ai_summary;
+        lastResult = d;
+        renderResult(d);
+        exportBar.style.display = 'flex';
+        aiBox.style.display = 'block';
+        if(aiCached){
+            document.getElementById('ai-text').textContent = aiCached;
+        }
+        const geo = d.Géolocalisation || {};
+        if(geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
+    } catch(e){
+        resultEl.innerHTML = `<p style="color:var(--error)">Erreur: ${e.message}</p>`;
+    } finally {
+        scanRunning = false;
+    }
+}
+const _preload = new URLSearchParams(window.location.search).get('scan_id');
+if(_preload) loadScanFromHistory(_preload);
 
 // ── PWA ────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
