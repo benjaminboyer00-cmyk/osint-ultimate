@@ -102,6 +102,12 @@
         </div>
         <p id="enquiry-tip" style="display:none;margin-top:.5rem;font-size:.75rem;color:#ffd700"></p>
         <div id="links-list" style="margin-top:.75rem"></div>
+        <div id="comments-block" style="margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
+            <strong style="font-size:.75rem;color:var(--dim)">💬 Commentaires</strong>
+            <ul id="comments-list" style="list-style:none;padding:0;margin:.4rem 0;max-height:100px;overflow:auto;font-size:.78rem"></ul>
+            <textarea id="comment-input" rows="2" placeholder="Note sur cette entité…" style="width:100%;background:#14171c;border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:.8rem"></textarea>
+            <button type="button" id="btn-comment" style="margin-top:.35rem;width:100%;padding:.4rem;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer">Publier</button>
+        </div>
     </aside>
 </div>
 <script>
@@ -119,7 +125,16 @@ let graphData = null;
 let activeGraphScanId = null;
 let activePivotScanId = null;
 const graphSocket = io({ transports: ['websocket', 'polling'] });
+let dossierRootId = null;
 graphSocket.on('connect', () => graphSocket.emit('join_graph', {}));
+graphSocket.on('comment_added', p => {
+    if (selectedNode && String(p.entity_id) === String(selectedNode.id)) {
+        loadComments(selectedNode.id);
+    }
+});
+graphSocket.on('scan_completed', p => {
+    if (scanStatusEl) scanStatusEl.textContent = `✅ Scan #${p.scan_id} terminé (${p.module})`;
+});
 const scanStatusEl = document.getElementById('scan-status');
 
 const cy = cytoscape({
@@ -208,6 +223,7 @@ cy.on('tap', 'node', evt => {
     evt.target.select();
     document.getElementById('panel-title').textContent = n.type + ' : ' + (n.value || n.label);
     showNodeIntel(n.id);
+    loadComments(n.id);
     document.getElementById('btn-scan').style.display = 'block';
     document.getElementById('btn-dossier').style.display = 'block';
     document.getElementById('dossier-link').style.display = 'inline';
@@ -414,6 +430,8 @@ function highlightEntity(eid) {
 
 async function loadGraph(entityId){
     if (!entityId) return;
+    dossierRootId = entityId;
+    graphSocket.emit('join_dossier', { root_entity_id: entityId });
     const r = await fetch(`/graph/data/${entityId}`);
     if (!r.ok) { alert('Graphe indisponible'); return; }
     graphData = await r.json();
@@ -421,6 +439,30 @@ async function loadGraph(entityId){
     const hi = new URLSearchParams(location.search).get('highlight');
     if (hi) setTimeout(() => highlightEntity(hi), 500);
 }
+
+async function loadComments(entityId) {
+    const ul = document.getElementById('comments-list');
+    if (!ul || !entityId) return;
+    const r = await fetch(`/entity/${entityId}/comments`);
+    const d = await r.json();
+    if (!r.ok) { ul.innerHTML = '<li style="color:var(--dim)">—</li>'; return; }
+    ul.innerHTML = (d.comments || []).map(c =>
+        `<li style="margin:.25rem 0"><strong>${c.author}</strong> : ${c.content.slice(0,120)}<br><small style="color:var(--dim)">${c.created_at || ''}</small></li>`
+    ).join('') || '<li style="color:var(--dim)">Aucun commentaire</li>';
+}
+
+document.getElementById('btn-comment')?.addEventListener('click', async () => {
+    if (!selectedNode) return;
+    const content = document.getElementById('comment-input').value;
+    const r = await fetch(`/entity/${selectedNode.id}/comments`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ content }),
+    });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || 'Erreur'); return; }
+    document.getElementById('comment-input').value = '';
+    loadComments(selectedNode.id);
+});
 
 function applyGraphLayout(){
     const n = cy.nodes().length;

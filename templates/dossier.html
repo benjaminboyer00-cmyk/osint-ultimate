@@ -23,6 +23,30 @@
     <div class="card">
         <strong>{{ dossier.entity.type }}</strong> : {{ dossier.entity.value }}<br>
         <small>{{ dossier.scans_count }} scans · {{ dossier.links_count }} liens</small>
+        {% if dossier.access %}
+        <br><small style="color:#4d9fff">Accès : {{ dossier.access.role }}{% if dossier.access.is_owner %} (propriétaire){% endif %}</small>
+        {% endif %}
+        {% if dossier.access and dossier.access.can_admin %}
+        <button type="button" id="btn-share" style="margin-top:.6rem">👥 Partager</button>
+        {% endif %}
+        <a href="{{ url_for('collab.invitations_page') }}" style="margin-left:.8rem;font-size:.85rem">📬 Mes invitations</a>
+    </div>
+
+    <div id="share-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
+        <div class="card" style="max-width:420px;width:90%">
+            <h3 style="margin-top:0;color:#00e5a0">Partager le dossier</h3>
+            <label>Email utilisateur<br><input type="email" id="invite-email" style="width:100%;margin:.4rem 0"></label>
+            <label>Rôle<br>
+                <select id="invite-role" style="width:100%;margin:.4rem 0">
+                    <option value="reader">Lecteur</option>
+                    <option value="editor">Éditeur</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </label>
+            <button type="button" id="btn-invite-send">Envoyer l'invitation</button>
+            <button type="button" id="btn-share-close" style="background:#444;color:#fff;margin-left:.5rem">Fermer</button>
+            <ul id="collab-list" style="margin-top:1rem;padding-left:1.2rem;font-size:.85rem"></ul>
+        </div>
     </div>
 
     <h2>📜 Rapport narratif IA</h2>
@@ -65,6 +89,7 @@
     <p style="color:#5a6180">Aucune suggestion — lancez des scans pour enrichir le dossier.</p>
     {% endfor %}
 
+    {% if dossier.access and dossier.access.can_edit %}
     <h2>➕ Ajouter une entité</h2>
     <form class="card" method="post" action="{{ url_for('views.dossier_add_entity', entity_id=dossier.entity.id) }}">
         <input type="text" name="target" placeholder="email, téléphone, pseudo…" required style="width:60%">
@@ -78,6 +103,20 @@
         </select>
         <button type="submit">Analyser</button>
     </form>
+    {% else %}
+    <p style="color:#5a6180;font-size:.88rem">Mode lecture seule — les scans nécessitent le rôle éditeur.</p>
+    {% endif %}
+
+    <h2>📋 Journal d'activité</h2>
+    <div class="card" id="activity-log">
+        {% for a in dossier.activity %}
+        <div style="font-size:.85rem;margin:.35rem 0">
+            <small>{{ a.timestamp or '' }}</small> — <strong>{{ a.username }}</strong> : {{ a.action }}
+        </div>
+        {% else %}
+        <span style="color:#5a6180">Aucune activité enregistrée.</span>
+        {% endfor %}
+    </div>
 
     {% if dossier.web_history %}
     <h2>🕰️ Historique Web (Wayback)</h2>
@@ -103,8 +142,54 @@
         </div>
         {% endfor %}
     </div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 const ENTITY_ID = {{ dossier.entity.id }};
+const CAN_EDIT = {{ 'true' if dossier.access and dossier.access.can_edit else 'false' }};
+const dossierSocket = io({ transports: ['websocket', 'polling'] });
+dossierSocket.emit('join_dossier', { root_entity_id: ENTITY_ID });
+dossierSocket.on('scan_completed', p => {
+    const el = document.getElementById('activity-log');
+    if (el) {
+        const d = document.createElement('div');
+        d.style.fontSize = '.85rem';
+        d.textContent = `Scan #${p.scan_id} ${p.module} — ${p.target}`;
+        el.prepend(d);
+    }
+});
+dossierSocket.on('comment_added', () => {});
+dossierSocket.on('invite_sent', () => loadCollabs());
+
+const shareModal = document.getElementById('share-modal');
+if (document.getElementById('btn-share')) {
+    document.getElementById('btn-share').onclick = () => {
+        shareModal.style.display = 'flex';
+        loadCollabs();
+    };
+}
+document.getElementById('btn-share-close')?.addEventListener('click', () => {
+    shareModal.style.display = 'none';
+});
+document.getElementById('btn-invite-send')?.addEventListener('click', async () => {
+    const email = document.getElementById('invite-email').value;
+    const role = document.getElementById('invite-role').value;
+    const r = await fetch(`/dossier/${ENTITY_ID}/invite`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, role }),
+    });
+    const d = await r.json();
+    alert(r.ok ? `Invitation envoyée à ${d.email || email}` : (d.error || 'Erreur'));
+    if (r.ok) loadCollabs();
+});
+async function loadCollabs() {
+    const r = await fetch(`/dossier/${ENTITY_ID}/collaborators`);
+    const d = await r.json();
+    const ul = document.getElementById('collab-list');
+    if (!ul) return;
+    ul.innerHTML = (d.collaborators || []).map(c =>
+        `<li>${c.username || c.email} — ${c.role}${c.accepted === false ? ' (en attente)' : ''}</li>`
+    ).join('');
+}
 
 document.getElementById('btn-narrative').onclick = async () => {
     const status = document.getElementById('narrative-status');
@@ -140,8 +225,9 @@ document.getElementById('btn-narrative-pdf').onclick = () => {
 };
 
 async function launchRebound(module, target){
+    if (!CAN_EDIT) { alert('Droits insuffisants'); return; }
     const r = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({module,target})});
+        body:JSON.stringify({module,target,root_entity_id:ENTITY_ID})});
     const d = await r.json();
     alert(d.scan_id ? 'Scan #'+d.scan_id+' lancé' : (d.error||'Erreur'));
 }

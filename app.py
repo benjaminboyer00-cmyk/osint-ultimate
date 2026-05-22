@@ -916,9 +916,11 @@ def run_scan_async(module, target, options=None, user_id=None, mode='expert', sc
     if not SCAN_FUNCTIONS.get(module):
         return None
 
+    root_ent = options.get('_root_entity_id')
     scan = Scan(
         module=module, target=target, user_id=user_id, status='pending',
         mode=mode, scheduled_scan_id=scheduled_scan_id,
+        root_entity_id=int(root_ent) if root_ent else None,
     )
     db.session.add(scan)
     db.session.commit()
@@ -982,11 +984,19 @@ def scan_start():
             options['_modules'] = data.get('modules')
     if data.get('root_entity_id'):
         options['_root_entity_id'] = int(data['root_entity_id'])
+    user_id = current_user.is_authenticated and current_user.id or None
+    try:
+        options['_app'] = current_app._get_current_object()
+    except Exception:
+        pass
+    if options.get('_root_entity_id') and user_id:
+        from services.dossier_access import get_dossier_context
+        if not get_dossier_context(int(options['_root_entity_id']), user_id, min_role='editor'):
+            return jsonify({'error': 'Droits insuffisants pour scanner ce dossier partagé'}), 403
     if not target:
         return jsonify({'error': 'Cible manquante'}), 400
     if module not in SCAN_FUNCTIONS:
-        return jsonify({'error': f'Module inconnu: {module}'}), 400
-    user_id = current_user.is_authenticated and current_user.id or None
+        return jsonify({'error': f'Module inconnu: {module}'}), 403
     scan_id = run_scan_async(module, target, options, user_id, mode=mode)
     if scan_id:
         return jsonify({'scan_id': scan_id, 'status': 'started', 'module': module})
@@ -1275,6 +1285,22 @@ def on_join_timeline(data=None):
         join_room(str(current_user.id))
 
 
+@socketio.on('join_dossier')
+def on_join_dossier(data=None):
+    """Room temps réel par dossier partagé (Phase 8)."""
+    from flask_socketio import join_room
+    if not current_user.is_authenticated:
+        return
+    payload = data or {}
+    root_id = payload.get('root_entity_id') or payload.get('entity_id')
+    if not root_id:
+        return
+    from services.dossier_access import get_dossier_context, dossier_room_name
+    if get_dossier_context(int(root_id), current_user.id, min_role='reader'):
+        join_room(dossier_room_name(int(root_id)))
+        join_room(str(current_user.id))
+
+
 @socketio.on('disconnect')
 def on_disconnect():
     pass
@@ -1291,7 +1317,9 @@ def manifest():
 
 from routes.views import views_bp
 from routes.api_v1 import api_bp
+from routes.collaboration import collab_bp
 app.register_blueprint(views_bp)
+app.register_blueprint(collab_bp)
 app.register_blueprint(api_bp, url_prefix='/api/v1')
 
 with app.app_context():

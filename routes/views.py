@@ -211,11 +211,9 @@ def verify_upload(scan_id):
 @login_required
 def dossier(entity_id):
     from services.dossier import build_dossier
-    from services.correlation import get_rebound_suggestions
     d = build_dossier(entity_id, current_user.id)
     if not d:
         abort(404)
-    d['rebound_suggestions'] = get_rebound_suggestions(entity_id, current_user.id)
     return render_template('dossier.html', dossier=d, username=current_user.username)
 
 
@@ -280,10 +278,18 @@ def dossier_narrative_pdf(entity_id):
 @login_required
 def dossier_add_entity(entity_id):
     from app import run_scan_async
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='editor')
+    if not ctx:
+        abort(403)
     target = request.form.get('target', '').strip()
     module = request.form.get('module') or detect_target_type(target)
     if target:
-        run_scan_async(module, target, user_id=current_user.id)
+        run_scan_async(
+            module, target,
+            options={'_root_entity_id': entity_id, '_app': current_app._get_current_object()},
+            user_id=current_user.id,
+        )
         flash(f'Scan {module} lancé pour {target}', 'success')
     return redirect(url_for('views.dossier', entity_id=entity_id))
 
@@ -348,7 +354,11 @@ def investigate_status(inv_id):
 @login_required
 def graph_suggestions(entity_id):
     from services.graph_enquiry import suggest_next_node
-    s = suggest_next_node(entity_id, current_user.id)
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Accès refusé'}), 403
+    s = suggest_next_node(entity_id, ctx['owner_user_id'])
     if not s:
         return jsonify({'error': 'Aucune suggestion'}), 404
     return jsonify(s)
@@ -379,7 +389,11 @@ def timeline_view():
 @login_required
 def timeline_data(entity_id):
     from services.timeline import build_timeline
-    data = build_timeline(entity_id, current_user.id)
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Accès refusé'}), 403
+    data = build_timeline(entity_id, ctx['owner_user_id'])
     if not data:
         return jsonify({'error': 'Entité non trouvée'}), 404
     return jsonify(data)
@@ -408,10 +422,13 @@ def map_view():
 @login_required
 def map_data(entity_id):
     from services.geo import build_map_markers
-    # Par défaut : hydrate depuis scans + géocode IP/domaines manquants
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Accès refusé'}), 403
     geocode_off = request.args.get('geocode', '').lower() in ('0', 'false', 'no')
     data = build_map_markers(
-        entity_id, current_user.id,
+        entity_id, ctx['owner_user_id'],
         geocode_missing=not geocode_off,
         max_geocode_calls=15,
         hydrate_from_scans=True,
@@ -450,10 +467,14 @@ def graph_view():
 @login_required
 def graph_data(entity_id):
     from services.correlation import build_graph_json, build_entity_links_json
-    g = build_graph_json(entity_id, current_user.id)
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Accès refusé'}), 403
+    g = build_graph_json(entity_id, ctx['owner_user_id'])
     if not g.get('nodes'):
         return jsonify({'error': 'Entité non trouvée'}), 404
-    links = build_entity_links_json(entity_id, current_user.id)
+    links = build_entity_links_json(entity_id, ctx['owner_user_id'])
     if links:
         g['links_detail'] = links.get('links', [])
         g['entity'] = links.get('entity')
@@ -493,9 +514,13 @@ def graph_scan_node():
     value = (data.get('value') or '').strip()
     etype = data.get('entity_type', '')
     if entity_id:
-        ent = Entity.query.filter_by(id=entity_id, user_id=current_user.id).first()
+        from services.dossier_access import get_dossier_context, resolve_dossier_root_for_entity
+        ent = db.session.get(Entity, entity_id)
         if not ent:
             return jsonify({'error': 'Entité non trouvée'}), 404
+        root_id = data.get('root_entity_id') or resolve_dossier_root_for_entity(entity_id, current_user.id)
+        if root_id and not get_dossier_context(int(root_id), current_user.id, min_role='editor'):
+            return jsonify({'error': 'Accès refusé'}), 403
         value = ent.value
         etype = ent.entity_type
     if not value:
@@ -512,10 +537,14 @@ def graph_scan_node():
 
     root_entity_id = data.get('root_entity_id')
     opts = {'_graph_pivot_notify': str(current_user.id)}
-    if root_entity_id:
-        opts['_root_entity_id'] = int(root_entity_id)
     if etype == 'domain' and module == 'site':
         module = 'whois'
+    opts['_app'] = current_app._get_current_object()
+    if root_entity_id:
+        from services.dossier_access import get_dossier_context
+        if not get_dossier_context(int(root_entity_id), current_user.id, min_role='editor'):
+            return jsonify({'error': 'Droits insuffisants pour scanner ce dossier'}), 403
+        opts['_root_entity_id'] = int(root_entity_id)
 
     scan_id = run_scan_async(module, value, options=opts, user_id=current_user.id)
     if not scan_id:

@@ -32,6 +32,21 @@ GLOBAL_TIMEOUT_SEC = 60
 RETRY_TIMEOUT_SEC = 25
 
 
+def resolve_flask_app(options: dict | None = None):
+    """Récupère l'app Flask pour les threads (évite Working outside of application context)."""
+    opts = options or {}
+    app = opts.get('_app')
+    if app is not None:
+        return app
+    try:
+        from flask import has_request_context, current_app
+        if has_request_context():
+            return current_app._get_current_object()
+    except Exception:
+        pass
+    return None
+
+
 def _resolve_target_for_module(module: str, target: str, category: str) -> str:
     t = (target or '').strip()
     if module == 'hunter' and '@' in t:
@@ -95,14 +110,8 @@ def launch_multi_scan(
     Lance plusieurs modules en parallèle.
     Retourne un dict avec sections par module + clé _meta (timeouts, errors).
     """
-    options = options or {}
-    app = (options or {}).pop('_app', None)
-    if app is None:
-        try:
-            from flask import has_request_context, current_app
-            app = current_app._get_current_object() if has_request_context() else None
-        except Exception:
-            app = None
+    options = dict(options or {})
+    app = resolve_flask_app(options)
     category = category or target_category(target)
     strategies = EXPRESS_STRATEGIES if mode == 'express' else SCAN_STRATEGIES
     module_list = modules or strategies.get(category) or [detect_target_type(target)]
@@ -233,12 +242,8 @@ def retry_timeout_modules(scan, options=None) -> dict:
     new_timeouts = []
     new_errors = {}
 
+    _app = resolve_flask_app(opts)
     for mod in timeout_mods:
-        try:
-            from flask import current_app
-            _app = current_app._get_current_object()
-        except Exception:
-            _app = None
         m, payload, status = _run_one_module(mod, scan.target, opts, category, _app)
         section = f'Module: {m}'
         retry_results[section] = payload

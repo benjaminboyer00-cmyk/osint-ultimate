@@ -27,14 +27,20 @@ def test_pivot_modules_mapping():
 
 def test_launch_pivot_mock():
     ent = MagicMock(id=5, user_id=10, entity_type='email', value='a@test.com')
+    ctx = {
+        'entity': ent, 'owner_user_id': 10, 'role': 'admin', 'is_owner': True,
+        'can_read': True, 'can_edit': True, 'can_admin': True, 'collaboration': None,
+    }
     with patch('services.graph_pivot.db') as mock_db:
         mock_db.session.get.return_value = ent
-        with patch('app.run_scan_async', return_value=42) as mock_run:
-            with patch('app.SCAN_FUNCTIONS', {
-                'email': None, 'dehashed': None, 'hunter': None, 'epieos': None,
-            }):
-                from services.graph_pivot import launch_pivot
-                out = launch_pivot(10, 5, root_entity_id=1)
+        with patch('services.dossier_access.get_dossier_context', return_value=ctx):
+            with patch('services.correlation.build_graph_json', return_value={'nodes': [{'id': '5'}], 'edges': []}):
+                with patch('app.run_scan_async', return_value=42) as mock_run:
+                    with patch('app.SCAN_FUNCTIONS', {
+                        'email': None, 'dehashed': None, 'hunter': None, 'epieos': None,
+                    }):
+                        from services.graph_pivot import launch_pivot
+                        out = launch_pivot(10, 5, root_entity_id=1)
     assert out['scan_id'] == 42
     assert out['status'] == 'started'
     assert mock_run.called

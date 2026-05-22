@@ -1,4 +1,5 @@
 """Résolution entité ↔ cible pour graphe et monitoring."""
+from extensions import db
 from models import Entity
 from services.target_detector import detect_target_type, target_category
 
@@ -37,24 +38,24 @@ def find_entity_for_target(user_id: int, target: str, module: str | None = None)
         return None
     etype = _entity_type_for_target(target, module)
     val = _normalize_value(etype, target)
-    ent = Entity.query.filter_by(
+    ent = db.session.query(Entity).filter_by(
         user_id=user_id, entity_type=etype, value=val,
     ).first()
     if ent:
         return ent
     if '@' in target:
         local = target.split('@')[0].lower()
-        ent = Entity.query.filter_by(
+        ent = db.session.query(Entity).filter_by(
             user_id=user_id, entity_type='username', value=local,
         ).first()
         if ent:
             return ent
-        ent = Entity.query.filter_by(
+        ent = db.session.query(Entity).filter_by(
             user_id=user_id, entity_type='email', value=target.lower(),
         ).first()
         if ent:
             return ent
-    return Entity.query.filter(
+    return db.session.query(Entity).filter(
         Entity.user_id == user_id,
         Entity.value.ilike(f'%{val[:40]}%'),
     ).order_by(Entity.created_at.desc()).first()

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Invitations — OSINT Ultimate</title>
+    <style>
+        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:720px;margin:0 auto}
+        a{color:#4d9fff} h1{color:#00e5a0}
+        .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1rem;margin:.8rem 0}
+        button{background:#00e5a0;color:#000;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer}
+        .role{color:#5a6180;font-size:.85rem}
+    </style>
+</head>
+<body>
+    <p><a href="{{ url_for('views.expert') }}">← Expert</a></p>
+    <h1>📬 Invitations collaboration</h1>
+    {% if invitations %}
+    {% for inv in invitations %}
+    <div class="card" id="inv-{{ inv.id }}">
+        <strong>{{ inv.dossier_type }}</strong> : {{ inv.dossier_value }}<br>
+        <span class="role">Rôle proposé : {{ inv.role }} — par {{ inv.invited_by }}</span><br>
+        <small>{{ inv.invited_at or '' }}</small><br>
+        <button type="button" onclick="acceptInv({{ inv.id }})">Accepter</button>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#5a6180">Aucune invitation en attente.</p>
+    {% endif %}
+<script>
+async function acceptInv(id) {
+    const r = await fetch(`/invitations/${id}/accept`, { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || 'Erreur'); return; }
+    window.location = d.dossier_url || '/expert';
+}
+</script>
+</body>
+</html>

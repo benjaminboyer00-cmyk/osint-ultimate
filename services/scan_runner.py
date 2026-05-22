@@ -58,6 +58,25 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
             db.session.commit()
 
             _run_correlation(scan, result, opts)
+            root_ent = opts.get('_root_entity_id') or scan.root_entity_id
+            if root_ent and scan.user_id:
+                try:
+                    from services.collaboration import log_activity, emit_dossier_event
+                    log_activity(int(root_ent), scan.user_id, 'scan_completed', {
+                        'scan_id': scan.id,
+                        'module': scan.module,
+                        'target': scan.target,
+                    })
+                    db.session.commit()
+                    emit_dossier_event(socketio, int(root_ent), 'scan_completed', {
+                        'scan_id': scan.id,
+                        'module': scan.module,
+                        'target': scan.target,
+                        'user_id': scan.user_id,
+                    })
+                except Exception as e:
+                    logger.warning('activity scan #%s: %s', scan.id, e)
+                    db.session.rollback()
             if opts.get('_graph_pivot'):
                 try:
                     from services.graph_pivot import emit_graph_update_after_scan
@@ -123,14 +142,16 @@ def _build_options(scan: Scan, fernet) -> dict:
 def _run_correlation(scan: Scan, result: dict, opts: dict):
     try:
         from services.correlation import process_scan_correlations, process_multi_correlations
-        root_ent = opts.get('_root_entity_id')
+        from services.dossier_access import correlation_user_id
+        root_ent = opts.get('_root_entity_id') or scan.root_entity_id
+        corr_uid = correlation_user_id(scan.user_id, root_ent)
         if scan.module == 'multi' or (isinstance(result, dict) and result.get('_meta', {}).get('multi')):
             process_multi_correlations(
-                scan.id, scan.target, result, scan.user_id, root_entity_id=root_ent,
+                scan.id, scan.target, result, corr_uid, root_entity_id=root_ent,
             )
         else:
             process_scan_correlations(
-                scan.id, scan.module, scan.target, result, scan.user_id,
+                scan.id, scan.module, scan.target, result, corr_uid,
                 root_entity_id=root_ent,
             )
     except Exception as e:

@@ -2,15 +2,19 @@
 import json
 from extensions import db
 from models import Entity, EntityLink, Scan, Investigation
+from services.dossier_access import get_dossier_context
 
 
 def build_dossier(entity_id: int, user_id: int) -> dict | None:
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
-    if not ent:
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    if not ctx:
         return None
 
-    links = EntityLink.query.filter(
-        EntityLink.user_id == user_id,
+    ent = ctx['entity']
+    owner_id = ctx['owner_user_id']
+
+    links = db.session.query(EntityLink).filter(
+        EntityLink.user_id == owner_id,
         (EntityLink.source_id == entity_id) | (EntityLink.target_id == entity_id),
     ).order_by(EntityLink.created_at.desc()).all()
 
@@ -28,10 +32,17 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
                 'link_type': link.link_type,
             })
 
-    scans = Scan.query.filter_by(user_id=user_id).order_by(Scan.timestamp.desc()).limit(100).all()
+    scans_q = db.session.query(Scan).filter(
+        (Scan.user_id == owner_id) | (Scan.root_entity_id == entity_id),
+    ).order_by(Scan.timestamp.desc()).limit(100)
+
     timeline = []
-    for s in scans:
-        if s.target.lower() == ent.value.lower() or str(ent.value) in (s.result_json or ''):
+    for s in scans_q:
+        if (
+            s.root_entity_id == entity_id
+            or s.target.lower() == ent.value.lower()
+            or str(ent.value) in (s.result_json or '').lower()
+        ):
             timeline.append({
                 'type': 'scan',
                 'id': s.id,
@@ -39,6 +50,7 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
                 'target': s.target,
                 'status': s.status,
                 'at': s.timestamp.isoformat() if s.timestamp else None,
+                'by_user_id': s.user_id,
             })
     for link in links:
         timeline.append({
@@ -48,7 +60,7 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
             'at': link.created_at.isoformat() if link.created_at else None,
         })
     web_history = []
-    for s in scans:
+    for s in scans_q:
         try:
             payload = json.loads(s.result_json or '{}')
         except Exception:
@@ -66,7 +78,22 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
 
     timeline.sort(key=lambda x: x.get('at') or '', reverse=True)
 
-    inv = Investigation.query.filter_by(user_id=user_id, root_entity_id=entity_id).first()
+    inv = db.session.query(Investigation).filter_by(
+        user_id=owner_id, root_entity_id=entity_id,
+    ).first()
+
+    from services.correlation import get_rebound_suggestions
+    rebound = get_rebound_suggestions(entity_id, owner_id)
+
+    from services.collaboration import list_collaborators, get_activity_log
+    collaborators = []
+    activity = []
+    try:
+        if ctx['can_admin']:
+            collaborators = list_collaborators(entity_id, user_id)
+        activity = get_activity_log(entity_id, user_id, limit=30)
+    except Exception:
+        pass
 
     return {
         'entity': {
@@ -82,4 +109,13 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
         'web_history': web_history[:20],
         'scans_count': len([t for t in timeline if t['type'] == 'scan']),
         'links_count': len(links),
+        'rebound_suggestions': rebound,
+        'access': {
+            'role': ctx['role'],
+            'is_owner': ctx['is_owner'],
+            'can_edit': ctx['can_edit'],
+            'can_admin': ctx['can_admin'],
+        },
+        'collaborators': collaborators,
+        'activity': activity,
     }

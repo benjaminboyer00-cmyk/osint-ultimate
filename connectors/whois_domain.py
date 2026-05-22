@@ -1,11 +1,12 @@
-"""WHOIS domaine — RDAP HTTP (prioritaire), repli python-whois court."""
+"""WHOIS domaine — RDAP HTTP (whoisit + RDAP direct), sans socket port 43."""
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
-WHOIS_TIMEOUT_SEC = 10
+WHOIS_TIMEOUT_SEC = 8
+_WHOISIT_READY = False
 
 
 def _normalize_domain(domain: str) -> str:
@@ -16,8 +17,71 @@ def _normalize_domain(domain: str) -> str:
     return domain.split('/')[0].split(':')[0]
 
 
+def _ensure_whoisit():
+    global _WHOISIT_READY
+    if _WHOISIT_READY:
+        return True
+    try:
+        import whoisit
+        whoisit.bootstrap()
+        _WHOISIT_READY = True
+        return True
+    except Exception as e:
+        logger.debug('whoisit bootstrap: %s', e)
+        return False
+
+
+def _lookup_whoisit(domain: str) -> dict | None:
+    """RDAP via lib whoisit (recommandé — HTTP uniquement)."""
+    if not _ensure_whoisit():
+        return None
+    try:
+        import whoisit
+        data = whoisit.domain(domain)
+        if not isinstance(data, dict):
+            return None
+        events = data.get('events') or {}
+        if isinstance(events, dict):
+            created = (events.get('registration') or events.get('registered') or 'N/A')[:10]
+            expires = (events.get('expiration') or events.get('expiry') or 'N/A')[:10]
+            updated = (events.get('last changed') or events.get('last_changed') or 'N/A')[:10]
+        else:
+            created = expires = updated = 'N/A'
+        ent_block = data.get('entities') if isinstance(data.get('entities'), dict) else {}
+        reg_ent = ent_block.get('registrar', {}) if isinstance(ent_block.get('registrar'), dict) else {}
+        registrar = (
+            data.get('registrar')
+            or data.get('Registrar')
+            or reg_ent.get('name')
+            or 'N/A'
+        )
+        org = data.get('registrant') or data.get('organisation') or data.get('Organization') or 'N/A'
+        if isinstance(org, dict):
+            org = org.get('name') or org.get('fn') or 'N/A'
+        country = data.get('country') or data.get('Country') or 'N/A'
+        status = data.get('status') or data.get('Status') or 'N/A'
+        if isinstance(status, list):
+            status = ', '.join(str(s) for s in status[:3])
+        out = {
+            'Domaine': domain,
+            'Registrar': str(registrar)[:200],
+            'Création': str(created),
+            'Expiration': str(expires),
+            'Dernière MAJ': str(updated),
+            'Pays': str(country)[:80],
+            'Statut': str(status)[:200],
+            'Organisation': str(org)[:200],
+            '_source': 'whoisit-rdap',
+        }
+        if registrar == 'N/A' and org == 'N/A' and country == 'N/A':
+            return None
+        return out
+    except Exception as e:
+        logger.debug('whoisit domain %s: %s', domain, e)
+        return None
+
+
 def _parse_rdap_vcard(data: dict) -> dict:
-    """Extrait registrar / pays depuis vcardArray RDAP."""
     registrar = org = country = 'N/A'
     for ent in data.get('entities') or []:
         roles = ent.get('roles') or []
@@ -31,7 +95,6 @@ def _parse_rdap_vcard(data: dict) -> dict:
                 if row[0] == 'fn':
                     name = str(row[3])
                 if row[0] == 'adr' and len(row) > 3 and isinstance(row[3], list):
-                    # adr: [, , , , , , country]
                     parts = row[3]
                     if len(parts) >= 7 and parts[6]:
                         ent_country = str(parts[6])
@@ -74,15 +137,20 @@ def _lookup_rdap_url(url: str, domain: str) -> dict | None:
             'Pays': vcard_info['country'],
             'Statut': status,
             'Organisation': vcard_info['org'],
-            '_source': 'RDAP',
+            '_source': 'RDAP-HTTP',
         }
     except Exception as e:
         logger.debug('RDAP %s: %s', url[:60], e)
         return None
 
 
+def _rdap_usable(result: dict | None) -> bool:
+    if not result or result.get('Erreur'):
+        return False
+    return result.get('Registrar', 'N/A') != 'N/A' or result.get('Organisation', 'N/A') != 'N/A'
+
+
 def _lookup_rdap(domain: str) -> dict | None:
-    """RDAP via plusieurs points d'entrée (compatible HF, sans port 43)."""
     encoded = quote(domain, safe='')
     tld = domain.rsplit('.', 1)[-1] if '.' in domain else ''
     urls = [
@@ -94,7 +162,7 @@ def _lookup_rdap(domain: str) -> dict | None:
         if not url:
             continue
         result = _lookup_rdap_url(url, domain)
-        if result and not result.get('Erreur'):
+        if _rdap_usable(result):
             if result.get('Pays') in (None, 'N/A', ''):
                 result['Pays'] = 'Non communiqué (RDAP)'
             return result
@@ -102,7 +170,6 @@ def _lookup_rdap(domain: str) -> dict | None:
 
 
 def _lookup_domainsdb(domain: str) -> dict | None:
-    """Repli HTTP léger (registrar / pays)."""
     from services.http_client import safe_get
     try:
         r = safe_get(
@@ -155,19 +222,23 @@ def _lookup_pywhois(domain: str) -> dict:
 
 
 def lookup(domain: str, options=None) -> dict:
+    """Lookup WHOIS — whoisit/RDAP HTTP en priorité ; socket 43 en dernier recours."""
     domain = _normalize_domain(domain)
     if not domain or '.' not in domain:
-        return {'Domaine': domain, 'Erreur': 'Domaine invalide'}
+        return {'Domaine': domain, 'Erreur': 'Domaine invalide', 'executed': True}
 
     from services.cache import get_cached, set_cached
     cached = get_cached('whois', domain)
     if cached and isinstance(cached, dict) and not cached.get('_timeout'):
+        cached = dict(cached)
         cached['_cached'] = True
+        cached['executed'] = True
         return cached
 
-    for fetcher in (_lookup_rdap, _lookup_domainsdb):
+    for fetcher in (_lookup_whoisit, _lookup_rdap, _lookup_domainsdb):
         result = fetcher(domain)
-        if result and not result.get('Erreur'):
+        if _rdap_usable(result):
+            result['executed'] = True
             set_cached('whois', domain, result, ttl_hours=72)
             return result
 
@@ -175,27 +246,30 @@ def lookup(domain: str, options=None) -> dict:
         with ThreadPoolExecutor(max_workers=1) as pool:
             fut = pool.submit(_lookup_pywhois, domain)
             result = fut.result(timeout=WHOIS_TIMEOUT_SEC)
+            result['executed'] = True
             set_cached('whois', domain, result, ttl_hours=72)
             return result
     except FuturesTimeout:
-        out = {
+        return {
             'Domaine': domain,
             'Statut': 'Indisponible',
+            'executed': True,
             'Message': (
-                f'WHOIS indisponible (timeout {WHOIS_TIMEOUT_SEC}s). '
-                'Les registres RDAP et le port 43 n\'ont pas répondu — réessayez plus tard.'
+                'WHOIS indisponible : RDAP HTTP (whoisit, rdap.org) et port 43 '
+                f'ont échoué (timeout {WHOIS_TIMEOUT_SEC}s). '
+                'Vérifiez le TLD ou réessayez — aucune donnée socket sur cet environnement.'
             ),
             '_timeout': True,
             '_source': 'none',
         }
-        return out
     except Exception as e:
         err = str(e)
         if 'timed out' in err.lower():
-            err = 'Connexion WHOIS classique bloquée — RDAP n\'a pas fourni de données.'
+            err = 'Port WHOIS 43 bloqué — seul RDAP HTTP est utilisé en production.'
         return {
             'Domaine': domain,
             'Statut': 'Indisponible',
+            'executed': True,
             'Message': err[:400],
             '_timeout': True,
             '_source': 'none',

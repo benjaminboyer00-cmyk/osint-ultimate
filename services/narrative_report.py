@@ -9,6 +9,19 @@ from services.report_consolidate import extract_technical_facts
 
 logger = logging.getLogger(__name__)
 
+def _narrative_cache_is_stale(text: str) -> bool:
+    """Ignore l'ancien format (raconte les scans / surveillance)."""
+    if not text or len(text) < 80:
+        return True
+    low = text.lower()
+    stale_markers = (
+        'surveillance', 'scan répété', 'scans répétés', 'méthodologie',
+        'chronologie des faits', '## introduction',
+        'investigation elle-même', 'processus d\'investigation',
+    )
+    return any(m in low for m in stale_markers)
+
+
 FALLBACK_NARRATIVE_MD = (
     '## Rapport narratif\n\n'
     '*La génération automatique (Groq) est temporairement indisponible. '
@@ -38,11 +51,10 @@ def build_narrative_for_entity(
 
     if cache_on_scan and anchor and getattr(anchor, 'ai_summary', None):
         stored = (anchor.ai_summary or '').strip()
-        if stored.startswith('## ') and any(
-            stored.startswith(h) for h in (
-                '## Introduction', '## Méthodologie', '## Synthèse exécutive', '## Profil',
-            )
-        ):
+        if (
+            stored.startswith('## Synthèse exécutive')
+            or stored.startswith('## Profil de la cible')
+        ) and not _narrative_cache_is_stale(stored):
             markdown = stored
             cached = True
 

@@ -286,8 +286,11 @@
     {% for section, content in data.items() %}
     {% if not section.startswith('_') %}
     <h3>{{ section }}</h3>
-    {% if content is mapping and content.get('_not_executed') %}
-    <p style="font-size:9.5px;color:#a60"><strong>{{ content.get('Statut', 'Non exécuté') }}</strong> — {{ content.get('Raison', '') }}</p>
+    {% if content is mapping and content.get('executed') == false %}
+    <p style="font-size:9.5px;color:#a60"><strong>Non exécuté</strong> — {{ content.get('Raison', 'Module non lancé ou clé API absente') }}</p>
+    {% elif content is mapping and content.get('resultat') == 'Aucun résultat exploitable' %}
+    <p style="font-size:9.5px;color:#666"><strong>Module exécuté</strong> — aucun résultat public pour cette cible.</p>
+    <pre>{{ content | tojson(indent=2) }}</pre>
     {% else %}
     <pre>{{ content | tojson(indent=2) }}</pre>
     {% endif %}

@@ -67,6 +67,7 @@ class Scan(db.Model):
     scheduled_scan_id = db.Column(db.Integer, db.ForeignKey('scheduled_scan.id'), nullable=True)
     report_pdf_hash = db.Column(db.String(64), nullable=True, index=True)
     report_sealed_at = db.Column(db.DateTime, nullable=True)
+    root_entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=True, index=True)
 
 
 class Entity(db.Model):
@@ -212,3 +213,53 @@ class Recipe(db.Model):
     updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     owner = db.relationship('User', backref=db.backref('recipes', lazy='dynamic'))
+
+
+class DossierCollaborator(db.Model):
+    """Partage d'un dossier (entité racine) entre utilisateurs."""
+    __tablename__ = 'dossier_collaborator'
+
+    id = db.Column(db.Integer, primary_key=True)
+    root_entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    role = db.Column(db.String(20), nullable=False, default='reader')
+    invited_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    accepted_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('root_entity_id', 'user_id', name='uq_dossier_collab_entity_user'),
+    )
+
+
+class EntityComment(db.Model):
+    __tablename__ = 'entity_comment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DossierActivityLog(db.Model):
+    __tablename__ = 'dossier_activity_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    root_entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    action = db.Column(db.String(50), nullable=False)
+    details_json = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class CollaborationNotification(db.Model):
+    __tablename__ = 'collaboration_notification'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    message = db.Column(db.String(500), nullable=False)
+    link = db.Column(db.String(500), nullable=True)
+    notification_type = db.Column(db.String(30), default='invite', nullable=False)
+    read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

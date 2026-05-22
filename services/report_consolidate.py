@@ -149,11 +149,15 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
 
     best: dict[str, tuple[int, object, int]] = {}  # canon -> (score, content, scan_id)
     modules_seen = set()
+    optional_ran = set()  # hunter, dehashed, …
     scan_history = []
     whois_errors: list[str] = []
 
     for s, payload in related:
         modules_seen.add(s.module)
+        for key in payload:
+            if key.startswith('Module:'):
+                optional_ran.add(key.replace('Module:', '').strip().lower())
         scan_history.append({
             'scan_id': s.id,
             'module': s.module,
@@ -176,12 +180,21 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
             if prev is None or score >= prev[0]:
                 best[canon] = (score, content, s.id)
 
+    modules_status = {}
+    for mod, (section, default_reason) in OPTIONAL_API_MODULES.items():
+        ran = mod in modules_seen or mod in optional_ran
+        entry = {'executed': ran, 'section': section}
+        if not ran:
+            entry['reason'] = default_reason
+        modules_status[mod] = entry
+
     out: dict = {
         '_meta': {
             'dossier_entity_id': entity_id,
             'consolidated': True,
             'scan_count': len(related),
-            'modules_executed': sorted(modules_seen),
+            'modules_executed': sorted(modules_seen | optional_ran),
+            'modules_status': modules_status,
             'scan_history': scan_history[-25:],
         },
     }
@@ -194,19 +207,27 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
 
     for canon, (_score, content, scan_id) in sorted(best.items()):
         display = _format_display_value(content)
-        if isinstance(display, dict) and not display.get('_not_executed'):
+        if isinstance(display, dict):
             display = dict(display)
-            display['_dernier_scan'] = f'#{scan_id}'
+            if display.get('_not_executed'):
+                display['executed'] = False
+            else:
+                display['executed'] = True
+                display['_dernier_scan'] = f'#{scan_id}'
+                if _section_score(content) <= 1 and (content.get('Erreur') or content.get('_timeout')):
+                    display['executed'] = True
+                    display['resultat'] = 'Aucun résultat exploitable'
         out[canon] = display
 
     # Modules API jamais vus sur le dossier
     for mod, (section, msg) in OPTIONAL_API_MODULES.items():
-        if mod in modules_seen:
+        if mod in modules_seen or mod in optional_ran:
             continue
         if section in out:
             continue
         out[section] = {
             '_not_executed': True,
+            'executed': False,
             'Statut': 'Non exécuté',
             'Raison': msg,
         }
@@ -220,6 +241,7 @@ def consolidate_scan_payloads(entity_id: int, user_id: int, root_value: str | No
                 canon = _canonical_key(key) or key
                 out[canon] = {
                     '_not_executed': True,
+                    'executed': False,
                     'Statut': 'Non exécuté',
                     'Raison': content.get('Erreur') or content.get('Message') or 'Clé API manquante',
                 }

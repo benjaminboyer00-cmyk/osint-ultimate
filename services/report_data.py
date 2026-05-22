@@ -64,16 +64,21 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
     JSON structuré pour Groq : entités, liens, scans, timeline, métadonnées.
     Retourne None si le dossier n'existe pas.
     """
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, user_id, min_role='reader')
+    if not ctx:
+        return None
     dossier = build_dossier(entity_id, user_id)
     if not dossier:
         return None
 
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    ent = ctx['entity']
+    owner_id = ctx['owner_user_id']
     if not ent:
         return None
 
-    graph = build_graph_json(entity_id, user_id)
-    links_detail = build_entity_links_json(entity_id, user_id) or {}
+    graph = build_graph_json(entity_id, owner_id)
+    links_detail = build_entity_links_json(entity_id, owner_id) or {}
     entity_ids = {int(n['id']) for n in graph.get('nodes', []) if n.get('id')}
 
     entities = []
@@ -99,7 +104,7 @@ def build_report_data(entity_id: int, user_id: int) -> dict | None:
             'to': tgt_v,
         })
 
-    scans = _collect_related_scans(user_id, ent.value, entity_ids)
+    scans = _collect_related_scans(owner_id, ent.value, entity_ids)
 
     sources = []
     seen = set()

@@ -49,9 +49,22 @@ def launch_pivot(
     Lance un scan multi-modules sur l'entité cible.
     Retourne {scan_id, modules, target, status} ou lève ValueError.
     """
+    from services.dossier_access import get_dossier_context
+    from services.correlation import build_graph_json
+
     ent = db.session.get(Entity, entity_id)
-    if not ent or ent.user_id != user_id:
+    if not ent:
         raise ValueError('Entité non trouvée')
+
+    root_check = int(root_entity_id or entity_id)
+    ctx = get_dossier_context(root_check, user_id, min_role='editor')
+    if not ctx:
+        raise ValueError('Droits insuffisants (éditeur requis)')
+
+    graph = build_graph_json(root_check, ctx['owner_user_id'])
+    node_ids = {int(n['id']) for n in graph.get('nodes', []) if n.get('id')}
+    if entity_id not in node_ids and entity_id != root_check:
+        raise ValueError('Entité hors du dossier partagé')
 
     from services.target_detector import target_category
     from app import run_scan_async, SCAN_FUNCTIONS
@@ -74,6 +87,12 @@ def launch_pivot(
         opts['_deep_dorking'] = True
     if stealth:
         opts['_stealth_mode'] = True
+    try:
+        from flask import has_request_context, current_app
+        if has_request_context():
+            opts['_app'] = current_app._get_current_object()
+    except Exception:
+        pass
 
     scan_id = run_scan_async('multi', ent.value, opts, user_id=user_id, mode='expert')
     if not scan_id:

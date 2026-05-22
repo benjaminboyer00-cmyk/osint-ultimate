@@ -8,11 +8,11 @@ def suggest_next_node(entity_id: int, user_id: int) -> dict | None:
     Score d'intérêt = (1 - confidence) * connexions * facteur type.
     Retourne le nœud le plus prometteur à investiguer.
     """
-    ent = Entity.query.filter_by(id=entity_id, user_id=user_id).first()
+    ent = db.session.query(Entity).filter_by(id=entity_id, user_id=user_id).first()
     if not ent:
         return None
 
-    links = EntityLink.query.filter(
+    links = db.session.query(EntityLink).filter(
         EntityLink.user_id == user_id,
         (EntityLink.source_id == entity_id) | (EntityLink.target_id == entity_id),
     ).all()
@@ -34,7 +34,7 @@ def suggest_next_node(entity_id: int, user_id: int) -> dict | None:
         if not other:
             continue
         conf = link.confidence if link.confidence is not None else 0.5
-        out_degree = EntityLink.query.filter(
+        out_degree = db.session.query(EntityLink).filter(
             EntityLink.user_id == user_id,
             EntityLink.source_id == other_id,
         ).count()
