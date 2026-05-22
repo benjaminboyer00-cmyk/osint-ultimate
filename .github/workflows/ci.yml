@@ -10,4 +10,4 @@ jobs:
           python-version: '3.10'
       - run: pip install -r requirements.txt pytest
       - run: python -m py_compile app.py scan_modules.py models.py
-      - run: pytest tests/ -q --tb=short || true
+      - run: python -m pytest tests/ -q --tb=short

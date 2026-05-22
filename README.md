@@ -81,13 +81,20 @@ Schéma V4 : tables `user` et `scan` (historique, résumés IA en cache).
 
 ### Commandes locales (optionnel)
 
+Sur Ubuntu/Debian récent, préférez un **venv** (évite `ModuleNotFoundError: whois`) :
+
 ```bash
-pip install -r requirements.txt
+./scripts/setup_dev.sh
+source .venv/bin/activate
 export FLASK_APP=app:app
 export DATABASE_URL="postgresql://..."
 flask db upgrade
 python app.py
 ```
+
+Ou manuellement : `pip install -r requirements.txt` (le paquet `python-whois` fournit `import whois`).
+
+Tests : depuis la racine du dépôt, `python -m pytest tests/ -q` (ou `pytest` si `pytest.ini` est lu).
 
 ## Endpoints utiles
 

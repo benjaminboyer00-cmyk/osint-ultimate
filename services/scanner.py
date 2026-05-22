@@ -4,26 +4,26 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as
 
 from services.target_detector import detect_target_type, target_category
 
-# Stratégies Expert (analyse complète)
+# Stratégies Expert (analyse complète) — enrichissement V6
 SCAN_STRATEGIES = {
     'email': ['email', 'dehashed', 'hunter', 'epieos'],
     'phone': ['phone', 'dehashed', 'messaging'],
     'pseudo': ['sherlock', 'dehashed', 'github'],
     'username': ['sherlock', 'dehashed', 'github'],
-    'domain': ['site', 'whois', 'wayback', 'hunter'],
-    'site': ['site', 'whois', 'wayback', 'hunter'],
-    'ip': ['ip', 'whois'],
+    'domain': ['site', 'whois', 'wayback', 'hunter', 'dehashed'],
+    'site': ['site', 'whois', 'wayback', 'hunter', 'dehashed'],
+    'ip': ['ip', 'whois', 'otx', 'urlhaus'],
 }
 
-# Express : 3–4 modules essentiels, rapides
+# Express : modules essentiels (inclut fuites / domaine quand pertinent)
 EXPRESS_STRATEGIES = {
-    'email': ['email', 'dehashed'],
-    'phone': ['phone'],
-    'pseudo': ['sherlock'],
-    'username': ['sherlock'],
-    'domain': ['site', 'whois'],
-    'site': ['site', 'whois'],
-    'ip': ['ip'],
+    'email': ['email', 'dehashed', 'hunter'],
+    'phone': ['phone', 'dehashed'],
+    'pseudo': ['sherlock', 'dehashed'],
+    'username': ['sherlock', 'dehashed'],
+    'domain': ['site', 'whois', 'wayback', 'hunter'],
+    'site': ['site', 'whois', 'wayback', 'hunter'],
+    'ip': ['ip', 'otx'],
 }
 
 # API ~4s + fallback scrape DuckDuckGo ~8–12s → marge 20s / module
