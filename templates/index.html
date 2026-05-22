@@ -747,7 +747,8 @@ async function getAI(){
             body:JSON.stringify({result: lastResult})
         });
         const d = await r.json();
-        aiText.textContent = d.summary || ('Erreur: ' + (d.error||'?'));
+        if(d.summary) aiText.textContent = d.summary;
+        else aiText.textContent = 'Erreur IA: ' + (d.error || `HTTP ${r.status}`);
     } catch(e){
         aiText.textContent = `Erreur: ${e.message}`;
     }

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historique – OSINT Ultimate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #07080f;
+            --panel: rgba(14, 17, 28, 0.9);
+            --text: #c8cfe8;
+            --text-dim: #5a6180;
+            --accent: #00e5a0;
+            --accent2: #4d9fff;
+            --border: rgba(255,255,255,0.08);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .wrap {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--accent); }
+        .nav { margin-bottom: 1.5rem; }
+        .nav a {
+            color: var(--accent2);
+            text-decoration: none;
+            margin-right: 1rem;
+            font-size: .9rem;
+        }
+        .nav a:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+        th, td {
+            text-align: left;
+            padding: .75rem .5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        th { color: var(--text-dim); font-weight: 600; }
+        .actions a, .actions button {
+            color: var(--accent2);
+            text-decoration: none;
+            margin-right: .6rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: .85rem;
+        }
+        .actions a:hover { text-decoration: underline; }
+        .empty { color: var(--text-dim); text-align: center; padding: 2rem; }
+        .badge {
+            display: inline-block;
+            padding: .2em .5em;
+            border-radius: 12px;
+            font-size: .75rem;
+            background: rgba(0,229,160,.15);
+            color: var(--accent);
+        }
+        @media(max-width:600px){
+            table, thead, tbody, th, td, tr { display: block; }
+            thead { display: none; }
+            tr { margin-bottom: 1rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+            td::before {
+                content: attr(data-label) ": ";
+                color: var(--text-dim);
+                font-weight: 600;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="nav">
+        <a href="{{ url_for('index') }}">← Retour</a>
+        <a href="{{ url_for('logout') }}">Déconnexion</a>
+    </div>
+    <h1>📋 Historique des scans</h1>
+    {% if scans %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Module</th>
+                <th>Cible</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for scan in scans %}
+            <tr>
+                <td data-label="Date">{{ scan.timestamp.strftime('%d/%m/%Y %H:%M') if scan.timestamp else '—' }}</td>
+                <td data-label="Module"><span class="badge">{{ scan.module }}</span></td>
+                <td data-label="Cible">{{ scan.target[:60] }}{% if scan.target|length > 60 %}…{% endif %}</td>
+                <td data-label="Statut">{{ scan.status }}</td>
+                <td data-label="Actions" class="actions">
+                    <a href="{{ url_for('index') }}?scan_id={{ scan.id }}">Voir</a>
+                    <a href="{{ url_for('export', scan_id=scan.id) }}">JSON</a>
+                    <a href="{{ url_for('report_pdf', scan_id=scan.id) }}">PDF</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Aucun scan enregistré pour le moment. Lancez une analyse depuis l'accueil.</p>
+    {% endif %}
+</div>
+</body>
+</html>

@@ -30,10 +30,21 @@ from flask_login import (LoginManager, UserMixin, login_user, logout_user,
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# SQLite persistant sur HF Spaces si /data est monté (tier payant), sinon local
+_default_db = 'sqlite:////data/osint.db' if os.path.isdir('/data') else 'sqlite:///osint.db'
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'change-me-' + os.urandom(16).hex())
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///osint.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', _default_db)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# HF Spaces = HTTPS ; en local laisser false pour éviter les cookies rejetés en HTTP
+_on_hf = bool(os.environ.get('SPACE_ID') or os.environ.get('SYSTEM'))
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get(
+    'SESSION_COOKIE_SECURE', 'true' if _on_hf else 'false'
+).lower() == 'true'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
@@ -77,6 +88,57 @@ def safe_get(url, timeout=15, **kwargs):
         return s.get(url, timeout=timeout, verify=False, **kwargs)
     except Exception:
         return None
+
+# ---------- OPENROUTER IA ----------
+OPENROUTER_MODELS = [
+    'openchat/openchat-7b:free',
+    'google/gemma-2-9b-it:free',
+    'meta-llama/llama-3.2-3b-instruct:free',
+]
+
+def summarize_osint_with_openrouter(text, api_key=None):
+    """Résume des résultats OSINT via l'API OpenRouter."""
+    key = api_key or os.environ.get('OPENROUTER_KEY') or os.environ.get('ANTHROPIC_API_KEY')
+    if not key:
+        raise ValueError('OPENROUTER_KEY non configurée dans les secrets du Space')
+    if isinstance(text, dict):
+        text = json.dumps(text, ensure_ascii=False)
+    text = str(text)[:4000]
+    prompt = (
+        'Analyse et résume ces résultats OSINT en français. '
+        'Sois concis, structuré, et mets en évidence les points importants '
+        f'et risques potentiels:\n\n{text}'
+    )
+    headers = {
+        'Authorization': f'Bearer {key}',
+        'Content-Type': 'application/json',
+        'HTTP-Referer': os.environ.get(
+            'OPENROUTER_REFERER',
+            'https://huggingface.co/spaces/benji4565/osint_ultimate_backend',
+        ),
+        'X-Title': 'OSINT Ultimate',
+    }
+    payload_base = {
+        'messages': [{'role': 'user', 'content': prompt}],
+    }
+    last_error = None
+    for model in OPENROUTER_MODELS:
+        try:
+            r = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers=headers,
+                json={**payload_base, 'model': model},
+                timeout=30,
+            )
+            if r.status_code == 200:
+                return r.json()['choices'][0]['message']['content']
+            err_body = r.json() if r.headers.get('content-type', '').startswith('application/json') else {}
+            last_error = err_body.get('error', {}).get('message') or f'HTTP {r.status_code}'
+            if r.status_code != 404:
+                break
+        except Exception as e:
+            last_error = str(e)
+    raise RuntimeError(last_error or 'Aucun modèle OpenRouter disponible')
 
 # ---------- MODELS ----------
 class User(UserMixin, db.Model):
@@ -148,11 +210,13 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form.get('username', '')).first()
-        if user and user.check_password(request.form.get('password', '')):
-            login_user(user)
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user, remember=True)
             return redirect(url_for('index'))
-        flash('Identifiants invalides.', 'error')
+        flash('Identifiants invalides. Sur Hugging Face, recréez un compte après chaque redéploiement si la base n\'est pas persistante.', 'error')
     return render_template('auth.html', mode='login')
 
 @app.route('/logout')
@@ -1001,26 +1065,15 @@ def upload():
 def ai_summary():
     data = request.json or {}
     text = data.get('result', '')
-    if isinstance(text, dict):
-        text = json.dumps(text, ensure_ascii=False)
-    text = str(text)[:4000]
-    key = os.environ.get('OPENROUTER_KEY') or os.environ.get('ANTHROPIC_API_KEY')
-    if not key:
-        return jsonify({'error': 'Configurez OPENROUTER_KEY dans les variables d\'environnement Render'}), 500
+    if not text:
+        return jsonify({'error': 'Aucun résultat de scan à résumer'}), 400
     try:
-        r = requests.post(
-            'https://openrouter.ai/api/v1/chat/completions',
-            headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
-            json={'model': 'mistralai/mistral-7b-instruct:free',
-                  'messages': [{'role': 'user',
-                                'content': f'Analyse et résume ces résultats OSINT en français. Sois concis, structuré, et mets en évidence les points importants et risques potentiels:\n\n{text}'}]},
-            timeout=30
-        )
-        if r.status_code == 200:
-            return jsonify({'summary': r.json()['choices'][0]['message']['content']})
-        return jsonify({'error': f'Erreur API OpenRouter: {r.status_code}'}), 500
-    except Exception as e:
+        summary = summarize_osint_with_openrouter(text)
+        return jsonify({'summary': summary})
+    except ValueError as e:
         return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        return jsonify({'error': f'OpenRouter: {e}'}), 500
 
 
 # ---------- SOCKETIO ----------
