@@ -4,6 +4,44 @@ from services.target_detector import express_label
 
 def build_express_card(module: str, target: str, result: dict) -> dict:
     """Construit une carte de synthèse lisible pour le grand public."""
+    meta = (result or {}).get('_meta') or {}
+    if meta.get('multi'):
+        highlights = []
+        risks = []
+        next_steps = []
+        ok_mods = []
+        for key, val in (result or {}).items():
+            if key.startswith('Module:') and isinstance(val, dict):
+                mod = key.replace('Module:', '').strip()
+                if val.get('_timeout'):
+                    risks.append(f'{mod} : service lent (timeout)')
+                elif val.get('Erreur') or val.get('error'):
+                    risks.append(f'{mod} : {str(val.get("Erreur") or val.get("error"))[:80]}')
+                else:
+                    ok_mods.append(mod)
+                    highlights.append({'label': mod, 'value': '✓ Données reçues'})
+        if meta.get('timeouts'):
+            risks.append(
+                f'{len(meta["timeouts"])} service(s) en timeout — réessayez ou passez en Expert.'
+            )
+        next_steps.append(
+            f'Analyse complète en Expert : /expert?multi=1&target={target}'
+        )
+        if ok_mods:
+            next_steps.append(f'Modules OK : {", ".join(ok_mods)}')
+        return {
+            'module': 'multi',
+            'type': 'Analyse Express',
+            'target': target,
+            'status': 'ok' if ok_mods else 'partial',
+            'title': f'Synthèse — {target}',
+            'highlights': highlights[:10],
+            'risks': risks[:8],
+            'next_steps': next_steps,
+            'timeouts': meta.get('timeouts', []),
+            'expert_url': f'/expert?multi=1&target={target}',
+        }
+
     if not result or result.get('error') or result.get('Erreur'):
         err = result.get('error') or result.get('Erreur', 'Erreur inconnue')
         return {

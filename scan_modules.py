@@ -51,6 +51,19 @@ def scan_messaging(target, options=None):
     return check_phone_presence(phone, options)
 
 
+def scan_multi(target, options=None):
+    """Scan parallèle multi-modules (Expert / Express)."""
+    from services.scanner import launch_multi_scan
+    opts = options or {}
+    mode = opts.get('_scan_mode', 'expert')
+    category = opts.get('_category')
+    modules = opts.get('_modules')
+    return launch_multi_scan(
+        target, options=opts, mode=mode,
+        modules=modules, category=category,
+    )
+
+
 EXTRA_SCAN_FUNCTIONS = {
     'hunter': scan_hunter,
     'dehashed': scan_dehashed,
@@ -58,4 +71,5 @@ EXTRA_SCAN_FUNCTIONS = {
     'wayback': scan_wayback,
     'whois': scan_whois,
     'messaging': scan_messaging,
+    'multi': scan_multi,
 }

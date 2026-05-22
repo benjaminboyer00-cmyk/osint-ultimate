@@ -140,7 +140,8 @@ document.getElementById('btn-scan').onclick = () => {
         body: JSON.stringify({
             entity_id: parseInt(selectedNode.id, 10),
             entity_type: selectedNode.type,
-            value: selectedNode.value
+            value: selectedNode.value,
+            root_entity_id: graphData?.root_id ? parseInt(graphData.root_id, 10) : parseInt(selectedNode.id, 10)
         })
     }).then(r => r.json()).then(d => {
         alert(d.scan_id ? `Scan #${d.scan_id} lancé (${d.module})` : (d.error || 'Erreur'));

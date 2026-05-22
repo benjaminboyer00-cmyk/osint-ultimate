@@ -937,10 +937,17 @@ def worker():
                 scan.completed_at = datetime.utcnow()
                 db.session.commit()
                 try:
-                    from services.correlation import process_scan_correlations
-                    process_scan_correlations(
-                        scan_id, scan.module, scan.target, result, scan.user_id
-                    )
+                    from services.correlation import process_scan_correlations, process_multi_correlations
+                    root_ent = (kwargs.get('options') or {}).get('_root_entity_id')
+                    if scan.module == 'multi' or (isinstance(result, dict) and result.get('_meta', {}).get('multi')):
+                        process_multi_correlations(
+                            scan_id, scan.target, result, scan.user_id, root_entity_id=root_ent,
+                        )
+                    else:
+                        process_scan_correlations(
+                            scan_id, scan.module, scan.target, result, scan.user_id,
+                            root_entity_id=root_ent,
+                        )
                 except Exception as corr_err:
                     app.logger.warning('Corrélation: %s', corr_err)
                 try:
@@ -997,6 +1004,7 @@ def health():
 
 @app.route('/scan', methods=['POST'])
 def scan_start():
+    from services.target_detector import target_category
     data = request.json or {}
     module = data.get('module', '')
     target = data.get('target', '').strip()
@@ -1008,6 +1016,14 @@ def scan_start():
     if data.get('stealth'):
         options['_stealth_mode'] = True
     mode = data.get('mode', 'expert')
+    if data.get('multi') or module == 'multi':
+        module = 'multi'
+        options['_scan_mode'] = mode
+        options['_category'] = data.get('category') or target_category(target)
+        if data.get('modules'):
+            options['_modules'] = data.get('modules')
+    if data.get('root_entity_id'):
+        options['_root_entity_id'] = int(data['root_entity_id'])
     if not target:
         return jsonify({'error': 'Cible manquante'}), 400
     if module not in SCAN_FUNCTIONS:
@@ -1015,8 +1031,42 @@ def scan_start():
     user_id = current_user.is_authenticated and current_user.id or None
     scan_id = run_scan_async(module, target, options, user_id, mode=mode)
     if scan_id:
-        return jsonify({'scan_id': scan_id, 'status': 'started'})
+        return jsonify({'scan_id': scan_id, 'status': 'started', 'module': module})
     return jsonify({'error': 'Échec du lancement'}), 500
+
+
+@app.route('/scan/<int:scan_id>/retry-timeouts', methods=['POST'])
+@login_required
+def scan_retry_timeouts(scan_id):
+    """Relance uniquement les modules en timeout d'un scan multi."""
+    from services.scanner import retry_timeout_modules
+    scan = db.session.get(Scan, scan_id)
+    if not scan or scan.user_id != current_user.id:
+        return jsonify({'error': 'Scan non trouvé'}), 404
+    opts = {}
+    if scan.user_id:
+        from services.user_keys import get_key
+        u = db.session.get(User, scan.user_id)
+        if u:
+            for opt_k, ukey, env in [
+                ('_hunter_key', 'hunter', 'HUNTER_API_KEY'),
+                ('_dehashed_key', 'dehashed', 'DEHASHED_API_KEY'),
+                ('_dehashed_email', 'dehashed_email', 'DEHASHED_EMAIL'),
+                ('_epieos_key', 'epieos', 'EPIEOS_API_KEY'),
+            ]:
+                opts[opt_k] = get_key(u, ukey, env, fernet) or os.environ.get(env, '')
+    opts['_retry'] = True
+    merged = retry_timeout_modules(scan, opts)
+    scan.result_json = json.dumps(merged, ensure_ascii=False, default=str)
+    scan.completed_at = datetime.utcnow()
+    db.session.commit()
+    try:
+        from services.correlation import process_multi_correlations
+        process_multi_correlations(scan_id, scan.target, merged, scan.user_id)
+    except Exception:
+        pass
+    socketio.emit('scan_done', {'scan_id': scan_id, 'result': merged})
+    return jsonify({'status': 'ok', 'result': merged})
 
 
 @app.route('/scan/<int:scan_id>')
@@ -1029,6 +1079,8 @@ def scan_result(scan_id):
             return jsonify({'error': 'Connexion requise pour ce scan'}), 401
         if scan.user_id != current_user.id:
             return jsonify({'error': 'Accès refusé'}), 403
+    elif scan.mode != 'express' and not current_user.is_authenticated:
+        return jsonify({'error': 'Connexion requise'}), 401
     if scan.status == 'completed':
         out = json.loads(scan.result_json)
         if scan.ai_summary:

@@ -22,6 +22,10 @@ def _proxy_list(options: dict | None) -> list:
 
 def safe_get(url, timeout=15, options=None, **kwargs):
     opts = options or {}
+    if opts.get('_module_timeout'):
+        timeout = min(timeout, int(opts['_module_timeout']))
+    if opts.get('_retry'):
+        timeout = max(timeout, 20)
     if opts.get('_stealth_mode'):
         time.sleep(random.uniform(0.3, 1.8))
     try:
@@ -33,5 +37,7 @@ def safe_get(url, timeout=15, options=None, **kwargs):
             p = random.choice(proxies)
             s.proxies = {'http': p, 'https': p}
         return s.get(url, timeout=timeout, verify=False, **kwargs)
+    except requests.Timeout:
+        return None
     except Exception:
         return None

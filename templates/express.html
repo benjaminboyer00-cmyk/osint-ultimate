@@ -225,7 +225,7 @@ async function runExpress(){
     await updateBadge();
     const resp = await fetch('/scan', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ module: detectedModule, target, mode: 'express' })
+        body: JSON.stringify({ module: 'multi', target, mode: 'express', multi: true })
     });
     const data = await resp.json();
     if (data.scan_id) {
@@ -274,10 +274,16 @@ async function showCard(result){
         html += `<div class="hl"><span class="k">${h.label}</span><span class="v">${h.value}</span></div>`;
     });
     (card.risks || []).forEach(r => { html += `<div class="risk">⚠️ ${r}</div>`; });
+    if (card.timeouts?.length) {
+        html += `<p class="risk">⏱ Certains services sont lents (${card.timeouts.join(', ')}). `
+            + `Réessayez ou consultez l'analyse détaillée en mode Expert.</p>`;
+    }
     if (card.next_steps?.length) {
         html += '<ul class="steps">' + card.next_steps.map(s => `<li>${s}</li>`).join('') + '</ul>';
     }
+    const expertUrl = card.expert_url || `/expert?multi=1&target=${encodeURIComponent(targetEl.value.trim())}`;
     html += `<div class="actions">
+        <a class="btn btn-primary" href="${expertUrl}">🔬 Voir résultats détaillés (Expert)</a>
         <button type="button" class="btn" onclick="askAssistant()">🧠 Comprendre</button>`;
     const authed = {{ 'true' if authenticated else 'false' }};
     if (authed && activeScanId) {

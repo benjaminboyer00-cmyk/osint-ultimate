@@ -45,8 +45,13 @@ def express_detect():
     target = (data.get('target') or '').strip()
     if not target:
         return jsonify({'error': 'Cible manquante'}), 400
+    from services.target_detector import target_category
     module = detect_target_type(target)
-    return jsonify({'module': module, 'target': target})
+    return jsonify({
+        'module': module,
+        'target': target,
+        'category': target_category(target),
+    })
 
 
 @views_bp.route('/express/card', methods=['POST'])
@@ -261,7 +266,11 @@ def graph_scan_node():
     module = module_map.get(etype) or detect_target_type(value)
     if module not in SCAN_FUNCTIONS:
         module = detect_target_type(value)
-    scan_id = run_scan_async(module, value, user_id=current_user.id)
+    root_entity_id = data.get('root_entity_id')
+    opts = {}
+    if root_entity_id:
+        opts['_root_entity_id'] = int(root_entity_id)
+    scan_id = run_scan_async(module, value, options=opts, user_id=current_user.id)
     return jsonify({'scan_id': scan_id, 'module': module, 'target': value})
 
 

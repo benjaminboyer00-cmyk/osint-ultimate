@@ -39,9 +39,22 @@ def _link(src: Entity, tgt: Entity, link_type: str, proof: str, scan_id: int, us
         ))
 
 
-def process_scan_correlations(scan_id: int, module: str, target: str, result: dict, user_id: int | None):
+def _link_to_root(root_entity_id: int | None, new_ent: Entity, scan_id: int, user_id: int, proof: str):
+    if not root_entity_id or not new_ent:
+        return
+    parent = db.session.get(Entity, root_entity_id)
+    if parent and parent.user_id == user_id and parent.id != new_ent.id:
+        _link(parent, new_ent, 'ENRICHIT', proof[:500], scan_id, user_id)
+
+
+def process_scan_correlations(
+    scan_id: int, module: str, target: str, result: dict, user_id: int | None,
+    root_entity_id: int | None = None,
+):
     """Extrait entités et liens à partir d'un résultat de scan."""
     if not user_id or not result or result.get('error'):
+        return
+    if isinstance(result, dict) and result.get('_timeout'):
         return
 
     target = (target or '').strip()
@@ -121,7 +134,31 @@ def process_scan_correlations(scan_id: int, module: str, target: str, result: di
                 user_id,
             )
 
+    _link_to_root(root_entity_id, root, scan_id, user_id, f'Scan {module} depuis graphe')
     db.session.commit()
+
+
+def process_multi_correlations(
+    scan_id: int, target: str, result: dict, user_id: int | None,
+    root_entity_id: int | None = None,
+):
+    """Corrélation pour chaque section d'un scan multi-modules."""
+    if not user_id or not isinstance(result, dict):
+        return
+    for key, section in result.items():
+        if key.startswith('_') or not key.startswith('Module:'):
+            continue
+        mod = key.replace('Module:', '').strip()
+        if isinstance(section, dict) and not section.get('_timeout'):
+            process_scan_correlations(
+                scan_id, mod, target, section, user_id, root_entity_id=root_entity_id,
+            )
+    # Historique wayback
+    wb = result.get('Historique Web (Wayback)')
+    if isinstance(wb, dict):
+        process_scan_correlations(
+            scan_id, 'wayback', target, wb, user_id, root_entity_id=root_entity_id,
+        )
 
 
 def get_rebound_suggestions(entity_id: int, user_id: int) -> list:

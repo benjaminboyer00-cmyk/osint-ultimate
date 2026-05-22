@@ -47,6 +47,23 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
             'proof': link.source_proof,
             'at': link.created_at.isoformat() if link.created_at else None,
         })
+    web_history = []
+    for s in scans:
+        try:
+            payload = json.loads(s.result_json or '{}')
+        except Exception:
+            continue
+        wb = payload.get('Historique Web (Wayback)') or payload.get('Module: wayback')
+        if isinstance(wb, dict):
+            for snap in (wb.get('Snapshots') or [])[:15]:
+                if isinstance(snap, dict):
+                    web_history.append({
+                        'date': snap.get('Date'),
+                        'url': snap.get('URL'),
+                        'archive': snap.get('Lien archive'),
+                        'scan_id': s.id,
+                    })
+
     timeline.sort(key=lambda x: x.get('at') or '', reverse=True)
 
     inv = Investigation.query.filter_by(user_id=user_id, root_entity_id=entity_id).first()
@@ -62,6 +79,7 @@ def build_dossier(entity_id: int, user_id: int) -> dict | None:
         'title': inv.title if inv else f'Dossier — {ent.value}',
         'related_entities': related_entities,
         'timeline': timeline[:50],
+        'web_history': web_history[:20],
         'scans_count': len([t for t in timeline if t['type'] == 'scan']),
         'links_count': len(links),
     }

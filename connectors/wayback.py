@@ -17,6 +17,7 @@ def search_url(url: str, options=None, limit: int = 10) -> dict:
     snaps = safe_get(
         f'https://web.archive.org/cdx/search/cdx?url={domain}/*&output=json&limit={limit}'
         f'&fl=timestamp,original,statuscode&collapse=urlkey',
+        timeout=25,
         options=options,
     )
     results = {'URL': target, 'Domaine': domain}

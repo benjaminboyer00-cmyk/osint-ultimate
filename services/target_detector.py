@@ -28,6 +28,22 @@ def detect_target_type(target: str) -> str:
     return 'pseudo'
 
 
+def target_category(target: str) -> str:
+    """Catégorie pour stratégies multi-modules."""
+    mod = detect_target_type(target)
+    if mod == 'email':
+        return 'email'
+    if mod == 'phone':
+        return 'phone'
+    if mod in ('sherlock', 'pseudo'):
+        return 'pseudo'
+    if mod == 'ip':
+        return 'ip'
+    if mod in ('site', 'whois', 'wayback'):
+        return 'domain'
+    return 'pseudo'
+
+
 def express_label(module: str) -> str:
     labels = {
         'email': 'Adresse email',

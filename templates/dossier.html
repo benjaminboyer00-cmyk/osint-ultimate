@@ -50,6 +50,19 @@
         <button type="submit">Analyser</button>
     </form>
 
+    {% if dossier.web_history %}
+    <h2>🕰️ Historique Web (Wayback)</h2>
+    <div class="card">
+        {% for snap in dossier.web_history %}
+        <div style="margin:.5rem 0;font-size:.85rem">
+            <strong>{{ snap.date or '—' }}</strong>
+            {% if snap.archive %}<a href="{{ snap.archive }}" target="_blank" rel="noopener">Archive</a>{% endif %}
+            <span style="color:#5a6180"> — {{ snap.url or '' }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <h2>📅 Timeline</h2>
     <div class="timeline">
         {% for ev in dossier.timeline %}

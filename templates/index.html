@@ -287,6 +287,16 @@
             color: #fff; border: none; border-radius: 20px; font-weight: 600; cursor: pointer;
         }
         #monitor-panel .watch-meta { color: var(--text-dim); font-size: .78rem; margin-top: .35rem; }
+        .timeout-banner {
+            margin-top: 1rem; padding: 1rem 1.1rem;
+            background: rgba(255,165,2,.1); border: 1px solid rgba(255,165,2,.35);
+            border-radius: var(--r); font-size: .85rem;
+        }
+        .timeout-banner ul { margin: .5rem 0 0 1rem; color: var(--warning); }
+        .timeout-banner button {
+            margin-top: .6rem; padding: .45rem 1rem; background: var(--accent2);
+            color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+        }
         .export-bar {
             display:none; justify-content:flex-end;
             gap:.5rem; margin-top:1rem;
@@ -389,6 +399,7 @@
     </div>
     <div id="stealth-opts" style="margin:.5rem 0;font-size:.82rem;color:var(--dim)">
         <label><input type="checkbox" id="stealth-scan"> Mode furtif (délais aléatoires, rotation User-Agent{% if not authenticated %}, proxy si configuré après connexion{% endif %})</label>
+        <label style="margin-left:1rem"><input type="checkbox" id="multi-scan"> Analyse complète (multi-modules)</label>
     </div>
 
     <!-- Email options -->
@@ -647,10 +658,18 @@ async function launchScan(){
 
     try {
         const stealth = document.getElementById('stealth-scan')?.checked;
+        const multi = document.getElementById('multi-scan')?.checked;
+        const payload = {target, options: opts, stealth, mode: 'expert'};
+        if (multi) {
+            payload.module = 'multi';
+            payload.multi = true;
+        } else {
+            payload.module = currentModule;
+        }
         const resp = await fetch('/scan', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({module: currentModule, target, options: opts, stealth})
+            body: JSON.stringify(payload)
         });
         const data = await resp.json();
         if(data.scan_id){
@@ -681,6 +700,36 @@ targetEl.addEventListener('keydown', e=>{ if(e.key==='Enter') launchScan(); });
 // ── Render results ─────────────────────────────────────────
 let pseudoChartInst = null;
 
+function renderTimeoutBanner(meta){
+    if(!meta || (!meta.timeouts?.length && !Object.keys(meta.errors||{}).length)) return '';
+    let html = '<div class="timeout-banner"><strong>⚠️ Certains services n\'ont pas répondu à temps</strong><ul>';
+    (meta.timeouts||[]).forEach(m => { html += `<li>${m} — timeout</li>`; });
+    Object.entries(meta.errors||{}).forEach(([m,e]) => { html += `<li>${m} — ${e}</li>`; });
+    html += '</ul>';
+    if(meta.timeouts?.length && activeScanId){
+        html += `<button type="button" onclick="retryTimeouts(${activeScanId})">🔄 Réessayer les services en timeout</button>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+async function retryTimeouts(scanId){
+    resultEl.innerHTML = '<div class="skeleton" style="width:70%"></div>';
+    try {
+        const r = await fetch(`/scan/${scanId}/retry-timeouts`, {method:'POST'});
+        const d = await r.json();
+        if(d.status === 'ok' && d.result){
+            lastResult = d.result;
+            renderResult(d.result);
+            exportBar.style.display = 'flex';
+        } else {
+            resultEl.innerHTML = `<p style="color:var(--error)">❌ ${d.error||'Échec retry'}</p>`;
+        }
+    } catch(e){
+        resultEl.innerHTML = `<p style="color:var(--error)">❌ ${e.message}</p>`;
+    }
+}
+
 function renderResult(data){
     resultEl.classList.remove('has-error');
     if(!data || typeof data !== 'object'){
@@ -691,8 +740,10 @@ function renderResult(data){
         resultEl.classList.add('has-error'); return;
     }
 
-    let html = '';
-    for(const [key, value] of Object.entries(data)){
+    const meta = data._meta;
+    const entries = Object.entries(data).filter(([k]) => !k.startsWith('_'));
+    let html = renderTimeoutBanner(meta);
+    for(const [key, value] of entries){
         const badge = getBadge(key, value);
         html += `<div class="acc-item">
             <div class="acc-hdr" onclick="toggleAcc(this)">
@@ -785,6 +836,8 @@ function getBadge(key, value){
 }
 
 function getIcon(key){
+    if(key.startsWith('Module:')) return '🔌';
+    if(key.includes('Wayback') || key.includes('Historique')) return '🕰️';
     const icons = {
         'WHOIS':'📄','DNS':'🔗','HTTP':'🌐','IP':'🖥️','Géolocalisation':'📍',
         'Ports ouverts':'🔓','Ports':'🔒','Technologies':'⚙️','SSL/TLS':'🔐',
@@ -957,12 +1010,19 @@ const _preload = _urlParams.get('scan_id');
 if(_preload) loadScanFromHistory(_preload);
 
 const _autoMod = _urlParams.get('module');
+const _autoMulti = _urlParams.get('multi');
 const _autoTarget = _urlParams.get('target') || _urlParams.get('query') || _urlParams.get('auto');
-if(_autoMod && _autoTarget){
-    const modBtn = document.querySelector(`.mod[data-m="${_autoMod}"]`);
-    if(modBtn) modBtn.click();
+if(_autoTarget){
     targetEl.value = decodeURIComponent(_autoTarget);
-    setTimeout(() => { if(!scanRunning) launchScan(); }, 400);
+    if(_autoMulti === '1' || _autoMod === 'multi'){
+        const multiCb = document.getElementById('multi-scan');
+        if(multiCb) multiCb.checked = true;
+        setTimeout(() => { if(!scanRunning) launchScan(); }, 400);
+    } else if(_autoMod){
+        const modBtn = document.querySelector(`.mod[data-m="${_autoMod}"]`);
+        if(modBtn) modBtn.click();
+        setTimeout(() => { if(!scanRunning) launchScan(); }, 400);
+    }
 }
 
 // ── PWA ────────────────────────────────────────────────────

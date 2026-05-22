@@ -141,6 +141,14 @@ pytest tests/ -v
 - [ ] `ROADMAP.md` statut mis à jour si fonctionnalité majeure
 - [ ] Pas de fichiers binaires (PNG) dans le dépôt — Hugging Face les rejette
 
+## Scans multi-modules
+
+- Stratégies dans `services/scanner.py` (`SCAN_STRATEGIES`, `EXPRESS_STRATEGIES`).
+- Lancement Expert : `POST /scan` avec `{ "multi": true, "target": "…" }`.
+- Express : lance automatiquement `multi` en mode allégé (3–4 modules max).
+- Timeouts : section `_meta.timeouts` + `POST /scan/<id>/retry-timeouts`.
+- Classe de base : `connectors/base.py` (timeout, retry, cache via `db.session.query(ApiCache)`).
+
 ## Surveillance continue & Celery
 
 - Surveillance UI : `/monitoring` (APScheduler toutes les 5 min)
