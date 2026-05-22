@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINT Ultimate V4.0</title>
+    <title>OSINT Ultimate — Mode Expert</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -101,6 +101,21 @@
             color: var(--accent2); background: transparent; transition: all var(--tr);
         }
         .history-link:hover { background: var(--accent2); color:#fff; }
+        .mode-switch{
+            display:inline-flex;border:1px solid var(--border);border-radius:999px;
+            overflow:hidden;font-size:.78rem;
+        }
+        .mode-switch a{
+            padding:.35rem .85rem;text-decoration:none;color:var(--text-dim);
+            border:none;background:transparent;
+        }
+        .mode-switch a.active{
+            background:var(--accent);color:#000;font-weight:700;
+        }
+        .mode-hint{
+            font-size:.8rem;color:var(--text-dim);margin:-1rem 0 1.25rem;
+            line-height:1.45;
+        }
 
         /* ── Theme toggle ── */
         .tog {
@@ -299,9 +314,15 @@
 
     <!-- Header -->
     <div class="hdr">
-        <div class="logo">⚡ OSINT ULTIMATE V{{ version|default('4.2') }}</div>
+        <div>
+            <div class="logo">⚡ OSINT ULTIMATE V{{ version|default('5.0') }}</div>
+            <div style="font-size:.7rem;color:var(--accent);letter-spacing:.06em;margin-top:.2rem">MODE EXPERT</div>
+        </div>
         <div class="hdr-right">
-            <a href="{{ url_for('views.express') }}" class="auth-btn" style="border-color:#4d9fff;color:#4d9fff">Express</a>
+            <div class="mode-switch" role="tablist" aria-label="Mode de recherche">
+                <a href="{{ url_for('views.express') }}">Express</a>
+                <a href="{{ url_for('views.expert') }}" class="active" aria-current="page">Expert</a>
+            </div>
             {% if authenticated %}
                 <span class="user-badge">👤 {{ username }}</span>
                 <a href="/history" class="history-link">📋 Historique</a>
@@ -317,6 +338,11 @@
             <div class="tog" onclick="toggleTheme()" title="Changer le thème"></div>
         </div>
     </div>
+
+    <p class="mode-hint">
+        Console complète : choisissez un module, lancez des scans parallèles, exportez PDF/CSV/JSON, activez le mode furtif.
+        <a href="{{ url_for('views.express') }}" style="color:var(--accent2)">Recherche simple → Express</a>
+    </p>
 
     <!-- Module selector -->
     <div class="modules" id="modules">

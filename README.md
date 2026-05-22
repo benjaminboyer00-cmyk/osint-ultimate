@@ -22,7 +22,7 @@ Ajoutez vos captures dans `docs/images/` puis elles s'affichent ici :
 |---------|--------|--------|
 | ![Express](docs/images/express.png) | ![Graphe](docs/images/graph.png) | ![Expert](docs/images/expert.png) |
 
-*(Placeholders — remplacer par de vraies captures pour la release GitHub.)*
+Captures actuelles du dépôt (`docs/images/`).
 
 ## Parcours utilisateur
 
