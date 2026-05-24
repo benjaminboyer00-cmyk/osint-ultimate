@@ -34,12 +34,12 @@
     <a href="{{ url_for('views.expert') }}">Expert</a>
     <a href="{{ url_for('views.recipes_page') }}" class="active">Recettes</a>
     <a href="{{ url_for('views.marketplace_page') }}">Marketplace</a>
-    {% if authenticated %}<a href="{{ url_for('logout') }}">Déconnexion</a>{% else %}<a href="{{ url_for('login') }}">Connexion</a>{% endif %}
+    {% if authenticated %}<a href="{{ url_for('auth.logout') }}">Déconnexion</a>{% else %}<a href="{{ url_for('auth.login') }}">Connexion</a>{% endif %}
 </nav>
 <h1>📋 Recettes d'investigation</h1>
 <p class="intro">
     Enchaînements de modules prêts à l'emploi. Lancez une recette avec une cible — un scan multi s'exécute automatiquement.
-    {% if authenticated %}Créez les vôtres et partagez-les à la communauté.{% else %}<a href="{{ url_for('login') }}">Connectez-vous</a> pour sauvegarder vos recettes.{% endif %}
+    {% if authenticated %}Créez les vôtres et partagez-les à la communauté.{% else %}<a href="{{ url_for('auth.login') }}">Connectez-vous</a> pour sauvegarder vos recettes.{% endif %}
 </p>
 
 <div class="grid" id="recipe-grid">

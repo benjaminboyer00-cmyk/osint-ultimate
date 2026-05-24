@@ -56,6 +56,13 @@ class BaseConnector:
             resp = fn(url, timeout=timeout, headers=headers, verify=SSL_VERIFY, **kwargs)
             resp.raise_for_status()
             return resp
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else None
+            if status == 429:
+                from services.errors import APIQuotaExceeded
+                raise APIQuotaExceeded(provider=self.name) from e
+            logger.warning('%s: HTTP %s %s', self.name, status, url[:80])
+            return None
         except requests.Timeout:
             logger.warning('%s: timeout %s', self.name, url[:80])
             return None
@@ -113,7 +120,13 @@ class BaseConnector:
             record_success(provider)
             return data, 'live'
         except Exception as e:
-            logger.error('%s fetch: %s', self.name, e)
+            from services.errors import APIQuotaExceeded, ConnectorError
+            if isinstance(e, APIQuotaExceeded):
+                logger.warning('%s quota: %s', self.name, e)
+            elif isinstance(e, ConnectorError):
+                logger.warning('%s connector: %s', self.name, e)
+            else:
+                logger.error('%s fetch: %s', self.name, e)
             record_failure(provider)
             if row:
                 import json

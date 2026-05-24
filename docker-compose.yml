@@ -8,31 +8,42 @@ services:
       - redis_data:/data
 
   web:
+    image: ${WEB_IMAGE:-osint-ultimate:local}
     build: .
     ports:
-      - "7860:7860"
+      - "${PORT:-7860}:7860"
     env_file:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
       RATELIMIT_STORAGE_URI: redis://redis:6379/1
       USE_CELERY: "1"
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+    volumes:
+      - uploads_data:/app/uploads
+      - app_logs:/app/logs
     depends_on:
       - redis
-    command: gunicorn -k gevent -w 2 -b 0.0.0.0:7860 --timeout 120 --max-requests 1000 app:app
+    restart: unless-stopped
+    command: /app/entrypoint.sh
 
   worker:
+    image: ${WEB_IMAGE:-osint-ultimate:local}
     build: .
     env_file:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
       USE_CELERY: "1"
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - redis
+    restart: unless-stopped
     command: celery -A celery_app.celery_app worker --loglevel=info --concurrency=2
 
   beat:
+    image: ${WEB_IMAGE:-osint-ultimate:local}
     build: .
     env_file:
       - .env
@@ -45,3 +56,5 @@ services:
 
 volumes:
   redis_data:
+  uploads_data:
+  app_logs:

@@ -20,6 +20,8 @@
     <p><a href="{{ url_for('views.expert') }}">Expert</a> <a href="{{ url_for('views.express') }}">Express</a>
        <a href="{{ url_for('views.investigate_page') }}">Enquête guidée IA</a></p>
     <h1>Paramètres — {{ username }}</h1>
+    <p><a href="{{ url_for('views.settings_security') }}">Sécurité (2FA)</a>
+       {% if totp_enabled %}<span class="ok">2FA active</span>{% endif %}</p>
     {% with messages = get_flashed_messages() %}
       {% if messages %}<p class="ok">{{ messages[0] }}</p>{% endif %}
     {% endwith %}

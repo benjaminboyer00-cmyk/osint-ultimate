@@ -43,7 +43,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 db.init_app(app)
 migrate.init_app(app, db)
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'auth.login'
 login_manager.session_protection = 'strong'
 limiter.init_app(app)
 init_csrf(app)
@@ -86,7 +86,7 @@ try:
     }
     Talisman(
         app,
-        force_https=False,
+        force_https=os.environ.get('FORCE_HTTPS', 'false').lower() == 'true',
         strict_transport_security=app.config.get('SESSION_COOKIE_SECURE', False),
         content_security_policy=_csp,
         referrer_policy='no-referrer',
@@ -213,52 +213,6 @@ def init_database():
 @login_manager.user_loader
 def load_user(uid):
     return db.session.get(User, int(uid))
-
-@app.route('/register', methods=['GET', 'POST'])
-@limiter.limit('8/minute', key_func=get_remote_address)
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        email    = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-        if not all([username, email, password]):
-            flash('Tous les champs sont requis.', 'error')
-            return redirect(url_for('register'))
-        if User.query.filter_by(username=username).first():
-            flash("Nom d'utilisateur déjà pris.", 'error')
-            return redirect(url_for('register'))
-        if User.query.filter_by(email=email).first():
-            flash('Email déjà enregistré.', 'error')
-            return redirect(url_for('register'))
-        user = User(username=username, email=email)
-        user.set_password(password)
-        user.ensure_api_token()
-        db.session.add(user)
-        db.session.commit()
-        login_user(user)
-        return redirect(url_for('views.expert'))
-    return render_template('auth.html', mode='register')
-
-@app.route('/login', methods=['GET', 'POST'])
-@limiter.limit('10/minute', key_func=get_remote_address)
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            user.last_login = datetime.utcnow()
-            db.session.commit()
-            login_user(user, remember=True)
-            return redirect(url_for('views.expert'))
-        flash('Identifiants invalides. Sur Hugging Face, recréez un compte après chaque redéploiement si la base n\'est pas persistante.', 'error')
-    return render_template('auth.html', mode='login')
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('views.expert'))
 
 # ============================================================
 #  SCAN FUNCTIONS
@@ -1071,7 +1025,13 @@ def health():
     try:
         from services.task_queue import use_celery
         celery_configured = use_celery()
-        celery_connected = celery_configured and redis_ok
+        if celery_configured and redis_ok:
+            try:
+                from celery_app import celery_app
+                ping = celery_app.control.ping(timeout=1.5)
+                celery_connected = bool(ping)
+            except Exception:
+                celery_connected = False
     except Exception:
         pass
     critical_modules = (
@@ -1095,7 +1055,8 @@ def health():
             imports_ok = False
     groq_ok = bool(os.environ.get('GROQ_API_KEY'))
     overall = db_ok and imports_ok
-    return jsonify({
+    from flask import make_response
+    payload = {
         'status': 'ok' if overall else 'degraded',
         'version': app.config.get('APP_VERSION', '5.2'),
         'database': 'connected' if db_ok else 'error',
@@ -1106,7 +1067,10 @@ def health():
         'redis_cache': 'connected' if redis_ok else 'off',
         'groq_configured': groq_ok,
         'modules': module_checks,
-    }), 200 if overall else 503
+    }
+    resp = make_response(jsonify(payload), 200 if overall else 503)
+    resp.headers['Cache-Control'] = 'public, max-age=15'
+    return resp
 
 
 @app.route('/scan', methods=['POST'])
@@ -1494,7 +1458,7 @@ def _login_unauthorized():
     if path.startswith('/expert/') or path.startswith('/api/'):
         return jsonify({'error': 'Connexion requise'}), 401
     from flask import redirect, url_for
-    return redirect(url_for('login'))
+    return redirect(url_for('auth.login'))
 
 
 _API_JSON_FALLBACK_MD = (
@@ -1530,9 +1494,11 @@ def handle_500(err):
 
 
 from routes.views import views_bp
+from routes.auth import auth_bp
 from routes.api_v1 import api_bp
 from routes.collaboration import collab_bp
 
+app.register_blueprint(auth_bp)
 app.register_blueprint(views_bp)
 app.register_blueprint(collab_bp)
 app.register_blueprint(api_bp, url_prefix='/api/v1')

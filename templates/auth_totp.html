@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA – OSINT Ultimate</title>
+    <style>
+        body{background:#0a0a0f;color:#cfcfcf;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+        .auth-container{background:rgba(20,20,30,.8);padding:2rem;border-radius:16px;max-width:400px;width:100%}
+        h2{color:#00e676;text-align:center} input,button{width:100%;padding:.8rem;margin:.5rem 0;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#cfcfcf}
+        button{background:#00e676;color:#000;border:none;font-weight:700;cursor:pointer}
+        .flash.error{color:#ff5555}
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h2>Vérification 2FA</h2>
+        <p>Compte <strong>{{ username }}</strong> — saisissez le code à 6 chiffres.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <p class="flash {{ category }}">{{ message }}</p>
+        {% endfor %}
+        {% endwith %}
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="8" placeholder="123456" required autofocus>
+            <button type="submit">Valider</button>
+        </form>
+        <p style="margin-top:1rem;text-align:center"><a href="{{ url_for('auth.login') }}">Retour connexion</a></p>
+    </div>
+</body>
+</html>

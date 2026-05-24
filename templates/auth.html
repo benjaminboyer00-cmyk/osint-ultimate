@@ -96,9 +96,9 @@
         </p>
         <div class="link">
             {% if mode == 'login' %}
-                Pas de compte ? <a href="{{ url_for('register') }}">Inscrivez-vous</a>
+                Pas de compte ? <a href="{{ url_for('auth.register') }}">Inscrivez-vous</a>
             {% else %}
-                Déjà un compte ? <a href="{{ url_for('login') }}">Connectez-vous</a>
+                Déjà un compte ? <a href="{{ url_for('auth.login') }}">Connectez-vous</a>
             {% endif %}
         </div>
     </div>

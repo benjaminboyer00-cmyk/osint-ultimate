@@ -1,0 +1,15 @@
+name: Lint & security
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install black isort flake8 bandit
+      - run: black --check services routes connectors app.py models.py config.py extensions.py
+      - run: isort --check-only services routes connectors app.py models.py config.py extensions.py
+      - run: flake8 services routes connectors app.py models.py config.py extensions.py scan_modules.py
+      - run: bandit -r services routes connectors -ll -q

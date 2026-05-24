@@ -41,8 +41,9 @@ def build_config():
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
         'APP_VERSION': '5.0',
-        # Compression gzip (JSON graphe, dossiers, API)
-        'COMPRESS_ALGORITHM': 'gzip',
+        # Compression gzip + brotli si paquet brotli installé
+        'COMPRESS_ALGORITHM': os.environ.get('COMPRESS_ALGORITHM', 'br,gzip'),
+        'COMPRESS_BR_LEVEL': int(os.environ.get('COMPRESS_BR_LEVEL', '5')),
         'COMPRESS_MIN_SIZE': 512,
         'COMPRESS_MIMETYPES': [
             'application/json',

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sécurité – OSINT Ultimate</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+</head>
+<body>
+    <main class="settings-page">
+        <h1>Sécurité du compte</h1>
+        <p><a href="{{ url_for('views.settings') }}">← Paramètres</a></p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <p class="flash {{ category }}">{{ message }}</p>
+        {% endfor %}
+        {% endwith %}
+
+        <section>
+            <h2>Authentification à deux facteurs (TOTP)</h2>
+            {% if totp_enabled %}
+            <p>2FA <strong>activée</strong>.</p>
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="disable">
+                <label>Code pour désactiver</label>
+                <input name="code" required>
+                <button type="submit">Désactiver 2FA</button>
+            </form>
+            {% elif setup_secret %}
+            <p>Scannez ce QR avec Google Authenticator ou Ente Auth :</p>
+            {% if qr_base64 %}
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR TOTP" width="200" height="200">
+            {% endif %}
+            <p><small>Secret manuel : <code>{{ setup_secret }}</code></small></p>
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="enable">
+                <input name="code" placeholder="Code à 6 chiffres" required>
+                <button type="submit">Confirmer l'activation</button>
+            </form>
+            {% else %}
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="start_setup">
+                <button type="submit">Configurer la 2FA</button>
+            </form>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

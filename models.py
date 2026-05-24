@@ -20,6 +20,8 @@ class User(UserMixin, db.Model):
     stealth_mode  = db.Column(db.Boolean, default=False)
     scrape_fallback_enabled = db.Column(db.Boolean, default=True, nullable=False)
     locale        = db.Column(db.String(5), default='fr')
+    totp_secret_enc = db.Column(db.Text, nullable=True)
+    totp_enabled    = db.Column(db.Boolean, default=False, nullable=False)
 
     scans = db.relationship('Scan', backref='owner', lazy='dynamic')
     entities = db.relationship('Entity', backref='owner', lazy='dynamic')

@@ -139,9 +139,9 @@
     {% if authenticated %}
     <a href="{{ url_for('history') }}">Historique</a>
     <a href="{{ url_for('views.graph_view') }}">Graphe</a>
-    <a href="{{ url_for('logout') }}">Déconnexion</a>
+    <a href="{{ url_for('auth.logout') }}">Déconnexion</a>
     {% else %}
-    <a href="{{ url_for('login') }}">Connexion</a>
+    <a href="{{ url_for('auth.login') }}">Connexion</a>
     {% endif %}
     <a href="{{ url_for('views.privacy') }}">RGPD</a>
 </nav>

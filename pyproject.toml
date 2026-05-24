@@ -1,0 +1,23 @@
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyi?$'
+extend-exclude = '/migrations/'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = ["migrations"]
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E501", "W503"]
+exclude = [".git", "__pycache__", "migrations", ".venv", "venv"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "migrations"]
+skips = ["B101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
