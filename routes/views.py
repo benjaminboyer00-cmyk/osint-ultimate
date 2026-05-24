@@ -13,6 +13,12 @@ from services.express_card import build_express_card
 views_bp = Blueprint('views', __name__)
 
 
+def _entities_paginated(user_id: int, page: int = 1, per_page: int = 25) -> dict:
+    from services.pagination import paginate_query
+    q = Entity.query.filter_by(user_id=user_id).order_by(Entity.created_at.desc())
+    return paginate_query(q, page=page, per_page=per_page, max_per_page=50)
+
+
 @views_bp.route('/')
 def home():
     return redirect(url_for('views.express'))
@@ -498,11 +504,13 @@ def timeline_view():
         ent = find_entity_for_target(current_user.id, target_q)
         if ent:
             entity_id = ent.id
-    entities = Entity.query.filter_by(user_id=current_user.id).order_by(Entity.created_at.desc()).limit(50).all()
+    page = request.args.get('page', 1, type=int)
+    ent_page = _entities_paginated(current_user.id, page=page)
     return render_template(
         'timeline.html',
         entity_id=entity_id,
-        entities=entities,
+        entities=ent_page['items'],
+        entities_page=ent_page,
         username=current_user.username,
     )
 
@@ -531,11 +539,13 @@ def map_view():
         ent = find_entity_for_target(current_user.id, target_q)
         if ent:
             entity_id = ent.id
-    entities = Entity.query.filter_by(user_id=current_user.id).order_by(Entity.created_at.desc()).limit(50).all()
+    page = request.args.get('page', 1, type=int)
+    ent_page = _entities_paginated(current_user.id, page=page)
     return render_template(
         'map.html',
         entity_id=entity_id,
-        entities=entities,
+        entities=ent_page['items'],
+        entities_page=ent_page,
         username=current_user.username,
     )
 
@@ -575,11 +585,13 @@ def graph_view():
         ent = find_entity_for_target(current_user.id, target_q)
         if ent:
             entity_id = ent.id
-    entities = Entity.query.filter_by(user_id=current_user.id).order_by(Entity.created_at.desc()).limit(50).all()
+    page = request.args.get('page', 1, type=int)
+    ent_page = _entities_paginated(current_user.id, page=page)
     return render_template(
         'graph.html',
         entity_id=entity_id,
-        entities=entities,
+        entities=ent_page['items'],
+        entities_page=ent_page,
         username=current_user.username,
         graph_hint='historique surveillance' if target_q and entity_id else None,
         target_query=target_q,

@@ -48,6 +48,7 @@
 
     <h2>OPSEC</h2>
     <form method="post">
+        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
         <label>Proxies (séparés par virgule)</label>
         <textarea name="proxy_list" rows="2" placeholder="http://proxy:8080">{{ proxy_list }}</textarea>
         <label><input type="checkbox" name="stealth_mode" {% if stealth_mode %}checked{% endif %}> Mode furtif (délais + User-Agent aléatoire)</label>

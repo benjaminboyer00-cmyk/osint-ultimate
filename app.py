@@ -27,11 +27,12 @@ from flask import (Flask, render_template, request, jsonify,
                    redirect, url_for, flash, send_file, abort)
 from flask_socketio import SocketIO
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_limiter.util import get_remote_address
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import build_config
-from extensions import db, login_manager, migrate, limiter
+from extensions import db, login_manager, migrate, limiter, init_csrf, csrf
 from models import User, Scan
 
 app = Flask(__name__)
@@ -43,10 +44,59 @@ db.init_app(app)
 migrate.init_app(app, db)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.session_protection = 'strong'
 limiter.init_app(app)
+init_csrf(app)
 
 from flask_compress import Compress
 Compress(app)
+
+# Sentry (optionnel — SENTRY_DSN dans les secrets)
+_sentry_dsn = os.environ.get('SENTRY_DSN', '').strip()
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
+            environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+        )
+    except Exception as _sentry_err:
+        app.logger.warning('Sentry non chargé: %s', _sentry_err)
+
+# Headers sécurité (CSP permissive pour templates inline + CDN existants)
+try:
+    from flask_talisman import Talisman
+    _csp = {
+        'default-src': "'self'",
+        'script-src': [
+            "'self'", "'unsafe-inline'",
+            'https://unpkg.com', 'https://cdn.socket.io', 'https://cdn.jsdelivr.net',
+        ],
+        'style-src': [
+            "'self'", "'unsafe-inline'",
+            'https://fonts.googleapis.com', 'https://unpkg.com',
+        ],
+        'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        'img-src': ["'self'", 'data:', 'https:', 'blob:'],
+        'connect-src': ["'self'", 'https:', 'wss:'],
+        'frame-ancestors': "'none'",
+    }
+    Talisman(
+        app,
+        force_https=False,
+        strict_transport_security=app.config.get('SESSION_COOKIE_SECURE', False),
+        content_security_policy=_csp,
+        referrer_policy='no-referrer',
+        frame_options='DENY',
+    )
+except ImportError:
+    pass
+
+from services.flask_cache_ext import init_cache
+init_cache(app)
 
 _cors_origins = os.environ.get('CORS_ORIGINS', '*').strip()
 _socketio_cors = (
@@ -165,6 +215,7 @@ def load_user(uid):
     return db.session.get(User, int(uid))
 
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit('8/minute', key_func=get_remote_address)
 def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -189,6 +240,7 @@ def register():
     return render_template('auth.html', mode='register')
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10/minute', key_func=get_remote_address)
 def login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -1484,6 +1536,30 @@ from routes.collaboration import collab_bp
 app.register_blueprint(views_bp)
 app.register_blueprint(collab_bp)
 app.register_blueprint(api_bp, url_prefix='/api/v1')
+
+# CSRF : formulaires HTML protégés ; JSON/API exemptés
+if csrf:
+    csrf.exempt(api_bp)
+    csrf.exempt(collab_bp)
+    for _ep in (
+        'scan_start', 'health', 'service_worker', 'manifest',
+        'verify_upload',
+    ):
+        _vf = app.view_functions.get(_ep)
+        if _vf:
+            csrf.exempt(_vf)
+    _JSON_VIEW_ENDPOINTS = (
+        'views.express_detect', 'views.express_card', 'views.express_assist',
+        'views.dossier_launch_scan', 'views.dossier_narrative',
+        'views.dossier_narrative_status', 'views.graph_data', 'views.graph_pivot',
+        'views.graph_scan_node', 'views.graph_suggestions', 'views.timeline_data',
+        'views.map_data', 'views.investigate_start', 'views.investigate_status',
+        'views.dossier_suggestions',
+    )
+    for _ep in _JSON_VIEW_ENDPOINTS:
+        _vf = app.view_functions.get(_ep)
+        if _vf:
+            csrf.exempt(_vf)
 
 with app.app_context():
     try:

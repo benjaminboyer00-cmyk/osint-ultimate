@@ -14,5 +14,9 @@ with app.app_context():
 "
 }
 
-echo "[OSINT V4] Démarrage Gunicorn sur le port 7860…"
-exec gunicorn -k gevent -w 1 -b 0.0.0.0:7860 --timeout 120 app:app
+WORKERS="${GUNICORN_WORKERS:-1}"
+TIMEOUT="${GUNICORN_TIMEOUT:-120}"
+MAX_REQ="${GUNICORN_MAX_REQUESTS:-1000}"
+echo "[OSINT] Gunicorn workers=${WORKERS} timeout=${TIMEOUT}"
+exec gunicorn -k gevent -w "${WORKERS}" -b 0.0.0.0:7860 \
+  --timeout "${TIMEOUT}" --max-requests "${MAX_REQ}" --preload app:app

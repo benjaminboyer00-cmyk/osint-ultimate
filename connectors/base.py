@@ -72,6 +72,10 @@ class BaseConnector:
         Retourne (data, source) — source: cache | live | cache_expired | failed | timeout
         """
         provider = provider or self.name
+        from services.circuit_breaker import is_open, record_failure, record_success, breaker_open_response
+        if is_open(provider):
+            return breaker_open_response(provider), 'circuit_open'
+
         ck = cache_key(provider, query)
         row = self._cache_row(provider, query)
         ttl = get_ttl_hours(provider) or self.cache_ttl_hours
@@ -88,6 +92,7 @@ class BaseConnector:
         try:
             data = fetch_func()
             if data is None:
+                record_failure(provider)
                 if row:
                     import json
                     try:
@@ -96,6 +101,7 @@ class BaseConnector:
                         pass
                 return {'_timeout': True, 'Message': 'Service lent ou indisponible'}, 'timeout'
             if isinstance(data, dict) and data.get('_timeout'):
+                record_failure(provider)
                 if row:
                     import json
                     try:
@@ -104,9 +110,11 @@ class BaseConnector:
                         pass
                 return data, 'timeout'
             self._save_cache(provider, query, ck, row, data)
+            record_success(provider)
             return data, 'live'
         except Exception as e:
             logger.error('%s fetch: %s', self.name, e)
+            record_failure(provider)
             if row:
                 import json
                 try:

@@ -30,9 +30,14 @@ def build_config():
             'pool_recycle': 300,
         } if db_url.startswith('postgresql') else {},
         'SESSION_COOKIE_SAMESITE': 'Lax',
+        'SESSION_COOKIE_HTTPONLY': True,
         'SESSION_COOKIE_SECURE': os.environ.get(
             'SESSION_COOKIE_SECURE', 'true' if on_hf else 'false'
         ).lower() == 'true',
+        'WTF_CSRF_ENABLED': os.environ.get(
+            'WTF_CSRF_ENABLED', 'true' if on_hf else 'false',
+        ).lower() == 'true',
+        'WTF_CSRF_TIME_LIMIT': None,
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
         'APP_VERSION': '5.0',

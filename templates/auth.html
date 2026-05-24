@@ -83,6 +83,7 @@
           {% endif %}
         {% endwith %}
         <form method="post">
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
             <input type="text" name="username" placeholder="Nom d'utilisateur" required>
             {% if mode == 'register' %}
             <input type="email" name="email" placeholder="Email" required>

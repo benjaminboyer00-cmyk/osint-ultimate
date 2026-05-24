@@ -64,6 +64,13 @@
             </option>
             {% endfor %}
         </select>
+        {% if entities_page and entities_page.pages > 1 %}
+        <span style="font-size:.75rem;color:var(--dim)">
+            {% if entities_page.has_prev %}<a href="?entity_id={{ entity_id or '' }}&page={{ entities_page.page - 1 }}">←</a>{% endif %}
+            {{ entities_page.page }}/{{ entities_page.pages }} ({{ entities_page.total }})
+            {% if entities_page.has_next %}<a href="?entity_id={{ entity_id or '' }}&page={{ entities_page.page + 1 }}">→</a>{% endif %}
+        </span>
+        {% endif %}
         <button type="button" onclick="exportPng()">PNG</button>
         <button type="button" onclick="exportSvg()">SVG</button>
         <button type="button" onclick="loadLinksPanel()">Liens</button>

@@ -1,0 +1,47 @@
+# Stack locale / VPS — web + worker Celery + Redis (DB = Supabase externe)
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  web:
+    build: .
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RATELIMIT_STORAGE_URI: redis://redis:6379/1
+      USE_CELERY: "1"
+    depends_on:
+      - redis
+    command: gunicorn -k gevent -w 2 -b 0.0.0.0:7860 --timeout 120 --max-requests 1000 app:app
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      USE_CELERY: "1"
+    depends_on:
+      - redis
+    command: celery -A celery_app.celery_app worker --loglevel=info --concurrency=2
+
+  beat:
+    build: .
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      USE_CELERY_BEAT: "1"
+    depends_on:
+      - redis
+    command: celery -A celery_app.celery_app beat --loglevel=info
+
+volumes:
+  redis_data:

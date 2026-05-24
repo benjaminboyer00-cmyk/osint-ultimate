@@ -30,3 +30,25 @@ limiter = Limiter(
     default_limits=[],
     storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
 )
+
+csrf = None
+
+
+def init_csrf(app):
+    """CSRF sur formulaires HTML ; routes JSON exemptées explicitement."""
+    global csrf
+    if not app.config.get('WTF_CSRF_ENABLED'):
+        return None
+    from flask_wtf.csrf import CSRFProtect
+    csrf = CSRFProtect(app)
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+    return csrf
+
+
+def exempt_csrf(view):
+    """Décorateur pour routes JSON / API."""
+    def wrapped(*args, **kwargs):
+        return view(*args, **kwargs)
+    if csrf:
+        return csrf.exempt(wrapped)
+    return view

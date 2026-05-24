@@ -32,7 +32,11 @@ Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
 | `DEHASHED_EMAIL` | Email compte Dehashed API | — |
 | `EPIEOS_API_KEY` | Email / pseudo Epieos | https://epieos.com/ |
 | `PROXY_LIST` | Tous (HTTP) | `http://proxy1:8080,http://proxy2:8080` |
-| `REDIS_URL` | Cache + Celery | `redis://…` ou `rediss://…` (TLS Redis Cloud) — nom exact du secret |
+| `REDIS_URL` | Cache + Celery | `rediss://…` (TLS Redis Cloud) |
+| `SENTRY_DSN` | Monitoring erreurs 500 | https://sentry.io |
+| `RATELIMIT_STORAGE_URI` | Rate limit partagé | même Redis, DB `/1` |
+| `WTF_CSRF_ENABLED` | CSRF formulaires | `true` en prod |
+| `GUNICORN_WORKERS` | VPS uniquement | `2`–`6` selon RAM |
 | `CACHE_TTL_SHODAN` | TTL cache Shodan (heures) | ex. `24` |
 | `CACHE_TTL_HUNTER` | TTL cache Hunter | ex. `48` |
 
