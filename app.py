@@ -625,7 +625,9 @@ def scan_sherlock(username, options=None):
 
 
 def scan_pseudo(username, options=None):
-    username = username.strip()
+    from services.url_sanitize import safe_path_segment
+
+    username = safe_path_segment(username.strip())
     platforms = {
         'GitHub':     ('https://github.com/{u}',            ['Not Found','404','Page not found']),
         'Instagram':  ('https://www.instagram.com/{u}/',    ['Page Not Found','Sorry, this page']),
@@ -682,8 +684,9 @@ def scan_instagram(username, options=None):
         parse_instagram_api_json,
         parse_instagram_profile_html,
     )
+    from services.url_sanitize import sanitize_username
 
-    username = username.strip().lstrip('@')
+    username = sanitize_username(username)
     if not username:
         return {'Erreur': 'Pseudo Instagram manquant'}
     opts = options or {}
@@ -989,6 +992,7 @@ def run_scan_async(module, target, options=None, user_id=None, mode='expert', sc
 # ============================================================
 @app.route('/health')
 def health():
+    import importlib
     db_ok = False
     try:
         db.session.execute(sa_text('SELECT 1'))
@@ -1001,12 +1005,33 @@ def health():
         celery_on = use_celery()
     except Exception:
         pass
+    critical_modules = (
+        'services.report_consolidate',
+        'services.report_data',
+        'services.narrative_api',
+        'services.dossier_access',
+        'services.collaboration',
+        'services.social_fetch',
+    )
+    module_checks = {}
+    imports_ok = True
+    for name in critical_modules:
+        try:
+            importlib.import_module(name)
+            module_checks[name] = 'ok'
+        except Exception as exc:
+            module_checks[name] = str(exc)[:200]
+            imports_ok = False
+    groq_ok = bool(os.environ.get('GROQ_API_KEY'))
+    overall = db_ok and imports_ok
     return jsonify({
-        'status': 'ok' if db_ok else 'degraded',
+        'status': 'ok' if overall else 'degraded',
         'version': app.config.get('APP_VERSION', '5.2'),
         'database': 'connected' if db_ok else 'error',
         'celery': 'enabled' if celery_on else 'thread',
-    }), 200 if db_ok else 503
+        'groq_configured': groq_ok,
+        'modules': module_checks,
+    }), 200 if overall else 503
 
 
 @app.route('/scan', methods=['POST'])
@@ -1397,9 +1422,20 @@ def _login_unauthorized():
     return redirect(url_for('login'))
 
 
+_API_JSON_FALLBACK_MD = (
+    '## Rapport narratif\n\n'
+    '*Le serveur a rencontré une erreur. Réessayez dans quelques instants '
+    'ou consultez /health pour le diagnostic.*\n'
+)
+_API_JSON_FALLBACK_HTML = (
+    '<h2>Rapport narratif</h2>'
+    '<p><em>Le serveur a rencontré une erreur. Réessayez plus tard.</em></p>'
+)
+
+
 @app.errorhandler(500)
 def handle_500(err):
-    """Évite la page HTML 500 sur les API dossier (toujours du JSON)."""
+    """JSON de secours sans import de modules métier (évite échec en cascade)."""
     path = request.path or ''
     if (
         '/narrative' in path
@@ -1407,13 +1443,12 @@ def handle_500(err):
         or path.startswith('/dossier/')
         or path.startswith('/expert/')
     ):
-        from services.narrative_report import FALLBACK_NARRATIVE_MD, markdown_to_html
         app.logger.exception('HTTP 500 sur %s', path)
         return jsonify({
             'error': 'Erreur serveur interne',
             'detail': str(getattr(err, 'description', err)),
-            'markdown': FALLBACK_NARRATIVE_MD,
-            'html': markdown_to_html(FALLBACK_NARRATIVE_MD),
+            'markdown': _API_JSON_FALLBACK_MD,
+            'html': _API_JSON_FALLBACK_HTML,
             'partial': True,
         }), 200
     return err

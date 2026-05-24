@@ -56,9 +56,12 @@ def fetch_url_protected(url: str, options=None):
     """
     if not cloudflare_scrape_allowed(options):
         return None
-    url = (url or '').strip()
-    if not url.startswith('http'):
-        url = f'https://{url}'
+    from services.url_sanitize import normalize_http_url
+    raw = url
+    url = normalize_http_url(url)
+    if not url:
+        logger.warning('cloudscraper URL invalide ignorée: %r', str(raw)[:80])
+        return None
     try:
         scraper = _get_cloudscraper(options)
         return scraper.get(
@@ -120,8 +123,9 @@ def fallback_scrape_emails(domain: str, options=None) -> list[dict]:
     Dork emails pour un domaine via DuckDuckGo HTML.
     Retourne liste au format Hunter (Liste).
     """
-    domain = domain.strip().lower().split('/')[0].replace('www.', '')
-    if not domain or '.' not in domain:
+    from services.url_sanitize import sanitize_domain_host
+    domain = sanitize_domain_host(domain) or ''
+    if not domain:
         return []
 
     query = f'"{domain}" email OR contact OR "@{domain}"'

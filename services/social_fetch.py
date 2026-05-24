@@ -14,16 +14,22 @@ def social_http_get(url: str, options=None, *, headers: dict | None = None, time
     """
     GET avec cloudscraper si autorisé (OPSEC), sinon session requests standard.
     """
+    from services.url_sanitize import normalize_http_url
+
     opts = options or {}
     merged = dict(headers or {})
+    safe_url = normalize_http_url(url)
+    if not safe_url:
+        logger.warning('social_http_get URL invalide: %r', (url or '')[:80])
+        return None
     try:
         from connectors.scraper_fallback import fetch_url_protected
-        r = fetch_url_protected(url, opts)
+        r = fetch_url_protected(safe_url, opts)
         if r is not None and r.status_code < 500:
             return r
     except Exception as e:
         logger.debug('social_fetch cloudscraper %s: %s', url[:50], e)
-    return safe_get(url, timeout=timeout, options=opts, headers=merged)
+    return safe_get(safe_url, timeout=timeout, options=opts, headers=merged)
 
 
 def parse_instagram_profile_html(text: str, username: str) -> dict:

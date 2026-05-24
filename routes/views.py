@@ -568,7 +568,8 @@ def graph_scan_node():
     value = (data.get('value') or '').strip()
     etype = data.get('entity_type', '')
     if entity_id:
-        from services.dossier_access import get_dossier_context, resolve_dossier_root_for_entity
+        from services.dossier_access import get_dossier_context
+        from services.collaboration import resolve_dossier_root_for_entity
         ent = db.session.get(Entity, entity_id)
         if not ent:
             return jsonify({'error': 'Entité non trouvée'}), 404

@@ -334,9 +334,11 @@ def extract_technical_facts(consolidated: dict, root_value: str = '') -> dict:
 
     ssl = consolidated.get('SSL/TLS')
     if isinstance(ssl, dict) and ssl.get('Émetteur'):
+        valid_until_key = "Valide jusqu'au"
+        valid_until = ssl.get(valid_until_key, 'N/A')
         facts['securite'].append(
             f"Certificat TLS — émetteur : {ssl.get('Émetteur')}, "
-            f"valide jusqu'au : {ssl.get('Valide jusqu\'au', 'N/A')}"
+            f"valide jusqu'au : {valid_until}"
         )
 
     http = consolidated.get('HTTP')

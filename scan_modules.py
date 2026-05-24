@@ -19,10 +19,18 @@ def scan_hunter(target, options=None):
     from connectors.scraper_fallback import fallback_scrape_emails
     from services.quota_fallback import hunter_needs_fallback, wrap_scraping_result
 
+    from services.url_sanitize import sanitize_domain_host
+
     key = _opt(options, '_hunter_key', 'HUNTER_API_KEY')
     domain = target.strip()
     if '@' in domain:
         domain = domain.split('@')[1]
+    domain = sanitize_domain_host(domain) or ''
+    if not domain:
+        return {
+            'Erreur': 'Cible invalide pour Hunter (domaine attendu, pas un numéro ou texte libre).',
+            'Cible reçue': target[:120],
+        }
 
     result = hunter_domain(domain, key, options)
     if not hunter_needs_fallback(result):
