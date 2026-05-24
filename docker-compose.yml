@@ -20,12 +20,12 @@ services:
       USE_CELERY: "1"
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
     volumes:
-      - uploads_data:/app/uploads
-      - app_logs:/app/logs
+      - uploads_data:/code/uploads
+      - app_logs:/code/logs
     depends_on:
       - redis
     restart: unless-stopped
-    command: /app/entrypoint.sh
+    command: /code/entrypoint.sh
 
   worker:
     image: ${WEB_IMAGE:-osint-ultimate:local}
@@ -36,7 +36,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       USE_CELERY: "1"
     volumes:
-      - uploads_data:/app/uploads
+      - uploads_data:/code/uploads
     depends_on:
       - redis
     restart: unless-stopped

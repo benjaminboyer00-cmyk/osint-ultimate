@@ -1509,7 +1509,7 @@ if csrf:
     csrf.exempt(collab_bp)
     for _ep in (
         'scan_start', 'health', 'service_worker', 'manifest',
-        'verify_upload',
+        'views.verify_upload', 'auth.api_password_strength',
     ):
         _vf = app.view_functions.get(_ep)
         if _vf:

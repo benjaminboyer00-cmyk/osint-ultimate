@@ -405,8 +405,8 @@
                 <a href="{{ url_for('views.settings') }}" class="history-link">⚙️</a>
                 <a href="/logout" class="auth-btn">Déconnexion</a>
             {% else %}
-                <a href="/login" class="auth-btn">Connexion</a>
-                <a href="/register" class="auth-btn">Inscription</a>
+                <a href="{{ url_for('auth.login') }}" class="auth-btn">Connexion</a>
+                <a href="{{ url_for('auth.register') }}" class="auth-btn">Inscription</a>
             {% endif %}
             <div class="tog" onclick="toggleTheme()" title="Changer le thème"></div>
         </div>

@@ -4,11 +4,15 @@ import pytest
 
 @pytest.fixture
 def client():
-    from app import app
+    from app import app, db
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
-    with app.test_client() as c:
-        yield c
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    with app.app_context():
+        db.create_all()
+        yield app.test_client()
+        db.session.remove()
+        db.drop_all()
 
 
 def test_health_and_express(client):

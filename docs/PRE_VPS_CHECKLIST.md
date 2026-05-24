@@ -23,6 +23,18 @@
 5. Secrets GitHub : `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_APP_DIR`
 6. Sauvegardes Supabase + volume `uploads_data`
 
+## Migration base (2FA + index)
+
+Sur HF ou VPS après déploiement :
+
+```bash
+flask db upgrade
+# ou via Docker :
+docker compose exec web flask db upgrade
+```
+
+Révision Alembic : `012_pre_vps_security` (colonnes `totp_*`, index `scan` / `entity`).
+
 ## Commandes locales avant migration
 
 ```bash
@@ -31,5 +43,5 @@ docker compose build
 docker compose up -d
 docker compose exec web flask db upgrade
 curl -s http://localhost:7860/health | jq .
-pytest tests/ -q
+python -m pytest tests/ -q
 ```
