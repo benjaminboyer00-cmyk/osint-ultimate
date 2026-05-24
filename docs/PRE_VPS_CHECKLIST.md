@@ -41,11 +41,22 @@ Push sur `main` ou lancer le workflow manuellement.
 ### 4. Sentry
 Ajouter `SENTRY_DSN` dans HF Secrets et `.env` VPS.
 
-## Migration DB
+## Migration DB (Supabase — terminal dédié)
 
 ```bash
+export DATABASE_URL="postgresql://..."   # Session pooler ou direct, voir dashboard Supabase
+export FLASK_APP=app:app
 flask db upgrade
-# Révision 012 : 2FA + index performance
+flask db current   # → 012_pre_vps_security (head)
+```
+
+**Ne pas lancer `pytest` dans le même shell** juste après : les tests ignorent Supabase via `tests/conftest.py`, mais gardez deux terminaux pour plus de clarté.
+
+## Tests (SQLite automatique)
+
+```bash
+unset DATABASE_URL    # optionnel
+pytest tests/ -q
 ```
 
 ## Post-VPS (semaine 1+)
