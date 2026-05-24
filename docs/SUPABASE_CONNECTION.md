@@ -86,3 +86,10 @@ flask db current
 ## Hugging Face
 
 Le Space utilise le secret `DATABASE_URL` — il doit être **identique** à celui qui passe `check_database.py` en local.
+
+## MCP Supabase dans Cursor
+
+- Config : `.cursor/mcp.json` → serveur `supabase` (projet `mkciozumxpxllsjmcsyz`)
+- **Redémarrer Cursor**, puis autoriser OAuth Supabase au premier appel MCP
+- Option dashboard : **Read-only** + groupes de features limités
+- Skills : `npx skills add supabase/agent-skills` → `.agents/skills/` (liens `.cursor/skills/`)

@@ -3,6 +3,11 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
 .DS_Store
 osint.db
 uploads/*

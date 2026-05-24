@@ -1,5 +1,20 @@
 """Configuration OSINT Ultimate V4."""
 import os
+from pathlib import Path
+
+
+def _load_dotenv_file():
+    """Charge .env en local (jamais commité). Les variables déjà exportées priment."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    env_path = Path(__file__).resolve().parent / '.env'
+    if env_path.is_file():
+        load_dotenv(env_path, override=False)
+
+
+_load_dotenv_file()
 
 
 def normalize_database_url(url):
