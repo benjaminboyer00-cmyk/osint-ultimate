@@ -1008,10 +1008,18 @@ def health():
         db_ok = True
     except Exception:
         pass
-    celery_on = False
+    redis_ok = False
+    try:
+        from services.cache_manager import redis_available
+        redis_ok = redis_available()
+    except Exception:
+        pass
+    celery_configured = False
+    celery_connected = False
     try:
         from services.task_queue import use_celery
-        celery_on = use_celery()
+        celery_configured = use_celery()
+        celery_connected = celery_configured and redis_ok
     except Exception:
         pass
     critical_modules = (
@@ -1034,18 +1042,15 @@ def health():
             module_checks[name] = str(exc)[:200]
             imports_ok = False
     groq_ok = bool(os.environ.get('GROQ_API_KEY'))
-    redis_ok = False
-    try:
-        from services.cache_manager import redis_available
-        redis_ok = redis_available()
-    except Exception:
-        pass
     overall = db_ok and imports_ok
     return jsonify({
         'status': 'ok' if overall else 'degraded',
         'version': app.config.get('APP_VERSION', '5.2'),
         'database': 'connected' if db_ok else 'error',
-        'celery': 'enabled' if celery_on else 'thread',
+        'celery': (
+            'connected' if celery_connected
+            else ('configured' if celery_configured else 'thread')
+        ),
         'redis_cache': 'connected' if redis_ok else 'off',
         'groq_configured': groq_ok,
         'modules': module_checks,

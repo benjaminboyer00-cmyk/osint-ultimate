@@ -32,7 +32,7 @@ Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
 | `DEHASHED_EMAIL` | Email compte Dehashed API | — |
 | `EPIEOS_API_KEY` | Email / pseudo Epieos | https://epieos.com/ |
 | `PROXY_LIST` | Tous (HTTP) | `http://proxy1:8080,http://proxy2:8080` |
-| `REDIS_URL` | Celery (file de tâches) | `redis://localhost:6379/0` |
+| `REDIS_URL` | Cache + Celery | `redis://…` ou `rediss://…` (TLS Redis Cloud) — nom exact du secret |
 | `CACHE_TTL_SHODAN` | TTL cache Shodan (heures) | ex. `24` |
 | `CACHE_TTL_HUNTER` | TTL cache Hunter | ex. `48` |
 

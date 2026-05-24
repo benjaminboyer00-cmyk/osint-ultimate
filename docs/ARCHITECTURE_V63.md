@@ -33,8 +33,13 @@ Ce document décrit ce qui a été ajouté dans le code et **ce que vous devez c
 ### 2. Activer Redis + Celery (recommandé prod)
 
 1. Créer une instance [Redis Cloud](https://redis.com/try-free/) (ou Upstash).
-2. Copier l’URL dans `REDIS_URL` sur le Space HF.
-3. Redémarrer le Space → `/health` doit afficher `"redis_cache": "connected"` et `"celery": "enabled"`.
+2. Copier l’URL dans le secret **`REDIS_URL`** (pas un autre nom) sur le Space HF.
+3. Redis Cloud : souvent `rediss://default:MOT_DE_PASSE@HOST:PORT` (avec **double s** = TLS).
+4. Autoriser toutes les IP entrantes dans Redis Cloud (0.0.0.0/0) — sinon HF ne peut pas joindre.
+5. **Redémarrer** le Space après ajout du secret (Factory reboot).
+6. `/health` doit afficher `"redis_cache": "connected"` et `"celery": "connected"`.
+   - `"celery": "configured"` = URL présente mais Redis injoignable.
+   - `"celery": "thread"` = pas de `REDIS_URL`.
 
 Sans Redis : tout fonctionne en **threads** (comportement historique), mais le cache n’est pas partagé entre workers Gunicorn.
 

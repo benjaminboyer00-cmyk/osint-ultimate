@@ -47,13 +47,16 @@ def get_redis():
         return None
     try:
         import redis
-        client = redis.from_url(url, decode_responses=True, socket_connect_timeout=2)
+        kwargs = {'decode_responses': True, 'socket_connect_timeout': 5}
+        if url.startswith('rediss://'):
+            kwargs['ssl_cert_reqs'] = None
+        client = redis.from_url(url, **kwargs)
         client.ping()
         _redis_client = client
         logger.info('Cache Redis connecté')
         return client
     except Exception as e:
-        logger.warning('Redis cache indisponible: %s', e)
+        logger.warning('Redis cache indisponible (%s): %s', url.split('@')[-1][:40], e)
         _redis_client = False
         return None
 
