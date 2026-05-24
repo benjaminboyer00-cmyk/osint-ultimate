@@ -283,20 +283,56 @@ async function loadCollabs() {
     ).join('');
 }
 
+async function pollNarrativeTask(pollUrl, statusEl, outEl, maxMs = 120000) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < maxMs) {
+        await new Promise(r => setTimeout(r, 1500));
+        const { ok, data: d } = await parseJsonResponse(await fetch(pollUrl, {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+        }));
+        if (d.status === 'pending' || d.status === 'running') {
+            statusEl.textContent = '⏳ Génération Groq en cours…';
+            continue;
+        }
+        if (d.markdown) {
+            outEl.textContent = d.markdown;
+            outEl.style.display = 'block';
+        }
+        if (d.status === 'failed' || (!ok && !d.markdown)) {
+            statusEl.textContent = '❌ ' + (d.error || 'Échec');
+            return;
+        }
+        if (d.groq_error || d.partial) {
+            statusEl.textContent = '⚠️ ' + (d.groq_error || d.error || 'Rapport partiel');
+        } else {
+            statusEl.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
+        }
+        return;
+    }
+    statusEl.textContent = '❌ Délai dépassé — réessayez';
+}
+
 document.getElementById('btn-narrative').onclick = async () => {
     const status = document.getElementById('narrative-status');
     const out = document.getElementById('narrative-out');
-    status.textContent = '⏳ Génération en cours (Groq)…';
+    status.textContent = '⏳ Lancement…';
     out.style.display = 'none';
+    const body = {
+        style: document.getElementById('narr-style').value,
+        length: document.getElementById('narr-length').value,
+        async: true,
+    };
     const { ok, data: d } = await parseJsonResponse(await fetch(`/expert/dossier/${ENTITY_ID}/narrative`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: JSON.stringify({
-            style: document.getElementById('narr-style').value,
-            length: document.getElementById('narr-length').value,
-        }),
+        body: JSON.stringify(body),
     }));
+    if (d.poll_url) {
+        await pollNarrativeTask(d.poll_url, status, out);
+        return;
+    }
     if (d.markdown) {
         out.textContent = d.markdown || '';
         out.style.display = 'block';

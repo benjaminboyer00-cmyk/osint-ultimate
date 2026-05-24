@@ -27,11 +27,25 @@ def _proxy_list(options: dict | None) -> list:
 
 
 def safe_get(url, timeout=15, options=None, **kwargs):
+    from services.url_sanitize import normalize_http_url
+
     opts = options or {}
     if opts.get('_module_timeout'):
         timeout = min(timeout, int(opts['_module_timeout']))
     if opts.get('_retry'):
         timeout = max(timeout, 20)
+    safe_url = normalize_http_url(url) if url else None
+    if not safe_url:
+        return None
+    try:
+        from services.http_session import SessionManager
+        mgr = SessionManager(opts)
+        try:
+            return mgr.get(safe_url, timeout=timeout, **kwargs)
+        finally:
+            mgr.close()
+    except Exception:
+        pass
     if opts.get('_stealth_mode'):
         time.sleep(random.uniform(0.3, 1.8))
     try:
@@ -42,7 +56,7 @@ def safe_get(url, timeout=15, options=None, **kwargs):
         if proxies:
             p = random.choice(proxies)
             s.proxies = {'http': p, 'https': p}
-        return s.get(url, timeout=timeout, verify=SSL_VERIFY, **kwargs)
+        return s.get(safe_url, timeout=timeout, verify=SSL_VERIFY, **kwargs)
     except requests.Timeout:
         return None
     except Exception:

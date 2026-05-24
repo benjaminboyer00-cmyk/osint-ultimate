@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app, abort
 from flask_login import login_required, current_user
 
-from extensions import db
+from extensions import db, limiter
 from models import User, Scan, Entity, ScheduledScan
 from services.target_detector import detect_target_type
 from services.express_card import build_express_card
@@ -40,6 +40,7 @@ def expert():
 
 
 @views_bp.route('/express/detect', methods=['POST'])
+@limiter.limit('30/minute')
 def express_detect():
     data = request.json or {}
     target = (data.get('target') or '').strip()
@@ -55,6 +56,7 @@ def express_detect():
 
 
 @views_bp.route('/express/card', methods=['POST'])
+@limiter.limit('40/minute')
 def express_card():
     data = request.json or {}
     module = data.get('module', 'pseudo')
@@ -64,6 +66,7 @@ def express_card():
 
 
 @views_bp.route('/express/assist', methods=['POST'])
+@limiter.limit('20/minute')
 def express_assist():
     """Assistant IA pédagogique pour le mode Express."""
     from services.groq import chat_completion, fallback_explain
@@ -256,6 +259,7 @@ def dossier_launch_scan(entity_id):
 
 @views_bp.route('/expert/dossier/<int:entity_id>/narrative', methods=['POST'])
 @login_required
+@limiter.limit('15/minute')
 def dossier_narrative(entity_id):
     """Génère le rapport narratif IA (JSON) — ne renvoie jamais de page HTML 500."""
     from services.dossier_access import get_dossier_context
@@ -271,13 +275,30 @@ def dossier_narrative(entity_id):
         current_app.logger.warning('link_scans narrative entity=%s: %s', entity_id, e)
 
     body = request.get_json(silent=True) or {}
+    style = body.get('style') or 'executive'
+    length = body.get('length') or 'medium'
+    use_cache = body.get('use_cache', True) is not False
+    if body.get('async') is True or request.args.get('async') == '1':
+        from app import socketio
+        from services.async_tasks import enqueue_narrative
+        task_id = enqueue_narrative(
+            entity_id, current_user.id,
+            current_app._get_current_object(), socketio=socketio,
+            style=style, length=length, use_cache=use_cache,
+        )
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'entity_id': entity_id,
+            'poll_url': f'/expert/dossier/{entity_id}/narrative/status/{task_id}',
+        }), 202
     try:
         return flask_narrative_response(
             entity_id,
             current_user.id,
-            style=body.get('style') or 'executive',
-            length=body.get('length') or 'medium',
-            use_cache=body.get('use_cache', True) is not False,
+            style=style,
+            length=length,
+            use_cache=use_cache,
         )
     except Exception as e:
         current_app.logger.exception('narrative route entity=%s', entity_id)
@@ -289,6 +310,54 @@ def dossier_narrative(entity_id):
             'html': markdown_to_html(FALLBACK_NARRATIVE_MD),
             'partial': True,
         }), 200
+
+
+@views_bp.route('/expert/dossier/<int:entity_id>/narrative/status/<task_id>')
+@login_required
+def dossier_narrative_status(entity_id, task_id):
+    """Statut tâche narratif asynchrone."""
+    from services.async_tasks import get_job
+
+    job = get_job(task_id)
+    if not job:
+        return jsonify({'error': 'Tâche introuvable', 'task_id': task_id}), 404
+    if job.get('entity_id') and int(job.get('entity_id')) != entity_id:
+        return jsonify({'error': 'Tâche non associée à ce dossier'}), 403
+    status = job.get('status', 'unknown')
+    if status in ('pending', 'running'):
+        return jsonify({'task_id': task_id, 'status': status, 'entity_id': entity_id}), 202
+    if status == 'failed':
+        return jsonify({
+            'task_id': task_id, 'status': 'failed',
+            'error': job.get('error', 'Échec'),
+            'entity_id': entity_id,
+        }), 200
+    result = job.get('result') or {}
+    return jsonify({
+        'task_id': task_id,
+        'status': 'completed',
+        'entity_id': entity_id,
+        'markdown': result.get('markdown'),
+        'html': result.get('html'),
+        'cached': result.get('cached', job.get('cached')),
+        'partial': result.get('partial'),
+        'groq_error': result.get('groq_error'),
+        'dossier_title': result.get('dossier_title'),
+    }), 200
+
+
+@views_bp.route('/expert/dossier/<int:entity_id>/suggestions')
+@login_required
+def dossier_suggestions(entity_id):
+    """Modules OSINT suggérés pour enrichir le dossier."""
+    from services.dossier_access import get_dossier_context
+    from services.osint_suggestions import suggest_investigation_steps
+
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Accès refusé'}), 403
+    steps = suggest_investigation_steps(entity_id, current_user.id)
+    return jsonify({'entity_id': entity_id, 'suggestions': steps})
 
 
 @views_bp.route('/expert/dossier/<int:entity_id>/narrative/pdf', methods=['GET'])

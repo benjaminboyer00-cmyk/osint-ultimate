@@ -48,7 +48,16 @@ limiter.init_app(app)
 from flask_compress import Compress
 Compress(app)
 
-socketio = SocketIO(app, cors_allowed_origins='*')
+_cors_origins = os.environ.get('CORS_ORIGINS', '*').strip()
+_socketio_cors = (
+    [o.strip() for o in _cors_origins.split(',') if o.strip()]
+    if _cors_origins and _cors_origins != '*'
+    else '*'
+)
+socketio = SocketIO(app, cors_allowed_origins=_socketio_cors)
+
+from services.request_log import init_request_logging
+init_request_logging(app)
 
 # ---------- ENCRYPTION ----------
 _fenv = os.environ.get('FERNET_KEY')
@@ -1012,6 +1021,8 @@ def health():
         'services.dossier_access',
         'services.collaboration',
         'services.social_fetch',
+        'services.cache_manager',
+        'services.async_tasks',
     )
     module_checks = {}
     imports_ok = True
@@ -1023,12 +1034,19 @@ def health():
             module_checks[name] = str(exc)[:200]
             imports_ok = False
     groq_ok = bool(os.environ.get('GROQ_API_KEY'))
+    redis_ok = False
+    try:
+        from services.cache_manager import redis_available
+        redis_ok = redis_available()
+    except Exception:
+        pass
     overall = db_ok and imports_ok
     return jsonify({
         'status': 'ok' if overall else 'degraded',
         'version': app.config.get('APP_VERSION', '5.2'),
         'database': 'connected' if db_ok else 'error',
         'celery': 'enabled' if celery_on else 'thread',
+        'redis_cache': 'connected' if redis_ok else 'off',
         'groq_configured': groq_ok,
         'modules': module_checks,
     }), 200 if overall else 503

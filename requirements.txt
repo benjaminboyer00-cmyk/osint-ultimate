@@ -30,3 +30,5 @@ pytest>=7.0.0
 # Optionnel — tâches asynchrones (définir REDIS_URL)
 celery[redis]>=5.3.0
 redis>=5.0.0
+# Optionnel — rotation User-Agent avancée (mode furtif)
+# fake-useragent>=1.5.0

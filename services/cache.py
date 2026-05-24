@@ -45,6 +45,13 @@ def _cache_row(cache_key_hash: str):
 
 
 def get_cached(provider: str, query: str) -> dict | None:
+    try:
+        from services.cache_manager import cache_get
+        hit = cache_get(provider, query)
+        if hit is not None:
+            return hit
+    except Exception as e:
+        logger.debug('cache_manager get %s: %s', provider, e)
     ck = cache_key(provider, query)
     try:
         row = _cache_row(ck)
@@ -62,6 +69,11 @@ def set_cached(provider: str, query: str, data: dict, ttl_hours: int | None = No
         ttl_hours = get_ttl_hours(provider)
     if ttl_hours <= 0:
         return
+    try:
+        from services.cache_manager import cache_set as redis_cache_set, ttl_seconds
+        redis_cache_set(provider, query, data, ttl_sec=ttl_seconds(provider))
+    except Exception as e:
+        logger.debug('cache_manager set %s: %s', provider, e)
     ck = cache_key(provider, query)
     try:
         row = _cache_row(ck)

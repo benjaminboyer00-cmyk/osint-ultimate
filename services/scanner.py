@@ -1,8 +1,28 @@
 """Scans multi-modules parallèles avec gestion des timeouts."""
 import json
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
 
 from services.target_detector import detect_target_type, target_category
+
+# Limite de requêtes simultanées vers une même API (anti-ban)
+_MODULE_SEMAPHORES: dict[str, threading.Semaphore] = {}
+_SEMAPHORE_LIMITS = {
+    'dorking': 2,
+    'hunter': 2,
+    'dehashed': 2,
+    'shodan': 1,
+    'epieos': 2,
+}
+
+
+def _module_semaphore(module: str) -> threading.Semaphore | None:
+    limit = _SEMAPHORE_LIMITS.get(module)
+    if not limit:
+        return None
+    if module not in _MODULE_SEMAPHORES:
+        _MODULE_SEMAPHORES[module] = threading.Semaphore(limit)
+    return _MODULE_SEMAPHORES[module]
 
 # Stratégies Expert (analyse complète) — enrichissement V6
 SCAN_STRATEGIES = {
@@ -72,6 +92,13 @@ def _run_one_module(module: str, target: str, options: dict, category: str, app=
     opts['_module_timeout'] = MODULE_TIMEOUT_SEC
 
     def _call():
+        sem = _module_semaphore(module)
+        if sem:
+            with sem:
+                if app is not None:
+                    with app.app_context():
+                        return func(mod_target, opts)
+                return func(mod_target, opts)
         if app is not None:
             with app.app_context():
                 return func(mod_target, opts)

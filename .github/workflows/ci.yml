@@ -10,5 +10,5 @@ jobs:
           python-version: '3.10'
       - run: pip install -r requirements.txt pytest
       - run: python -m compileall -q services routes connectors scan_modules.py app.py models.py
-      - run: python -c "from services.report_consolidate import extract_technical_facts"
+      - run: python -c "from services.report_consolidate import extract_technical_facts; from services.cache_manager import cache_get; from services.async_tasks import get_job"
       - run: python -m pytest tests/ -q --tb=short
