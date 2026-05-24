@@ -103,7 +103,8 @@ Tests : depuis la racine du dépôt, `python -m pytest tests/ -q` (ou `pytest` s
 |-------|-------------|
 | `/` | Interface principale |
 | `/health` | Santé app + connexion DB |
-| `/login` `/register` | Authentification |
+| `/login` `/register` | Authentification (`auth` blueprint) |
+| `/settings/security` | 2FA TOTP |
 | `/history` | Historique (connecté) |
 | `/invitations` | Invitations collaboration (V8) |
 | `/dossier/<entity_id>` | Dossier partagé (activité, collaborateurs) |
@@ -116,9 +117,10 @@ Tests : depuis la racine du dépôt, `python -m pytest tests/ -q` (ou `pytest` s
 4. Rôle **éditeur** : peut lancer des scans visibles dans le dossier du propriétaire.
 
 Détails : `docs/COLLABORATION_V8.md`.
+
 | `/ai-summary` | Résumé IA (Groq) |
 
-## Déploiement
+## Déploiement Hugging Face
 
 ```bash
 git push huggingface main
@@ -126,10 +128,25 @@ git push huggingface main
 
 Vérifier après build : `https://votre-space.hf.space/health` → `"database": "connected"`.
 
+## Déploiement VPS (préparation)
+
+Checklist complète : **`docs/PRE_VPS_CHECKLIST.md`**
+
+| Fichier | Rôle |
+|---------|------|
+| `docker-compose.yml` | web + worker + beat + redis |
+| `deploy/nginx.conf` | Reverse proxy HTTPS |
+| `scripts/deploy.sh` | Déploiement depuis GHCR |
+| `scripts/validate-docker.sh` | Test build local |
+| `docs/GITHUB_DEPLOY_SECRETS.md` | Secrets CI/CD |
+
+Secrets recommandés : `SENTRY_DSN`, `WTF_CSRF_ENABLED=true`, `FORCE_HTTPS=true` (VPS).
+
 ## Stack V5
 
 - Flask 3 + SQLAlchemy + **Supabase PostgreSQL**
-- Compression **gzip** automatique (JSON graphe, API, HTML) via Flask-Compress
+- Compression **brotli + gzip** (Flask-Compress)
+- **2FA TOTP**, politique mots de passe **zxcvbn**
 - Rate limiting API (`/api/v1/search`, export PDF, pivot) — 10–30 req/min par clé
 - Flask-Migrate (Alembic), cache API (`api_cache`)
 - Flask-Login, Socket.IO, Groq IA, corrélation entités

@@ -22,6 +22,7 @@ services:
     volumes:
       - uploads_data:/code/uploads
       - app_logs:/code/logs
+      - backup_data:/code/backups
     depends_on:
       - redis
     restart: unless-stopped
@@ -58,3 +59,4 @@ volumes:
   redis_data:
   uploads_data:
   app_logs:
+  backup_data:

@@ -14,32 +14,28 @@ docker compose up -d --build
 curl http://localhost:7860/health
 ```
 
-## Nginx (extrait)
+## Nginx
 
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name osint.example.com;
+Fichier complet prêt à l’emploi : **`deploy/nginx.conf`** (HTTPS, gzip, WebSocket, headers sécurité).
 
-    ssl_certificate /etc/letsencrypt/live/osint.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/osint.example.com/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:7860;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /socket.io/ {
-        proxy_pass http://127.0.0.1:7860/socket.io/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
+```bash
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/osint-ultimate
+sudo nano /etc/nginx/sites-available/osint-ultimate   # remplacer osint.example.com
+sudo ln -sf /etc/nginx/sites-available/osint-ultimate /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d votredomaine.io
 ```
+
+## Sauvegardes
+
+```bash
+# Manuel
+./scripts/backup.sh
+
+# Automatique : Celery beat (tâche osint.backup_daily) si USE_CELERY_BEAT=true
+```
+
+Variables : `BACKUP_DIR`, `BACKUP_KEEP_DAYS` (voir `.env.example`).
 
 ## Gunicorn (variables)
 

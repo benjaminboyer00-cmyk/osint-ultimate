@@ -20,6 +20,7 @@ def dossier(entity_id):
 
 @views_bp.route('/expert/dossier/<int:entity_id>/scan', methods=['POST'])
 @login_required
+@limiter.limit('25/minute')
 def dossier_launch_scan(entity_id):
     """Lance un scan rattaché au dossier (suggestions, rebonds)."""
     from app import run_scan_async, SCAN_FUNCTIONS
@@ -160,6 +161,7 @@ def dossier_suggestions(entity_id):
 
 @views_bp.route('/expert/dossier/<int:entity_id>/narrative/pdf', methods=['GET'])
 @login_required
+@limiter.limit('10/minute')
 def dossier_narrative_pdf(entity_id):
     """PDF professionnel avec section rapport narratif IA."""
     from services.narrative_report import narrative_pdf_context

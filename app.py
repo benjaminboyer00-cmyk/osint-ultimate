@@ -109,6 +109,12 @@ socketio = SocketIO(app, cors_allowed_origins=_socketio_cors)
 from services.request_log import init_request_logging
 init_request_logging(app)
 
+from services.error_handlers import register_error_handlers
+register_error_handlers(app)
+
+from services.http_cache import init_http_cache
+init_http_cache(app)
+
 # ---------- ENCRYPTION ----------
 _fenv = os.environ.get('FERNET_KEY')
 if _fenv:
@@ -1074,6 +1080,7 @@ def health():
 
 
 @app.route('/scan', methods=['POST'])
+@limiter.limit('30/minute')
 def scan_start():
     from services.target_detector import target_category
     data = request.json or {}
@@ -1120,6 +1127,7 @@ def scan_start():
 
 @app.route('/scan/<int:scan_id>/retry-timeouts', methods=['POST'])
 @login_required
+@limiter.limit('10/minute')
 def scan_retry_timeouts(scan_id):
     """Relance uniquement les modules en timeout d'un scan multi."""
     from services.scanner import retry_timeout_modules
@@ -1207,6 +1215,7 @@ def history():
 
 @app.route('/export/<int:scan_id>/csv')
 @login_required
+@limiter.limit('25/minute')
 def export_csv(scan_id):
     import csv
     scan = db.session.get(Scan, scan_id)
@@ -1234,6 +1243,7 @@ def export_csv(scan_id):
 
 @app.route('/export/<int:scan_id>')
 @login_required
+@limiter.limit('25/minute')
 def export(scan_id):
     scan = db.session.get(Scan, scan_id)
     if not scan: abort(404)
@@ -1247,6 +1257,7 @@ def export(scan_id):
 
 @app.route('/report/<int:scan_id>', methods=['GET', 'POST'])
 @login_required
+@limiter.limit('15/minute')
 def report_pdf(scan_id):
     scan = db.session.get(Scan, scan_id)
     if not scan: abort(404)
@@ -1296,6 +1307,7 @@ def report_verify(scan_id):
 
 
 @app.route('/upload', methods=['POST'])
+@limiter.limit('12/minute')
 def upload():
     if 'file' not in request.files:
         return jsonify({'error': 'Aucun fichier'}), 400
@@ -1348,6 +1360,7 @@ def upload():
 
 
 @app.route('/ai-summary', methods=['POST'])
+@limiter.limit('15/minute')
 def ai_summary():
     data = request.json or {}
     text = data.get('result', '')

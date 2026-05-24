@@ -318,6 +318,7 @@ def api_rebound(entity_id):
 
 
 @api_bp.route('/export/<int:scan_id>/csv')
+@limiter.limit('20/minute')
 @require_api_key
 def api_export_csv(scan_id):
     import csv

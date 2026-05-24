@@ -1,47 +1,56 @@
-# Checklist pré-VPS (code livré)
+# Checklist pré-VPS — état au 2026-05
 
-## Fait dans le dépôt
+## ✅ Fait dans le dépôt (code)
 
-- [x] Routes découpées : `lookup`, `entity`, `reports`, `pages`, `ops`, `auth`
-- [x] `.env.example` complet (Redis, Sentry, CSRF, Gunicorn, compression)
-- [x] `docker-compose.yml` : volumes uploads/logs, `GUNICORN_WORKERS`, image registry
-- [x] `scripts/deploy.sh` + workflow `.github/workflows/deploy.yml`
-- [x] Lint CI : black, isort, flake8, bandit
-- [x] 2FA TOTP (`pyotp`, migration `012_pre_vps_security`)
-- [x] Politique mot de passe (`zxcvbn`)
-- [x] Exceptions `ConnectorError` / `APIQuotaExceeded`
-- [x] Brotli + gzip (`COMPRESS_ALGORITHM`)
-- [x] `/health` : ping Celery, `Cache-Control`
-- [x] Tests smoke E2E + `test_pre_vps.py`
+| Item | Fichier / action |
+|------|------------------|
+| Routes découpées | `routes/lookup`, `entity`, `reports`, `pages`, `ops`, `auth` |
+| 2FA + zxcvbn | `routes/auth.py`, migration `012` |
+| Handler erreurs global | `services/error_handlers.py` |
+| Rate limits étendus | `app.py`, `routes/entity.py`, `api_v1.py` |
+| Nginx prêt | `deploy/nginx.conf` |
+| Docker compose prod | `docker-compose.yml` + volumes |
+| CI/CD template | `.github/workflows/deploy.yml` |
+| Lint + bandit + safety | `lint.yml`, `ci.yml` |
+| Sauvegardes | `services/backup.py`, `tasks.py`, `scripts/backup.sh` |
+| Cache HTTP statiques | `services/http_cache.py` |
+| Tests IDOR + erreurs + E2E smoke | `tests/test_idor.py`, etc. |
+| `.env.example` | complet |
 
-## À faire sur le VPS (hors code)
+## 🟡 À valider chez toi (4 actions bloquantes)
 
-1. Ubuntu 22.04, Docker, ufw (22/80/443), fail2ban
-2. Domaine + DNS A → IP VPS
-3. Traefik ou Nginx + Let's Encrypt
-4. Copier `.env` (jamais dans git), `docker compose up -d`
-5. Secrets GitHub : `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_APP_DIR`
-6. Sauvegardes Supabase + volume `uploads_data`
+### 1. Docker local
+```bash
+chmod +x scripts/validate-docker.sh scripts/deploy.sh scripts/backup.sh
+./scripts/validate-docker.sh
+docker compose up -d
+curl -s http://localhost:7860/health | python3 -m json.tool
+```
 
-## Migration base (2FA + index)
+### 2. Nginx sur le VPS
+```bash
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/osint-ultimate
+# Éditer server_name + SSL
+sudo certbot --nginx -d votredomaine.io
+```
 
-Sur HF ou VPS après déploiement :
+### 3. CI/CD
+Configurer les secrets : voir `docs/GITHUB_DEPLOY_SECRETS.md`  
+Push sur `main` ou lancer le workflow manuellement.
+
+### 4. Sentry
+Ajouter `SENTRY_DSN` dans HF Secrets et `.env` VPS.
+
+## Migration DB
 
 ```bash
 flask db upgrade
-# ou via Docker :
-docker compose exec web flask db upgrade
+# Révision 012 : 2FA + index performance
 ```
 
-Révision Alembic : `012_pre_vps_security` (colonnes `totp_*`, index `scan` / `entity`).
+## Post-VPS (semaine 1+)
 
-## Commandes locales avant migration
-
-```bash
-cp .env.example .env   # puis éditer
-docker compose build
-docker compose up -d
-docker compose exec web flask db upgrade
-curl -s http://localhost:7860/health | jq .
-python -m pytest tests/ -q
-```
+- Playwright E2E complet
+- Dashboard métriques
+- Stripe / légal
+- Locust, minification assets, cache templates

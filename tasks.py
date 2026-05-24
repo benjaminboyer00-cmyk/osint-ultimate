@@ -63,6 +63,14 @@ if enabled and celery_app:
             run_due_scheduled_scans(app)
         return {'ok': True}
 
+    @celery_app.task(name='osint.backup_daily')
+    def backup_daily_task():
+        """Sauvegarde quotidienne DB + uploads (beat)."""
+        app, _ = _app_context()
+        with app.app_context():
+            from services.backup import run_all_backups
+            return run_all_backups()
+
 else:
 
     def run_scan_task(*args, **kwargs):

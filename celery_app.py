@@ -26,6 +26,10 @@ if enabled:
                 'task': 'osint.scheduled_tick',
                 'schedule': 300.0,
             },
+            'daily-backup': {
+                'task': 'osint.backup_daily',
+                'schedule': 86400.0,
+            },
         },
     )
 else:
