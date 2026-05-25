@@ -27,6 +27,16 @@ if enabled and celery_app:
         app, fernet = _app_context()
         self.update_state(state='PROGRESS', meta={'scan_id': scan_id, 'step': 'running'})
         try:
+            with app.app_context():
+                from extensions import db
+                from models import Scan
+
+                scan = db.session.get(Scan, scan_id)
+                if scan and scan.module == 'instagram':
+                    logger.info(
+                        'Celery scan #%s Instagram — rotation PROXY_LIST au démarrage',
+                        scan_id,
+                    )
             process_scan_by_id(scan_id, app, socketio=None, fernet=fernet)
             return {'scan_id': scan_id, 'status': 'completed'}
         except Exception as e:

@@ -38,6 +38,10 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
         try:
             opts = _build_options(scan, fernet)
             opts['_app'] = app
+            if scan.module == 'instagram':
+                from connectors.instagram import inject_rotating_proxy
+
+                inject_rotating_proxy(opts)
             if scan.result_json:
                 try:
                     pending = json.loads(scan.result_json)
@@ -145,6 +149,12 @@ def _build_options(scan: Scan, fernet) -> dict:
         opts[opt_k] = get_key(u, ukey, env, fernet) or os.environ.get(env, '')
     if u.proxy_list:
         opts['_proxy_list'] = u.proxy_list
+    env_proxies = (os.environ.get('PROXY_LIST') or '').strip()
+    if env_proxies:
+        if opts.get('_proxy_list'):
+            opts['_proxy_list'] = f"{opts['_proxy_list']},{env_proxies}"
+        else:
+            opts['_proxy_list'] = env_proxies
     if u.stealth_mode:
         opts['_stealth_mode'] = True
     # Fallback scraping (Hunter/Dehashed quota) — désactivable OPSEC

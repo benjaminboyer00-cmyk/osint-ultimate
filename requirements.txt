@@ -23,6 +23,7 @@ whoisit>=0.3.0
 dnspython
 beautifulsoup4
 cloudscraper>=1.2.71
+instaloader>=4.10
 phonenumbers
 python-nmap
 Pillow

@@ -711,6 +711,15 @@ def scan_instagram(username, options=None):
     if not username:
         return {'Erreur': 'Pseudo Instagram manquant'}
     opts = options or {}
+
+    try:
+        from connectors import instagram as ig_connector
+        if ig_connector.is_available():
+            ig_result = ig_connector.scan(username, opts)
+            if ig_result is not None and not ig_result.get('_retry_http'):
+                return ig_result
+    except Exception as e:
+        app.logger.debug('Instagram instaloader %s: %s', username, e)
     headers = {
         'User-Agent': (
             'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
