@@ -8,6 +8,7 @@ venv/
 *.pem
 *.key
 secrets/
+session-ig
 .DS_Store
 osint.db
 uploads/*

@@ -23,6 +23,7 @@ def mock_profile():
     post.caption = 'Hello world'
     post.date_utc = MagicMock(isoformat=lambda: '2026-01-01T12:00:00')
     profile.get_posts.return_value = iter([post])
+    profile.has_highlight_reels = True
     return profile
 
 
@@ -48,6 +49,33 @@ def test_to_scan_result_success():
     assert out['Posts récents'][0]['URL'].endswith('/')
 
 
+def test_to_scan_result_highlights():
+    from connectors.instagram import _to_scan_result
+
+    raw = {
+        'success': True,
+        'username': 'alice',
+        'full_name': 'A',
+        'biography': 'bio',
+        'followers': 1,
+        'following': 1,
+        'posts_count': 1,
+        'is_private': False,
+        'is_verified': False,
+        'profile_pic_url': '',
+        'recent_posts': [],
+        'recent_stories': [],
+        'recent_highlights': [{
+            'title': 'Voyage',
+            'cover_url': 'https://cdn.example/cover.jpg',
+            'items': [{'url': 'https://x/1', 'date': '2026-01-01', 'is_video': False}],
+        }],
+    }
+    out = _to_scan_result(raw)
+    assert out['Stories à la une'][0]['Titre'] == 'Voyage'
+    assert len(out['Stories à la une'][0]['Médias']) == 1
+
+
 @patch('connectors.instagram.INSTALOADER_AVAILABLE', True)
 @patch('connectors.instagram.Instaloader')
 @patch('connectors.instagram.Profile')
@@ -55,9 +83,20 @@ def test_scan_public_profile(MockProfile, MockLoader, mock_profile):
     from connectors.instagram import scan
 
     ctx = MagicMock()
-    ctx.is_logged_in = False
+    ctx.is_logged_in = True
     loader = MockLoader.return_value
     loader.context = ctx
+    loader.get_stories.return_value = []
+    hi = MagicMock()
+    hi.title = 'Bio'
+    hi.cover_url = 'https://cdn.example/hi.jpg'
+    item = MagicMock()
+    item.is_video = False
+    item.url = 'https://cdn.example/story.jpg'
+    item.video_url = None
+    item.date_utc = MagicMock(isoformat=lambda: '2026-01-02T00:00:00')
+    hi.get_items.return_value = [item]
+    loader.get_highlights.return_value = [hi]
     MockProfile.from_username.return_value = mock_profile
 
     with patch.dict('os.environ', {}, clear=False):
@@ -66,7 +105,7 @@ def test_scan_public_profile(MockProfile, MockLoader, mock_profile):
     assert out['Nom complet'] == 'Alice Test'
     assert out['Bio'] == 'Ma bio OSINT'
     assert len(out.get('Posts récents', [])) == 1
-    assert 'Stories actives' not in out or not out.get('Stories actives')
+    assert out['Stories à la une'][0]['Titre'] == 'Bio'
 
 
 @patch('connectors.instagram.INSTALOADER_AVAILABLE', True)

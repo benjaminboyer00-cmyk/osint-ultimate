@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 MAX_POSTS = 12
 MAX_STORIES = 30
+MAX_HIGHLIGHTS = 15
+MAX_ITEMS_PER_HIGHLIGHT = 8
 
 try:
     import instaloader
@@ -109,6 +111,15 @@ def _format_posts(posts: list[dict]) -> list[dict]:
     return out
 
 
+def _story_item_to_dict(item) -> dict:
+    media_url = item.video_url if item.is_video else item.url
+    return {
+        'url': str(media_url) if media_url else '',
+        'date': item.date_utc.isoformat() if getattr(item, 'date_utc', None) else '',
+        'is_video': bool(item.is_video),
+    }
+
+
 def _format_stories(stories: list[dict]) -> list[dict]:
     return [
         {
@@ -118,6 +129,30 @@ def _format_stories(stories: list[dict]) -> list[dict]:
         }
         for s in stories
     ]
+
+
+def _format_highlights(highlights: list[dict]) -> list[dict]:
+    """Stories à la une — un bloc par highlight avec ses médias."""
+    out = []
+    for h in highlights:
+        medias = [
+            {
+                'URL': m.get('url', ''),
+                'Date': m.get('date', ''),
+                'Vidéo': 'Oui' if m.get('is_video') else 'Non',
+            }
+            for m in (h.get('items') or [])
+        ]
+        cover = h.get('cover_url', '')
+        block: dict[str, Any] = {
+            'Titre': h.get('title') or '—',
+            'Nombre de médias': len(medias),
+            'Médias': medias,
+        }
+        if cover:
+            block['Couverture'] = cover
+        out.append(block)
+    return out
 
 
 def _to_scan_result(raw: dict) -> dict:
@@ -145,13 +180,16 @@ def _to_scan_result(raw: dict) -> dict:
     }
     posts = _format_posts(raw.get('recent_posts') or [])
     stories = _format_stories(raw.get('recent_stories') or [])
+    highlights = _format_highlights(raw.get('recent_highlights') or [])
     if posts:
         result['Posts récents'] = posts
     if stories:
         result['Stories actives'] = stories
+    if highlights:
+        result['Stories à la une'] = highlights
     if raw.get('note'):
         result['Note'] = raw['note']
-    if raw.get('is_private') and not posts and not stories:
+    if raw.get('is_private') and not posts and not stories and not highlights:
         result['Note'] = (
             raw.get('note')
             or 'Profil privé — posts/stories visibles seulement si le compte IG_DUMMY suit la cible.'
@@ -195,6 +233,11 @@ class InstagramConnector:
         if not INSTALOADER_AVAILABLE:
             return
         session_file = (os.environ.get('IG_SESSION_FILE') or '').strip()
+        if session_file and not os.path.isfile(session_file):
+            logger.warning(
+                'IG_SESSION_FILE introuvable (%s) — login mot de passe (risque blocage IG en Docker)',
+                session_file,
+            )
         if session_file and os.path.isfile(session_file):
             try:
                 self.L.load_session_from_file(
@@ -243,6 +286,7 @@ class InstagramConnector:
             'is_verified': getattr(profile, 'is_verified', False),
             'recent_posts': [],
             'recent_stories': [],
+            'recent_highlights': [],
             'note': '',
         }
 
@@ -252,13 +296,15 @@ class InstagramConnector:
             result['recent_posts'] = self._fetch_posts(profile)
             if self.L.context.is_logged_in:
                 result['recent_stories'] = self._fetch_stories(profile)
+                result['recent_highlights'] = self._fetch_highlights(profile)
             elif not profile.is_private:
                 result['note'] = (
-                    'Stories non lues — définissez IG_DUMMY_USER / IG_DUMMY_PASS (compte chaussette).'
+                    'Stories / à la une non lues — session IG requise (IG_SESSION_FILE + IG_DUMMY_USER).'
                 )
         else:
             result['note'] = (
-                'Profil privé — le compte configuré (IG_DUMMY_*) doit suivre la cible pour posts/stories.'
+                'Profil privé — le compte configuré (IG_DUMMY_*) doit suivre la cible '
+                'pour posts, stories et à la une.'
             )
 
         return result
@@ -289,16 +335,40 @@ class InstagramConnector:
                 for item in story.get_items():
                     if len(stories) >= MAX_STORIES:
                         return stories
-                    media_url = item.video_url if item.is_video else item.url
-                    stories.append({
-                        'url': str(media_url) if media_url else '',
-                        'date': item.date_utc.isoformat() if item.date_utc else '',
-                        'is_video': bool(item.is_video),
-                    })
+                    stories.append(_story_item_to_dict(item))
         except Exception as e:
             _handle_ig_rate_limit('stories', e, getattr(self, '_proxy_used', None))
             logger.warning('Stories %s: %s', profile.username, e)
         return stories
+
+    def _fetch_highlights(self, profile: Profile) -> list[dict]:
+        """Stories à la une (highlights) — nécessite une session connectée."""
+        if not self.L.context.is_logged_in:
+            return []
+        if not getattr(profile, 'has_highlight_reels', False):
+            return []
+
+        highlights: list[dict] = []
+        try:
+            for hi_idx, highlight in enumerate(self.L.get_highlights(profile)):
+                if hi_idx >= MAX_HIGHLIGHTS:
+                    break
+                items: list[dict] = []
+                for item_idx, item in enumerate(highlight.get_items()):
+                    if item_idx >= MAX_ITEMS_PER_HIGHLIGHT:
+                        break
+                    items.append(_story_item_to_dict(item))
+                highlights.append({
+                    'title': highlight.title or 'Sans titre',
+                    'cover_url': str(highlight.cover_url) if highlight.cover_url else '',
+                    'items': items,
+                })
+        except LoginRequiredException:
+            logger.warning('Highlights %s: login requis', profile.username)
+        except Exception as e:
+            _handle_ig_rate_limit('highlights', e, getattr(self, '_proxy_used', None))
+            logger.warning('Highlights %s: %s', profile.username, e)
+        return highlights
 
 
 def scan(username: str, options: dict | None = None) -> dict | None:

@@ -26,6 +26,49 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d votredomaine.io
 ```
 
+## Session Instagram (Docker)
+
+Sans montage du fichier de session, le worker refait `login()` à chaque scan → risque de blocage du compte chaussette.
+
+1. **Une fois sur l’hôte** (pas dans le conteneur).
+
+   **Méthode A — Firefox** (recommandée si `login` instaloader échoue avec `fail`) :
+   ```bash
+   # 1) Se connecter à instagram.com dans Firefox (Snap sous Ubuntu = profil séparé)
+   # 2) Fermer Firefox, puis :
+   source .venv/bin/activate
+   python scripts/import_ig_session_firefox.py --list   # voir quel profil a des cookies
+   python scripts/import_ig_session_firefox.py
+   ```
+   Sous Ubuntu Snap, les cookies sont souvent dans
+   `~/snap/firefox/common/.mozilla/firefox/` (pas `~/.mozilla/`).
+
+   **Méthode A2 — cookies.txt** (extension « Get cookies.txt LOCALLY ») :
+   ```bash
+   python scripts/import_ig_session_cookies_txt.py ~/Downloads/cookies.txt
+   ```
+
+   **Méthode B — mot de passe** :
+   ```bash
+   export IG_DUMMY_USER=votre_compte
+   export IG_DUMMY_PASS="mot_de_passe"   # guillemets doubles si apostrophe
+   python scripts/create_ig_session.py
+   ```
+   → crée `./session-ig` (ignoré par git).
+
+2. **`.env` sur le VPS** :
+   ```bash
+   IG_SESSION_FILE=/code/session-ig
+   IG_DUMMY_USER=votre_compte
+   # IG_DUMMY_PASS peut rester vide si la session suffit
+   ```
+
+3. **`docker-compose.yml`** monte déjà `./session-ig:/code/session-ig:ro` sur `web` et `worker`.
+
+4. Redémarrer : `docker compose up -d`
+
+> Si `./session-ig` n’existe pas au premier `docker compose up`, Docker peut créer un **dossier** vide — générez le fichier **avant** le premier déploiement.
+
 ## Sauvegardes
 
 ```bash
