@@ -26,6 +26,23 @@ def test_parse_instagram_api_json():
     assert '✓' in out['Vérifié']
 
 
+def test_parse_instagram_og_description():
+    from services.social_fetch import parse_instagram_og_meta
+
+    desc = (
+        '882 Followers, 1,010 Following, 3 Posts - See Instagram photos and videos '
+        'from Vivie (@his.vihc)'
+    )
+    out = parse_instagram_og_meta(
+        'Vivie (@his.vihc) • Instagram photos and videos',
+        desc,
+        'his.vihc',
+    )
+    assert out['Followers'] == 882
+    assert out['Following'] == 1010
+    assert out['Publications'] == 3
+
+
 def test_parse_instagram_html_counts():
     html = (
         '"edge_followed_by":{"count":42},'
@@ -35,6 +52,7 @@ def test_parse_instagram_html_counts():
     out = parse_instagram_profile_html(html, 'alice')
     assert out.get('Followers') == 42
     assert out.get('Nom complet') == 'Alice'
+    assert out.get('Profil', '').endswith('/alice/')
 
 
 def test_link_scans_to_dossier():

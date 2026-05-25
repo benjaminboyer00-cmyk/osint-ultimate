@@ -784,10 +784,16 @@ def scan_instagram(username, options=None):
                 html_404 = True
             elif r2.status_code == 200:
                 results = parse_instagram_profile_html(r2.text, username)
-                if results.get('Followers') or results.get('Nom complet') or results.get('Titre'):
+                if (
+                    results.get('Followers')
+                    or results.get('Nom complet')
+                    or results.get('Publications')
+                    or results.get('Description')
+                ):
                     if 'Note' not in results:
                         results['Note'] = (
-                            'Données partielles — Instagram limite le scraping non authentifié.'
+                            'Métadonnées publiques (Open Graph). '
+                            'Pas de téléchargement des photos sur ce déploiement.'
                         )
                     return _merge_hf_note(results)
                 if profile_exists_in_html(r2.text, username):

@@ -708,7 +708,8 @@ function pollFallback(scan_id, pollToken){
             }
             const d = await r.json();
             const st = d.status || (d._meta && d._meta.status);
-            const done = st === 'completed' || (d._meta && d._meta.status === 'completed');
+            const hasResult = d.Profil && (d.Followers != null || d.Bio || d['Nom complet'] || d.Description);
+            const done = st === 'completed' || (d._meta && d._meta.status === 'completed') || hasResult;
             if(done || (st && st !== 'pending' && st !== 'running')){
                 clearInterval(interval);
                 if(!scanRunning && !done) return;
