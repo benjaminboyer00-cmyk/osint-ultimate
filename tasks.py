@@ -81,6 +81,14 @@ if enabled and celery_app:
             from services.backup import run_all_backups
             return run_all_backups()
 
+    @celery_app.task(name='osint.data_retention')
+    def data_retention_task():
+        """Purge uploads / cache expiré — dimanche 03:00 UTC (beat)."""
+        app, _ = _app_context()
+        with app.app_context():
+            from services.data_retention import run_retention_cycle
+            return run_retention_cycle()
+
 else:
 
     def run_scan_task(*args, **kwargs):

@@ -331,7 +331,7 @@ def api_runtime():
 
 
 @app.route('/scan', methods=['POST'])
-@limiter.limit('30/minute')
+@limiter.limit('20/minute', key_func=get_remote_address)
 def scan_start():
     from services.target_detector import target_category
     data = request.json or {}

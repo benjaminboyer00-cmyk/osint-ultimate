@@ -32,6 +32,20 @@
 - Instagram / médias : métadonnées HTTP uniquement ; profil complet → VPS + `session-ig`
 - Doc détaillée : `docs/HUGGINGFACE_SPACES.md`
 
+## Infrastructure Docker (audit VPS)
+
+| Contrôle | Fichier |
+|----------|---------|
+| Healthchecks redis/web/worker | `docker-compose.yml` |
+| `restart: unless-stopped` (tous services) | idem |
+| Logs rotation 10m×3 | `x-logging` dans compose |
+| Redis **non exposé** (pas de `6379:6379`) | idem — dev : `docker-compose.dev.yml` |
+| Web lié à `127.0.0.1:7860` | idem |
+| Migrations avant Gunicorn | `entrypoint.sh` → `flask db upgrade` |
+| SSL Certbot | `scripts/certbot-setup.sh` |
+| Rate limit login 5/min, scan 20/min | `routes/auth.py`, `app.py` |
+| Rétention hebdo | `services/data_retention.py` + beat |
+
 ## 🟡 À valider chez toi (4 actions bloquantes)
 
 ### 1. Docker local

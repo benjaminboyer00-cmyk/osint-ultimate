@@ -6,6 +6,7 @@ enabled = bool(broker)
 
 if enabled:
     from celery import Celery
+    from celery.schedules import crontab
 
     celery_app = Celery(
         'osint_ultimate',
@@ -28,7 +29,11 @@ if enabled:
             },
             'daily-backup': {
                 'task': 'osint.backup_daily',
-                'schedule': 86400.0,
+                'schedule': crontab(hour=2, minute=30),
+            },
+            'weekly-data-retention': {
+                'task': 'osint.data_retention',
+                'schedule': crontab(hour=3, minute=0, day_of_week=0),
             },
         },
     )

@@ -2,17 +2,25 @@
 set -e
 cd /code
 
-echo "[OSINT V4] Application des migrations base de données…"
+echo "[OSINT] Migrations Alembic (obligatoire avant Gunicorn)…"
 export FLASK_APP=app:app
-flask db upgrade 2>&1 || {
-    echo "[OSINT V4] Alembic upgrade échoué – tentative create_all…"
-    python -c "
+if ! flask db upgrade 2>&1; then
+    echo "[OSINT] Alembic upgrade échoué — repli create_all…"
+    if ! python -c "
 from app import app, db
 with app.app_context():
     db.create_all()
-    print('[OSINT V4] Tables créées via create_all')
-"
-}
+    print('[OSINT] Tables via create_all')
+"; then
+        echo "[OSINT] ERREUR: impossible d'initialiser la base"
+        exit 1
+    fi
+    if [ -z "${SPACE_ID}" ] && [ -z "${SYSTEM}" ]; then
+        echo "[OSINT] ERREUR VPS: corrigez DATABASE_URL et relancez (flask db upgrade requis)"
+        exit 1
+    fi
+fi
+echo "[OSINT] Migrations OK — $(flask db current 2>/dev/null || echo head)"
 
 # Hugging Face : 1 worker, timeout long (scans sociaux), pas de preload (évite OOM au boot)
 if [ -n "${SPACE_ID}" ] || [ -n "${SYSTEM}" ]; then

@@ -10,8 +10,16 @@
 
 ```bash
 cp .env.example .env   # si présent, sinon créer .env
+# Dev : expose Redis + port public
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+curl http://127.0.0.1:7860/health
+```
+
+**Production VPS** (Redis non exposé, app sur localhost uniquement) :
+
+```bash
 docker compose up -d --build
-curl http://localhost:7860/health
+# Nginx proxy vers 127.0.0.1:7860
 ```
 
 ## Nginx
@@ -23,8 +31,27 @@ sudo cp deploy/nginx.conf /etc/nginx/sites-available/osint-ultimate
 sudo nano /etc/nginx/sites-available/osint-ultimate   # remplacer osint.example.com
 sudo ln -sf /etc/nginx/sites-available/osint-ultimate /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d votredomaine.io
+sudo DOMAIN=votredomaine.io EMAIL=admin@votredomaine.io ./scripts/certbot-setup.sh
+# ou : RUN_CERTBOT=1 DOMAIN=votredomaine.io sudo ./scripts/deploy.sh latest
 ```
+
+### Timeouts Nginx
+
+`deploy/nginx.conf` définit `proxy_read_timeout` / `proxy_send_timeout` à **120s** (évite les 504 sur scans longs). WebSocket : **300s** sur `/socket.io/`.
+
+### Logs Docker (rotation disque)
+
+`docker-compose.yml` limite chaque service à **3×10 Mo** (`json-file` max-size / max-file).
+
+### Rétention données
+
+Celery beat exécute **`osint.data_retention`** chaque **dimanche 03:00 UTC** :
+- fichiers `uploads/` > 30 jours (`RETENTION_UPLOAD_DAYS`)
+- lignes `api_cache` expirées
+
+### Healthchecks
+
+Redis / web / worker ont des `healthcheck` Docker — redémarrage auto si worker zombie (`restart: unless-stopped`).
 
 ## Session Instagram (Docker)
 

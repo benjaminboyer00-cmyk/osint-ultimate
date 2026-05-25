@@ -1,17 +1,34 @@
 # Stack locale / VPS — web + worker Celery + Redis (DB = Supabase externe)
+# Production : Redis non exposé, web sur 127.0.0.1 (Nginx 80/443 seul point d'entrée).
+# Dev local avec ports exposés : docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    # Pas de ports: — accessible uniquement sur le réseau Docker
 
   web:
     image: ${WEB_IMAGE:-osint-ultimate:local}
     build: .
     ports:
-      - "${PORT:-7860}:7860"
+      - "127.0.0.1:${PORT:-7860}:7860"
     env_file:
       - .env
     environment:
@@ -23,11 +40,22 @@ services:
       - uploads_data:/code/uploads
       - app_logs:/code/logs
       - backup_data:/code/backups
-      # Session Instagram (instaloader) — générer sur l'hôte : python scripts/create_ig_session.py
       - ./session-ig:/code/session-ig:ro
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/health', timeout=5)\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
     command: /code/entrypoint.sh
 
   worker:
@@ -42,9 +70,21 @@ services:
       - uploads_data:/code/uploads
       - ./session-ig:/code/session-ig:ro
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     restart: unless-stopped
-    command: celery -A celery_app.celery_app worker --loglevel=info --concurrency=2
+    logging: *default-logging
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A celery_app.celery_app inspect ping --timeout=5 2>/dev/null | grep -q OK || exit 1",
+        ]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    command: celery -A celery_app.celery_app worker --loglevel=info --concurrency=2 -n worker@%h
 
   beat:
     image: ${WEB_IMAGE:-osint-ultimate:local}
@@ -55,7 +95,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       USE_CELERY_BEAT: "1"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
     command: celery -A celery_app.celery_app beat --loglevel=info
 
 volumes:
