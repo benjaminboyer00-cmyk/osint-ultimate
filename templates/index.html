@@ -660,41 +660,52 @@ mods.forEach(btn => btn.addEventListener('click', ()=>{
 }));
 
 // ── Socket.IO ──────────────────────────────────────────────
-const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : io({ transports: ['polling','websocket'] });
+const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : io({ transports: ['polling','websocket'], withCredentials: true });
 let activeScanId = null;
+let activePollToken = null;
 let scanRunning = false;
 let lastResult = null;
 let progressTimer = null;
 
-socket.on('scan_done', ({ scan_id, result }) => {
-    if(scan_id !== activeScanId) return;
-    clearScanProgress();
-    lastResult = result;
-    renderResult(result);
-    exportBar.style.display = 'flex';
-    aiBox.style.display = 'block';
-    const pdfBtn = document.getElementById('pdf-btn');
-    if(pdfBtn && activeScanId){ pdfBtn.style.display='inline-block'; document.getElementById('csv-btn').style.display='inline-block'; }
-    // Map
-    const geo = result.Géolocalisation || result['Géolocalisation IP'] || {};
-    if(geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
-    else mapEl.style.display = 'none';
-});
+if(socket){
+    socket.on('scan_done', ({ scan_id, result }) => {
+        if(scan_id !== activeScanId) return;
+        clearScanProgress();
+        lastResult = result;
+        renderResult(result);
+        exportBar.style.display = 'flex';
+        aiBox.style.display = 'block';
+        const pdfBtn = document.getElementById('pdf-btn');
+        if(pdfBtn && activeScanId){ pdfBtn.style.display='inline-block'; document.getElementById('csv-btn').style.display='inline-block'; }
+        const geo = result.Géolocalisation || result['Géolocalisation IP'] || {};
+        if(geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
+        else mapEl.style.display = 'none';
+    });
 
-socket.on('scan_error', ({ scan_id, error }) => {
-    if(scan_id !== activeScanId) return;
-    clearScanProgress();
-    resultEl.innerHTML = `<p style="color:var(--error)">❌ ${error}</p>`;
-    resultEl.classList.add('has-error');
-});
+    socket.on('scan_error', ({ scan_id, error }) => {
+        if(scan_id !== activeScanId) return;
+        clearScanProgress();
+        resultEl.innerHTML = `<p style="color:var(--error)">❌ ${error}</p>`;
+        resultEl.classList.add('has-error');
+    });
+}
 
 // Fallback polling if socket misses event
-function pollFallback(scan_id){
-    const ms = (typeof osintIsHuggingFace === 'function' && osintIsHuggingFace()) ? 2500 : 4000;
+function pollFallback(scan_id, pollToken){
+    const tok = pollToken || activePollToken || '';
+    const qs = tok ? `?poll_token=${encodeURIComponent(tok)}` : '';
+    const ms = (typeof osintIsHuggingFace === 'function' && osintIsHuggingFace()) ? 2000 : 4000;
     const interval = setInterval(async ()=>{
         if(scan_id !== activeScanId){ clearInterval(interval); return; }
         try {
-            const r = await fetch(`/scan/${scan_id}`);
+            const r = await fetch(`/scan/${scan_id}${qs}`, { credentials: 'include' });
+            if(r.status === 401){
+                clearInterval(interval);
+                clearScanProgress();
+                resultEl.innerHTML = '<p style="color:var(--error)">❌ Session expirée — reconnectez-vous et relancez le scan.</p>';
+                resultEl.classList.add('has-error');
+                return;
+            }
             const d = await r.json();
             const st = d.status || (d._meta && d._meta.status);
             const done = st === 'completed' || (d._meta && d._meta.status === 'completed');
@@ -756,12 +767,14 @@ async function launchScan(){
         const resp = await fetch('/scan', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
+            credentials: 'include',
             body: JSON.stringify(payload)
         });
         const data = await resp.json();
         if(data.scan_id){
             activeScanId = data.scan_id;
-            pollFallback(data.scan_id);
+            activePollToken = data.poll_token || null;
+            pollFallback(data.scan_id, activePollToken);
         } else {
             clearScanProgress();
             resultEl.innerHTML = `<p style="color:var(--error)">❌ ${data.error||'Erreur inconnue'}</p>`;

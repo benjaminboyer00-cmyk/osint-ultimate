@@ -3,15 +3,16 @@
 ## Erreurs typiques dans la console navigateur
 
 ```text
-NS_ERROR_WEBSOCKET_CONNECTION_REFUSED
-wss://….hf.space/socket.io/…
-POST /scan NS_ERROR_FAILURE
+socket.io … HTTP 400
+GET /scan/67 HTTP 401
 ```
 
-Souvent **deux causes combinées** :
+**401 sur `/scan/<id>`** : le frontend HF n’envoyait pas la session cookie (Spaces séparés).  
+→ Corrigé : chaque `POST /scan` renvoie un **`poll_token`** ; le client appelle  
+`GET /scan/67?poll_token=…` (avec `credentials: include`).
 
-1. **WebSocket refusé** par le proxy HF → pas un bug fatal si le **polling** fonctionne.
-2. **Conteneur redémarré** (OOM / timeout) pendant un scan lourd (instaloader + Celery).
+**400 sur socket.io** : le proxy Hugging Face casse Engine.IO.  
+→ Corrigé : **Socket.IO désactivé** sur `*.hf.space` ; uniquement polling HTTP.
 
 ## Correctifs intégrés
 

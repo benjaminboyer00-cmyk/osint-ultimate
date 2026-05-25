@@ -1,5 +1,6 @@
 /**
- * Socket.IO — polling prioritaire sur Hugging Face (proxy wss souvent refusé).
+ * Socket.IO — désactivé sur Hugging Face (400 polling côté proxy HF).
+ * Polling HTTP /scan/<id>?poll_token=… à la place.
  */
 (function (global) {
   function isHuggingFaceHost() {
@@ -8,16 +9,18 @@
   }
 
   function createOsintSocket() {
+    if (isHuggingFaceHost()) {
+      return null;
+    }
     if (typeof global.io !== 'function') {
       return null;
     }
-    const onHF = isHuggingFaceHost();
     return global.io({
-      transports: onHF ? ['polling'] : ['polling', 'websocket'],
-      upgrade: !onHF,
-      rememberUpgrade: false,
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      withCredentials: true,
       reconnection: true,
-      reconnectionAttempts: 15,
+      reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 20000,
     });

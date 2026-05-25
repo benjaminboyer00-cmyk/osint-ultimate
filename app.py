@@ -1034,9 +1034,10 @@ def run_scan_async(module, target, options=None, user_id=None, mode='expert', sc
         except Exception as e:
             app.logger.warning('notify scan_started #%s: %s', scan_id, e)
 
-    # Stocker options pour le worker (root_entity_id, stealth, etc.)
+    # Stocker options + jeton polling pour le worker
     if options:
-        scan.result_json = json.dumps({'_pending_options': options}, ensure_ascii=False)
+        from services.scan_poll import pending_payload
+        scan.result_json = json.dumps(pending_payload(options), ensure_ascii=False)
         db.session.commit()
 
     dispatch_scan(scan_id, app, socketio, fernet)
@@ -1154,9 +1155,18 @@ def scan_start():
         return jsonify({'error': 'Cible manquante'}), 400
     if module not in SCAN_FUNCTIONS:
         return jsonify({'error': f'Module inconnu: {module}'}), 403
+    from services.scan_poll import new_poll_token
+
+    poll_token = new_poll_token()
+    options['_poll_token'] = poll_token
     scan_id = run_scan_async(module, target, options, user_id, mode=mode)
     if scan_id:
-        return jsonify({'scan_id': scan_id, 'status': 'started', 'module': module})
+        return jsonify({
+            'scan_id': scan_id,
+            'poll_token': poll_token,
+            'status': 'started',
+            'module': module,
+        })
     return jsonify({'error': 'Échec du lancement'}), 500
 
 
@@ -1198,10 +1208,16 @@ def scan_retry_timeouts(scan_id):
 
 @app.route('/scan/<int:scan_id>')
 def scan_result(scan_id):
+    from services.scan_poll import poll_token_valid
+
     scan = db.session.get(Scan, scan_id)
     if not scan:
         return jsonify({'error': 'Scan non trouvé'}), 404
-    if scan.user_id:
+
+    poll_tok = (request.args.get('poll_token') or '').strip()
+    if poll_token_valid(scan, poll_tok):
+        pass  # polling autorisé (HF cross-origin, pas de cookie session)
+    elif scan.user_id:
         if not current_user.is_authenticated:
             return jsonify({'error': 'Connexion requise pour ce scan'}), 401
         if scan.user_id != current_user.id:
@@ -1222,12 +1238,14 @@ def scan_result(scan_id):
             out = {'error': 'Résultat scan illisible'}
         if scan.ai_summary:
             out['_ai_summary'] = scan.ai_summary
-        out['_meta'] = {
+        meta = out.get('_meta') if isinstance(out.get('_meta'), dict) else {}
+        meta.update({
             'scan_id': scan.id,
             'status': scan.status,
             'module': scan.module,
             'target': scan.target,
-        }
+        })
+        out['_meta'] = meta
         return jsonify(out)
     return jsonify({
         'status': scan.status,

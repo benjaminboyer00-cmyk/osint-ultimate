@@ -42,20 +42,26 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                 from connectors.instagram import inject_rotating_proxy
 
                 inject_rotating_proxy(opts)
+            poll_token = None
             if scan.result_json:
                 try:
                     pending = json.loads(scan.result_json)
-                    if isinstance(pending, dict) and pending.get('_pending_options'):
-                        opts.update(pending['_pending_options'])
+                    if isinstance(pending, dict):
+                        poll_token = pending.get('_poll_token')
+                        if pending.get('_pending_options'):
+                            opts.update(pending['_pending_options'])
+                            poll_token = poll_token or opts.get('_poll_token')
                 except Exception:
                     pass
             result = func(scan.target, opts)
             if isinstance(result, dict):
                 from services.result_hints import annotate_result, annotate_multi_results
+                from services.scan_poll import attach_poll_token_to_result
                 if scan.module == 'multi' or result.get('_meta', {}).get('multi'):
                     result = annotate_multi_results(result)
                 else:
                     result = annotate_result(scan.module, result, opts)
+                result = attach_poll_token_to_result(result, poll_token or opts.get('_poll_token'))
             scan.result_json = json.dumps(result, ensure_ascii=False, default=str)
             scan.status = 'completed'
             scan.completed_at = datetime.utcnow()
