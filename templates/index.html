@@ -547,6 +547,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 // ── Particle canvas ──────────────────────────────────────────
@@ -659,7 +660,7 @@ mods.forEach(btn => btn.addEventListener('click', ()=>{
 }));
 
 // ── Socket.IO ──────────────────────────────────────────────
-const socket = io({ transports: ['websocket','polling'] });
+const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : io({ transports: ['polling','websocket'] });
 let activeScanId = null;
 let scanRunning = false;
 let lastResult = null;
@@ -689,14 +690,17 @@ socket.on('scan_error', ({ scan_id, error }) => {
 
 // Fallback polling if socket misses event
 function pollFallback(scan_id){
+    const ms = (typeof osintIsHuggingFace === 'function' && osintIsHuggingFace()) ? 2500 : 4000;
     const interval = setInterval(async ()=>{
         if(scan_id !== activeScanId){ clearInterval(interval); return; }
         try {
             const r = await fetch(`/scan/${scan_id}`);
             const d = await r.json();
-            if(d.status !== 'pending' && d.status !== 'running'){
+            const st = d.status || (d._meta && d._meta.status);
+            const done = st === 'completed' || (d._meta && d._meta.status === 'completed');
+            if(done || (st && st !== 'pending' && st !== 'running')){
                 clearInterval(interval);
-                if(!scanRunning) return; // already handled by socket
+                if(!scanRunning && !done) return;
                 clearScanProgress();
                 lastResult = d;
                 renderResult(d);
@@ -704,7 +708,7 @@ function pollFallback(scan_id){
                 aiBox.style.display = 'block';
             }
         } catch(e){}
-    }, 2000);
+    }, ms);
     setTimeout(()=>clearInterval(interval), 120000);
 }
 

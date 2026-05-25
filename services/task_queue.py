@@ -7,6 +7,12 @@ logger = logging.getLogger(__name__)
 
 def use_celery() -> bool:
     """True si REDIS_URL est défini et USE_CELERY n'est pas désactivé."""
+    try:
+        from services.runtime_env import use_celery_on_runtime
+        if not use_celery_on_runtime():
+            return False
+    except ImportError:
+        pass
     flag = (os.environ.get('USE_CELERY') or 'auto').strip().lower()
     if flag in ('0', 'false', 'no', 'off'):
         return False

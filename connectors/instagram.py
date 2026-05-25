@@ -375,6 +375,16 @@ def scan(username: str, options: dict | None = None) -> dict | None:
     """
     Point d'entrée scan OSINT. Retourne None si instaloader indisponible (fallback HTTP app.py).
     """
+    try:
+        from services.runtime_env import instagram_instaloader_enabled, is_hf_space
+        if not instagram_instaloader_enabled():
+            if is_hf_space():
+                logger.info(
+                    'Instagram HF : mode léger (HTTP). Définir OSINT_IG_MODE=full sur VPS/HF Pro.',
+                )
+            return None
+    except ImportError:
+        pass
     if not INSTALOADER_AVAILABLE:
         return None
     opts = dict(options or {})

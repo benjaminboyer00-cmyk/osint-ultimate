@@ -104,7 +104,17 @@ _socketio_cors = (
     if _cors_origins and _cors_origins != '*'
     else '*'
 )
-socketio = SocketIO(app, cors_allowed_origins=_socketio_cors)
+_on_hf = bool(os.environ.get('SPACE_ID') or os.environ.get('SYSTEM'))
+_socketio_async = 'gevent'
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=_socketio_cors,
+    async_mode=_socketio_async,
+    ping_timeout=int(os.environ.get('SOCKETIO_PING_TIMEOUT', '60')),
+    ping_interval=int(os.environ.get('SOCKETIO_PING_INTERVAL', '25')),
+    logger=False,
+    engineio_logger=False,
+)
 
 from services.request_log import init_request_logging
 init_request_logging(app)
@@ -714,10 +724,18 @@ def scan_instagram(username, options=None):
 
     try:
         from connectors import instagram as ig_connector
+        from services.runtime_env import is_hf_space
+
         if ig_connector.is_available():
             ig_result = ig_connector.scan(username, opts)
             if ig_result is not None and not ig_result.get('_retry_http'):
                 return ig_result
+        elif is_hf_space():
+            opts = dict(opts or {})
+            opts.setdefault(
+                '_hf_ig_note',
+                'Mode Hugging Face léger (HTTP). Stories/highlights : VPS ou OSINT_IG_MODE=full.',
+            )
     except Exception as e:
         app.logger.debug('Instagram instaloader %s: %s', username, e)
     headers = {
@@ -740,13 +758,21 @@ def scan_instagram(username, options=None):
             try:
                 parsed = parse_instagram_api_json(r.json())
                 if parsed:
-                    return parsed
+                    return _merge_hf_note(parsed)
             except (json.JSONDecodeError, ValueError):
                 pass
         if r and r.status_code == 404:
             return {'Résultat': 'Compte non trouvé'}
     except Exception as e:
         app.logger.debug('Instagram API %s: %s', username, e)
+
+    hf_note = (opts or {}).pop('_hf_ig_note', None)
+
+    def _merge_hf_note(results: dict) -> dict:
+        if hf_note and isinstance(results, dict):
+            prev = results.get('Note', '')
+            results['Note'] = f'{prev} {hf_note}'.strip() if prev else hf_note
+        return results
 
     profile_url = f'https://www.instagram.com/{username}/'
     try:
@@ -761,24 +787,24 @@ def scan_instagram(username, options=None):
                         results['Note'] = (
                             'Données partielles — Instagram limite le scraping non authentifié.'
                         )
-                    return results
+                    return _merge_hf_note(results)
                 if 'login' in r2.url.lower() or 'connexion' in r2.text[:2000].lower():
-                    return {
+                    return _merge_hf_note({
                         'Profil': profile_url,
                         'Résultat': 'Profil existant (page login — données masquées)',
                         'Note': (
                             'Instagram exige une session. Activez le fallback scraping '
                             '(Paramètres) ou consultez le profil manuellement.'
                         ),
-                    }
+                    })
     except Exception as e:
-        return {'Erreur': str(e), 'Profil': profile_url}
+        return _merge_hf_note({'Erreur': str(e), 'Profil': profile_url})
 
-    return {
+    return _merge_hf_note({
         'Profil': profile_url,
         'Résultat': 'Données indisponibles (rate-limit ou blocage Instagram)',
         'Note': 'Réessayez avec proxy / mode furtif, ou ouvrez le profil dans un navigateur.',
-    }
+    })
 
 
 def scan_twitter(username, options=None):
