@@ -44,11 +44,14 @@ def dossier_launch_scan(entity_id):
     }
     if data.get('stealth'):
         opts['_stealth_mode'] = True
+    from services.scan_poll import ensure_poll_token
+    poll_token = ensure_poll_token(opts)
     scan_id = run_scan_async(module, target, opts, user_id=current_user.id, mode='expert')
     if not scan_id:
         return jsonify({'error': 'Échec du lancement'}), 500
     return jsonify({
         'scan_id': scan_id,
+        'poll_token': poll_token,
         'status': 'started',
         'module': module,
         'target': target,
@@ -476,11 +479,14 @@ def graph_scan_node():
             return jsonify({'error': 'Droits insuffisants pour scanner ce dossier'}), 403
         opts['_root_entity_id'] = int(root_entity_id)
 
+    from services.scan_poll import ensure_poll_token
+    poll_token = ensure_poll_token(opts)
     scan_id = run_scan_async(module, value, options=opts, user_id=current_user.id)
     if not scan_id:
         return jsonify({'error': 'Échec du lancement du scan'}), 500
     return jsonify({
         'scan_id': scan_id,
+        'poll_token': poll_token,
         'module': module,
         'target': value,
         'status': 'started',

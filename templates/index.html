@@ -548,6 +548,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 // ── Particle canvas ──────────────────────────────────────────
@@ -690,38 +692,41 @@ if(socket){
     });
 }
 
-// Fallback polling if socket misses event
+// Polling HTTP (HF + fallback si Socket.IO absent)
 function pollFallback(scan_id, pollToken){
-    const tok = pollToken || activePollToken || '';
-    const qs = tok ? `?poll_token=${encodeURIComponent(tok)}` : '';
-    const ms = (typeof osintIsHuggingFace === 'function' && osintIsHuggingFace()) ? 2000 : 4000;
-    const interval = setInterval(async ()=>{
-        if(scan_id !== activeScanId){ clearInterval(interval); return; }
-        try {
-            const r = await fetch(`/scan/${scan_id}${qs}`, { credentials: 'include' });
-            if(r.status === 401){
-                clearInterval(interval);
+    const tok = pollToken || activePollToken || null;
+    if (typeof OsintScanPoll === 'undefined') return;
+    OsintScanPoll.startPoll(scan_id, tok, {
+        isActive: (id) => id === activeScanId,
+        on401: () => {
+            clearScanProgress();
+            resultEl.innerHTML = '<p style="color:var(--error)">❌ Session expirée — reconnectez-vous et relancez le scan.</p>';
+            resultEl.classList.add('has-error');
+        },
+        onDone: (d) => {
+            if (!scanRunning && !(d.status === 'completed' || (d._meta && d._meta.status === 'completed'))) return;
+            clearScanProgress();
+            lastResult = d;
+            renderResult(d);
+            exportBar.style.display = 'flex';
+            aiBox.style.display = 'block';
+            const pdfBtn = document.getElementById('pdf-btn');
+            if (pdfBtn && activeScanId) {
+                pdfBtn.style.display = 'inline-block';
+                document.getElementById('csv-btn').style.display = 'inline-block';
+            }
+            const geo = d.Géolocalisation || d['Géolocalisation IP'] || {};
+            if (geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
+            else mapEl.style.display = 'none';
+        },
+        onTimeout: () => {
+            if (scanRunning) {
                 clearScanProgress();
-                resultEl.innerHTML = '<p style="color:var(--error)">❌ Session expirée — reconnectez-vous et relancez le scan.</p>';
+                resultEl.innerHTML = '<p style="color:var(--warning)">⏱ Délai dépassé — le scan peut encore tourner côté serveur. Consultez l\'historique.</p>';
                 resultEl.classList.add('has-error');
-                return;
             }
-            const d = await r.json();
-            const st = d.status || (d._meta && d._meta.status);
-            const hasResult = d.Profil && (d.Followers != null || d.Bio || d['Nom complet'] || d.Description);
-            const done = st === 'completed' || (d._meta && d._meta.status === 'completed') || hasResult;
-            if(done || (st && st !== 'pending' && st !== 'running')){
-                clearInterval(interval);
-                if(!scanRunning && !done) return;
-                clearScanProgress();
-                lastResult = d;
-                renderResult(d);
-                exportBar.style.display = 'flex';
-                aiBox.style.display = 'block';
-            }
-        } catch(e){}
-    }, ms);
-    setTimeout(()=>clearInterval(interval), 120000);
+        },
+    });
 }
 
 // ── Launch scan ────────────────────────────────────────────

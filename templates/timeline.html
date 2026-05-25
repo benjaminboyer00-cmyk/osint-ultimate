@@ -6,6 +6,8 @@
     <title>Timeline OSINT – OSINT Ultimate</title>
     <link href="https://unpkg.com/vis-timeline@7.7.3/styles/vis-timeline-graph2d.min.css" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
     <script src="https://unpkg.com/vis-timeline@7.7.3/standalone/umd/vis-timeline-graph2d.min.js"></script>
     <style>
         :root { --bg:#07080f; --text:#c8cfe8; --dim:#5a6180; --accent:#00e5a0; --accent2:#4d9fff; --border:rgba(255,255,255,.1); }
@@ -59,8 +61,8 @@ let itemsDs = null;
 let groupsDs = null;
 let rootEntityId = {{ entity_id or 'null' }};
 
-const tlSocket = io({ transports: ['websocket', 'polling'] });
-tlSocket.on('connect', () => tlSocket.emit('join_timeline', {}));
+const tlSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
+if (tlSocket) tlSocket.on('connect', () => tlSocket.emit('join_timeline', {}));
 
 function showDetail(item) {
     const el = document.getElementById('detail');

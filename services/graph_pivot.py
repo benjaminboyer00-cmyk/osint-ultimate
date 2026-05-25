@@ -94,6 +94,8 @@ def launch_pivot(
     except Exception:
         pass
 
+    from services.scan_poll import ensure_poll_token
+    poll_token = ensure_poll_token(opts)
     scan_id = run_scan_async('multi', ent.value, opts, user_id=user_id, mode='expert')
     if not scan_id:
         raise ValueError('Échec du lancement du pivot')
@@ -101,6 +103,7 @@ def launch_pivot(
     logger.info('Pivot user=%s entity=%s scan=%s modules=%s', user_id, entity_id, scan_id, modules)
     return {
         'scan_id': scan_id,
+        'poll_token': poll_token,
         'status': 'started',
         'modules': modules,
         'target': ent.value,

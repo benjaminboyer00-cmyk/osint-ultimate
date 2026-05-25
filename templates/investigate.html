@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enquête guidée — OSINT Ultimate</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
     <style>
         :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--warn:#ffa502;--border:rgba(255,255,255,.1)}
         *{box-sizing:border-box;margin:0;padding:0}
@@ -78,8 +80,8 @@
     </aside>
 </div>
 <script>
-const socket = io({ transports: ['websocket','polling'] });
-socket.on('connect', () => socket.emit('join_investigation', {}));
+const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
+if (socket) socket.on('connect', () => socket.emit('join_investigation', {}));
 let activeInvId = null;
 
 function setProgress(text, show=true){
@@ -127,7 +129,7 @@ async function startInvestigation(){
     }
 }
 
-socket.on('investigation_started', p => {
+if (socket) socket.on('investigation_started', p => {
     if(activeInvId && p.investigation_id !== activeInvId) return;
     activeInvId = p.investigation_id;
     setProgress(p.message || 'Enquête en cours…', true);
@@ -153,7 +155,7 @@ socket.on('investigation_step', p => {
     }
 });
 
-socket.on('investigation_done', p => {
+if (socket) socket.on('investigation_done', p => {
     if(activeInvId && p.investigation_id !== activeInvId) return;
     setProgress('', false);
     addBubble('📋 ' + (p.summary || 'Terminé').replace(/</g,'&lt;'), 'done');

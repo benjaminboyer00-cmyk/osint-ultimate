@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <style>
@@ -76,8 +78,8 @@ let cluster = null;
 let rootEntityId = {{ entity_id or 'null' }};
 const markerByEntity = {};
 
-const mapSocket = io({ transports: ['websocket', 'polling'] });
-mapSocket.on('connect', () => mapSocket.emit('join_map', {}));
+const mapSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
+if (mapSocket) mapSocket.on('connect', () => mapSocket.emit('join_map', {}));
 
 function initMap(center) {
     const c = center || { lat: 48.8566, lng: 2.3522 };
@@ -197,7 +199,7 @@ async function loadMap(entityId) {
     }
 }
 
-mapSocket.on('map_update', payload => {
+if (mapSocket) mapSocket.on('map_update', payload => {
     if (rootEntityId && payload.root_entity_id && payload.root_entity_id !== rootEntityId) return;
     if (payload.root_entity_id) rootEntityId = payload.root_entity_id;
     (payload.markers || []).forEach(m => addMarker(m, true));

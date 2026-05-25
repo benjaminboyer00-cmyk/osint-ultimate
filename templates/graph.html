@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graphe de corrélation – OSINT Ultimate</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
     <script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
@@ -141,18 +144,20 @@ async function parseJsonResponse(r) {
 }
 let activeGraphScanId = null;
 let activePivotScanId = null;
-const graphSocket = io({ transports: ['websocket', 'polling'] });
+const graphSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
 let dossierRootId = null;
-graphSocket.on('connect', () => graphSocket.emit('join_graph', {}));
-graphSocket.on('comment_added', p => {
-    if (selectedNode && String(p.entity_id) === String(selectedNode.id)) {
-        loadComments(parseInt(selectedNode.id, 10));
-    }
-});
-graphSocket.on('scan_completed', p => {
-    if (scanStatusEl) scanStatusEl.textContent = `✅ Scan #${p.scan_id} terminé (${p.module})`;
-});
 const scanStatusEl = document.getElementById('scan-status');
+if (graphSocket) {
+    graphSocket.on('connect', () => graphSocket.emit('join_graph', {}));
+    graphSocket.on('comment_added', p => {
+        if (selectedNode && String(p.entity_id) === String(selectedNode.id)) {
+            loadComments(parseInt(selectedNode.id, 10));
+        }
+    });
+    graphSocket.on('scan_completed', p => {
+        if (scanStatusEl) scanStatusEl.textContent = `✅ Scan #${p.scan_id} terminé (${p.module})`;
+    });
+}
 
 const cy = cytoscape({
     container: document.getElementById('cy'),
@@ -301,7 +306,7 @@ async function runPivot(){
         activePivotScanId = d.scan_id;
         activeGraphScanId = d.scan_id;
         scanStatusEl.textContent = `⏳ Pivot #${d.scan_id} — ${(d.modules || []).join(', ')}…`;
-        pollGraphScan(d.scan_id);
+        pollGraphScan(d.scan_id, d.poll_token);
     } catch (e) {
         scanStatusEl.textContent = '❌ ' + e.message;
     }
@@ -347,13 +352,13 @@ function mergeGraphUpdate(payload){
     }
 }
 
-graphSocket.on('graph_error', p => {
+if (graphSocket) graphSocket.on('graph_error', p => {
     scanStatusEl.style.display = 'block';
     scanStatusEl.textContent = '❌ ' + (p.message || 'Erreur pivot');
     activePivotScanId = null;
 });
 
-graphSocket.on('graph_update', payload => {
+if (graphSocket) graphSocket.on('graph_update', payload => {
     if (activePivotScanId && payload.scan_id !== activePivotScanId) return;
     mergeGraphUpdate(payload);
     const rootId = payload.root_entity_id || graphData?.root_id;
@@ -390,21 +395,19 @@ document.getElementById('btn-scan').onclick = async () => {
         }
         activeGraphScanId = d.scan_id;
         scanStatusEl.textContent = `⏳ Scan #${d.scan_id} (${d.module}) en cours…`;
-        pollGraphScan(d.scan_id);
+        pollGraphScan(d.scan_id, d.poll_token);
     } catch (e) {
         scanStatusEl.textContent = '❌ ' + e.message;
         btn.disabled = false;
     }
 };
 
-function pollGraphScan(scanId){
-    const iv = setInterval(async () => {
-        if (activeGraphScanId !== scanId && activePivotScanId !== scanId) { clearInterval(iv); return; }
-        try {
-            const r = await fetch(`/scan/${scanId}`);
-            const d = await r.json();
-            if (d.status && d.status !== 'completed') return;
-            clearInterval(iv);
+function pollGraphScan(scanId, pollToken){
+    if (typeof OsintScanPoll === 'undefined') return;
+    OsintScanPoll.startPoll(scanId, pollToken || null, {
+        maxMs: 180000,
+        isActive: (id) => activeGraphScanId === id || activePivotScanId === id,
+        onDone: (d) => {
             if (d.error) {
                 scanStatusEl.textContent = '❌ ' + d.error;
             } else {
@@ -413,12 +416,15 @@ function pollGraphScan(scanId){
                 if (rootId) loadGraph(rootId);
             }
             document.getElementById('btn-scan').disabled = false;
-        } catch (e) { /* ignore */ }
-    }, 2000);
-    setTimeout(() => clearInterval(iv), 180000);
+        },
+        onTimeout: () => {
+            scanStatusEl.textContent = '⚠️ Délai dépassé — vérifiez l\'historique';
+            document.getElementById('btn-scan').disabled = false;
+        },
+    });
 }
 
-graphSocket.on('scan_done', ({ scan_id }) => {
+if (graphSocket) graphSocket.on('scan_done', ({ scan_id }) => {
     if (activeGraphScanId !== scan_id && activePivotScanId !== scan_id) return;
     scanStatusEl.style.display = 'block';
     scanStatusEl.textContent = `✅ Scan #${scan_id} terminé — actualisation du graphe…`;
@@ -430,14 +436,14 @@ graphSocket.on('scan_done', ({ scan_id }) => {
     if (activePivotScanId === scan_id) activePivotScanId = null;
 });
 
-graphSocket.on('scan_error', ({ scan_id, error }) => {
+if (graphSocket) graphSocket.on('scan_error', ({ scan_id, error }) => {
     if (activeGraphScanId !== scan_id) return;
     scanStatusEl.textContent = '❌ ' + (error || 'Erreur scan');
     document.getElementById('btn-scan').disabled = false;
     activeGraphScanId = null;
 });
 
-graphSocket.on('scan_progress', ({ scan_id, module, target }) => {
+if (graphSocket) graphSocket.on('scan_progress', ({ scan_id, module, target }) => {
     if (activeGraphScanId !== scan_id) return;
     scanStatusEl.textContent = `⏳ Scan #${scan_id} : ${module} sur ${target}…`;
 });

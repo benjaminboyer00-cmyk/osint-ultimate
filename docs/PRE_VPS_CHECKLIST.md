@@ -16,6 +16,16 @@
 | Cache HTTP statiques | `services/http_cache.py` |
 | Tests IDOR + erreurs + E2E smoke | `tests/test_idor.py`, etc. |
 | `.env.example` | complet |
+| Polling scan unifié (HF) | `static/js/scan-poll.js`, `poll_token` sur tous les lancements |
+| Socket.IO désactivé sur HF | `static/js/socketio-client.js` |
+| Bannière mode démo HF | `static/js/runtime-banner.js`, `GET /api/runtime` |
+
+## Hugging Face (avant VPS)
+
+- Secrets : `DATABASE_URL` (pooler), `SECRET_KEY`, `GROQ_API_KEY`, `FERNET_KEY` — pas `OSINT_IG_MODE=full` sur free tier
+- Les pages **Express**, **Expert**, **Graphe** et **Dossier** utilisent le polling HTTP avec `poll_token` (pas de WebSocket sur `*.hf.space`)
+- Instagram / médias : métadonnées HTTP uniquement ; profil complet → VPS + `session-ig`
+- Doc détaillée : `docs/HUGGINGFACE_SPACES.md`
 
 ## 🟡 À valider chez toi (4 actions bloquantes)
 

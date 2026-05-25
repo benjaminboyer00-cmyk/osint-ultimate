@@ -177,8 +177,11 @@
 <p class="legal">Sources publiques uniquement. Usage responsable et conforme au RGPD.</p>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
 <script>
-const socket = io({ transports: ['websocket','polling'] });
+const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
 const TYPE_LABELS = {
     email:'📧 Email', phone:'📞 Téléphone', ip:'🖥️ Adresse IP',
     site:'🌐 Site web', sherlock:'🔍 Pseudo', pseudo:'🔍 Pseudo', whois:'📋 Domaine'
@@ -227,13 +230,16 @@ async function runExpress(){
     startProgress();
     await updateBadge();
     const resp = await fetch('/scan', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        credentials: 'include',
         body: JSON.stringify({ module: 'multi', target, mode: 'express', multi: true })
     });
     const data = await resp.json();
     if (data.scan_id) {
         activeScanId = data.scan_id;
-        pollScan(data.scan_id);
+        activePollToken = data.poll_token || null;
+        startExpressPoll(data.scan_id, activePollToken);
     } else {
         finishProgress();
         showError(data.error || 'Erreur');
@@ -241,18 +247,24 @@ async function runExpress(){
     go.disabled = false;
 }
 
-function pollScan(id){
-    const iv = setInterval(async () => {
-        const r = await fetch(`/scan/${id}`);
-        const d = await r.json();
-        if (d.status && d.status !== 'completed') return;
-        clearInterval(iv);
-        if (activeScanId !== id) return;
-        finishProgress();
-        lastResult = d;
-        showCard(d);
-    }, 2000);
-    setTimeout(() => clearInterval(iv), 120000);
+function startExpressPoll(id, pollToken){
+    if (typeof OsintScanPoll === 'undefined') return;
+    OsintScanPoll.startPoll(id, pollToken, {
+        isActive: (sid) => sid === activeScanId,
+        on401: () => { finishProgress(); showError('Session expirée — reconnectez-vous.'); },
+        onDone: (d) => {
+            if (activeScanId !== id) return;
+            finishProgress();
+            lastResult = d;
+            showCard(d);
+        },
+        onTimeout: () => {
+            if (activeScanId === id) {
+                finishProgress();
+                showError('Délai dépassé — réessayez ou passez en mode Expert.');
+            }
+        },
+    });
 }
 
 function showError(msg){

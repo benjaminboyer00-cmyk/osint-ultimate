@@ -164,6 +164,9 @@
         {% endfor %}
     </div>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
 <script>
 const ENTITY_ID = {{ dossier.entity.id }};
 const CAN_EDIT = {{ 'true' if dossier.access and dossier.access.can_edit else 'false' }};
@@ -354,29 +357,25 @@ document.getElementById('btn-narrative-pdf').onclick = () => {
     window.open(`/expert/dossier/${ENTITY_ID}/narrative/pdf?style=${style}&length=${length}`, '_blank');
 };
 
-async function pollDossierScan(scanId, module, target) {
-    if (!scanStatusEl) return;
+async function pollDossierScan(scanId, module, target, pollToken) {
+    if (!scanStatusEl || typeof OsintScanPoll === 'undefined') return;
     scanStatusEl.style.display = 'block';
     scanStatusEl.textContent = `⏳ Scan #${scanId} ${module} sur ${target}…`;
-    const t0 = Date.now();
-    const iv = setInterval(async () => {
-        if (Date.now() - t0 > 180000) {
-            clearInterval(iv);
+    OsintScanPoll.startPoll(scanId, pollToken || null, {
+        maxMs: 180000,
+        onDone: (data) => {
+            const st = data.status || data._meta?.status;
+            if (st === 'failed' || (data.error && st !== 'completed')) {
+                scanStatusEl.textContent = '❌ ' + (data.error || 'Scan échoué');
+            } else {
+                scanStatusEl.textContent = `✅ Scan #${scanId} terminé`;
+                refreshActivity();
+            }
+        },
+        onTimeout: () => {
             scanStatusEl.textContent = '⚠️ Délai dépassé — vérifiez l\'historique';
-            return;
-        }
-        const { ok, data } = await parseJsonResponse(await fetch(`/scan/${scanId}`));
-        if (!ok) return;
-        const st = data.status || data._meta?.status;
-        if (st === 'completed') {
-            clearInterval(iv);
-            scanStatusEl.textContent = `✅ Scan #${scanId} terminé`;
-            refreshActivity();
-        } else if (st === 'failed' || data.error) {
-            clearInterval(iv);
-            scanStatusEl.textContent = '❌ ' + (data.error || 'Scan échoué');
-        }
-    }, 2000);
+        },
+    });
 }
 
 async function launchRebound(module, target) {
@@ -390,7 +389,7 @@ async function launchRebound(module, target) {
         alert(d.error || 'Impossible de lancer le scan');
         return;
     }
-    await pollDossierScan(d.scan_id, module, target);
+    await pollDossierScan(d.scan_id, module, target, d.poll_token);
 }
 </script>
 </body>

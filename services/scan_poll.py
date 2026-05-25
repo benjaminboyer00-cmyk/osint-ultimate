@@ -10,6 +10,16 @@ def new_poll_token() -> str:
     return secrets.token_urlsafe(24)
 
 
+def ensure_poll_token(options: dict | None) -> str:
+    """Garantit un jeton de polling pour GET /scan/<id> (HF, sessions fragiles)."""
+    opts = options if isinstance(options, dict) else {}
+    tok = opts.get('_poll_token')
+    if not tok:
+        tok = new_poll_token()
+        opts['_poll_token'] = tok
+    return str(tok)
+
+
 def _extract_poll_token(scan) -> str | None:
     if not scan or not scan.result_json:
         return None

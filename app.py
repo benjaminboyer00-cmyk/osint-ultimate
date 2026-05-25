@@ -1037,6 +1037,8 @@ def run_scan_async(module, target, options=None, user_id=None, mode='expert', sc
     if isinstance(options, list):
         options = {'email_checks': options}
     options = options or {}
+    from services.scan_poll import ensure_poll_token
+    ensure_poll_token(options)
 
     if not SCAN_FUNCTIONS.get(module):
         return None
@@ -1124,9 +1126,11 @@ def health():
     groq_ok = bool(os.environ.get('GROQ_API_KEY'))
     overall = db_ok and imports_ok
     from flask import make_response
+    from services.runtime_env import is_hf_space
     payload = {
         'status': 'ok' if overall else 'degraded',
         'version': app.config.get('APP_VERSION', '5.2'),
+        'hf_space': is_hf_space(),
         'database': 'connected' if db_ok else 'error',
         'celery': (
             'connected' if celery_connected
@@ -1138,6 +1142,17 @@ def health():
     }
     resp = make_response(jsonify(payload), 200 if overall else 503)
     resp.headers['Cache-Control'] = 'public, max-age=15'
+    return resp
+
+
+@app.route('/api/runtime')
+def api_runtime():
+    """Métadonnées publiques (HF, modes) — pas de secrets."""
+    from services.runtime_public import public_runtime_info
+    from flask import make_response
+    payload = public_runtime_info()
+    resp = make_response(jsonify(payload), 200)
+    resp.headers['Cache-Control'] = 'public, max-age=60'
     return resp
 
 
@@ -1181,10 +1196,9 @@ def scan_start():
         return jsonify({'error': 'Cible manquante'}), 400
     if module not in SCAN_FUNCTIONS:
         return jsonify({'error': f'Module inconnu: {module}'}), 403
-    from services.scan_poll import new_poll_token
+    from services.scan_poll import ensure_poll_token
 
-    poll_token = new_poll_token()
-    options['_poll_token'] = poll_token
+    poll_token = ensure_poll_token(options)
     scan_id = run_scan_async(module, target, options, user_id, mode=mode)
     if scan_id:
         return jsonify({
@@ -1600,7 +1614,7 @@ if csrf:
     csrf.exempt(api_bp)
     csrf.exempt(collab_bp)
     for _ep in (
-        'scan_start', 'health', 'service_worker', 'manifest',
+        'scan_start', 'health', 'api_runtime', 'service_worker', 'manifest',
         'views.verify_upload', 'auth.api_password_strength',
     ):
         _vf = app.view_functions.get(_ep)
