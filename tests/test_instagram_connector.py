@@ -111,12 +111,12 @@ def test_scan_public_profile(MockProfile, MockLoader, mock_profile):
 @patch('connectors.instagram.INSTALOADER_AVAILABLE', True)
 @patch('connectors.instagram.Instaloader')
 @patch('connectors.instagram.Profile')
-def test_scan_profile_not_found(MockProfile, MockLoader):
+def test_scan_profile_not_found_falls_back_http(MockProfile, MockLoader):
     from connectors.instagram import ProfileNotExistsException, scan
 
     MockProfile.from_username.side_effect = ProfileNotExistsException('nope')
     out = scan('unknown_user_xyz', {})
-    assert out['Erreur'] == 'Profil introuvable'
+    assert out is None
 
 
 def test_inject_rotating_proxy_from_proxy_list():

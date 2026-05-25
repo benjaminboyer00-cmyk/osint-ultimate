@@ -714,6 +714,7 @@ def scan_instagram(username, options=None):
         social_http_get,
         parse_instagram_api_json,
         parse_instagram_profile_html,
+        profile_exists_in_html,
     )
     from services.url_sanitize import sanitize_username
 
@@ -728,7 +729,7 @@ def scan_instagram(username, options=None):
 
         if ig_connector.is_available():
             ig_result = ig_connector.scan(username, opts)
-            if ig_result is not None and not ig_result.get('_retry_http'):
+            if ig_result and not ig_result.get('Erreur'):
                 return ig_result
         elif is_hf_space():
             opts = dict(opts or {})
@@ -752,6 +753,7 @@ def scan_instagram(username, options=None):
     api_url = (
         f'https://www.instagram.com/api/v1/users/web_profile_info/?username={username}'
     )
+    api_404 = False
     try:
         r = social_http_get(api_url, opts, headers=headers, timeout=18)
         if r and r.status_code == 200:
@@ -761,8 +763,7 @@ def scan_instagram(username, options=None):
                     return _merge_hf_note(parsed)
             except (json.JSONDecodeError, ValueError):
                 pass
-        if r and r.status_code == 404:
-            return {'Résultat': 'Compte non trouvé'}
+        api_404 = bool(r and r.status_code == 404)
     except Exception as e:
         app.logger.debug('Instagram API %s: %s', username, e)
 
@@ -775,12 +776,13 @@ def scan_instagram(username, options=None):
         return results
 
     profile_url = f'https://www.instagram.com/{username}/'
+    html_404 = False
     try:
         r2 = social_http_get(profile_url, opts, headers=headers, timeout=18)
         if r2:
             if r2.status_code == 404:
-                return {'Résultat': 'Compte non trouvé'}
-            if r2.status_code == 200:
+                html_404 = True
+            elif r2.status_code == 200:
                 results = parse_instagram_profile_html(r2.text, username)
                 if results.get('Followers') or results.get('Nom complet') or results.get('Titre'):
                     if 'Note' not in results:
@@ -788,22 +790,40 @@ def scan_instagram(username, options=None):
                             'Données partielles — Instagram limite le scraping non authentifié.'
                         )
                     return _merge_hf_note(results)
-                if 'login' in r2.url.lower() or 'connexion' in r2.text[:2000].lower():
+                if profile_exists_in_html(r2.text, username):
+                    return _merge_hf_note({
+                        'Profil': profile_url,
+                        'Résultat': (
+                            'Profil détecté — bio/stats masquées '
+                            '(connexion Instagram ou VPS + session requise)'
+                        ),
+                        'Note': hf_note or (
+                            'Le lien profil est valide. Pour bio, posts et stories : '
+                            'déployer sur VPS avec session-ig (voir docs/VPS_DEPLOY.md).'
+                        ),
+                    })
+                if 'login' in r2.url.lower() or 'connexion' in (r2.text or '')[:3000].lower():
                     return _merge_hf_note({
                         'Profil': profile_url,
                         'Résultat': 'Profil existant (page login — données masquées)',
                         'Note': (
-                            'Instagram exige une session. Activez le fallback scraping '
-                            '(Paramètres) ou consultez le profil manuellement.'
+                            'Instagram exige une session pour les détails. '
+                            'VPS + session-ig ou ouvrir le lien manuellement.'
                         ),
                     })
     except Exception as e:
         return _merge_hf_note({'Erreur': str(e), 'Profil': profile_url})
 
+    if html_404 and api_404:
+        return _merge_hf_note({
+            'Profil': profile_url,
+            'Résultat': 'Compte non trouvé',
+        })
+
     return _merge_hf_note({
         'Profil': profile_url,
-        'Résultat': 'Données indisponibles (rate-limit ou blocage Instagram)',
-        'Note': 'Réessayez avec proxy / mode furtif, ou ouvrez le profil dans un navigateur.',
+        'Résultat': 'Données limitées — ouvrez le lien profil ou utilisez le VPS (instaloader)',
+        'Note': hf_note or 'Instagram bloque souvent les requêtes depuis Hugging Face.',
     })
 
 

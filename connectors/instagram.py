@@ -392,6 +392,7 @@ def scan(username: str, options: dict | None = None) -> dict | None:
         inject_rotating_proxy(opts)
     connector = InstagramConnector(options=opts)
     raw = connector.get_profile_data(username)
-    if not raw.get('success') and raw.get('error', '').startswith('Connexion'):
-        return {**_to_scan_result(raw), '_retry_http': True}
+    if not raw.get('success'):
+        # Toujours laisser le fallback HTTP confirmer (HF, rate-limit, faux 404 instaloader)
+        return None
     return _to_scan_result(raw)

@@ -32,6 +32,21 @@ def social_http_get(url: str, options=None, *, headers: dict | None = None, time
     return safe_get(safe_url, timeout=timeout, options=opts, headers=merged)
 
 
+def profile_exists_in_html(text: str, username: str) -> bool:
+    """Heuristique : la page HTML correspond bien à ce pseudo (pas une 404 IG générique)."""
+    if not text or not username:
+        return False
+    u = username.lower().strip()
+    low = text.lower()
+    if 'page not found' in low or 'sorry, this page' in low or "n'est pas disponible" in low:
+        return False
+    if f'instagram.com/{u}/' in low or f'instagram.com/{u}"' in low:
+        return True
+    if f'"username":"{u}"' in low:
+        return True
+    return False
+
+
 def parse_instagram_profile_html(text: str, username: str) -> dict:
     """Extrait les champs visibles depuis la page HTML Instagram."""
     results: dict = {}
