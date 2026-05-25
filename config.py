@@ -1,6 +1,10 @@
 """Configuration OSINT Ultimate V4."""
+import logging
 import os
+import secrets
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def _load_dotenv_file():
@@ -31,13 +35,55 @@ def normalize_database_url(url):
     return url
 
 
+def _is_production_deploy(db_url: str) -> bool:
+    if os.environ.get('OSINT_PRODUCTION', '').strip().lower() in ('1', 'true', 'yes'):
+        return True
+    if db_url.startswith('postgresql'):
+        return True
+    return bool(os.environ.get('SPACE_ID') or os.environ.get('SYSTEM'))
+
+
+def _resolve_secret_key(production: bool) -> str:
+    """Clé stable en prod (env obligatoire) ; fichier local en dev."""
+    sk = (os.environ.get('SECRET_KEY') or '').strip()
+    if sk:
+        return sk
+    dev_file = Path(__file__).resolve().parent / '.secret_key_dev'
+    if dev_file.is_file():
+        return dev_file.read_text(encoding='utf-8').strip()
+    if production:
+        logger.critical(
+            'SECRET_KEY manquant en production — définir dans les secrets (HF/VPS)',
+        )
+    key = secrets.token_hex(32)
+    if not production:
+        try:
+            dev_file.write_text(key, encoding='utf-8')
+            logger.info('SECRET_KEY dev écrite dans %s', dev_file.name)
+        except OSError:
+            pass
+    return key
+
+
 def build_config():
     _default_db = 'sqlite:////data/osint.db' if os.path.isdir('/data') else 'sqlite:///osint.db'
     db_url = normalize_database_url(os.environ.get('DATABASE_URL', _default_db))
     on_hf = bool(os.environ.get('SPACE_ID') or os.environ.get('SYSTEM'))
+    production = _is_production_deploy(db_url)
+
+    def _env_bool(name: str, default: bool) -> bool:
+        raw = os.environ.get(name)
+        if raw is None:
+            return default
+        return raw.strip().lower() in ('1', 'true', 'yes', 'on')
+
+    session_secure = _env_bool('SESSION_COOKIE_SECURE', production or on_hf)
+    csrf_enabled = _env_bool('WTF_CSRF_ENABLED', production or on_hf)
+    force_https = _env_bool('FORCE_HTTPS', production and not on_hf)
 
     return {
-        'SECRET_KEY': os.environ.get('SECRET_KEY', 'change-me-' + os.urandom(16).hex()),
+        'SECRET_KEY': _resolve_secret_key(production),
+        'OSINT_PRODUCTION': production,
         'SQLALCHEMY_DATABASE_URI': db_url,
         'SQLALCHEMY_TRACK_MODIFICATIONS': False,
         'SQLALCHEMY_ENGINE_OPTIONS': {
@@ -46,12 +92,9 @@ def build_config():
         } if db_url.startswith('postgresql') else {},
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'SESSION_COOKIE_HTTPONLY': True,
-        'SESSION_COOKIE_SECURE': os.environ.get(
-            'SESSION_COOKIE_SECURE', 'true' if on_hf else 'false'
-        ).lower() == 'true',
-        'WTF_CSRF_ENABLED': os.environ.get(
-            'WTF_CSRF_ENABLED', 'true' if on_hf else 'false',
-        ).lower() == 'true',
+        'SESSION_COOKIE_SECURE': session_secure,
+        'WTF_CSRF_ENABLED': csrf_enabled,
+        'FORCE_HTTPS': force_https,
         'WTF_CSRF_TIME_LIMIT': None,
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,

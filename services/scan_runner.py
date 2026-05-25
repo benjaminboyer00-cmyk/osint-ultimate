@@ -16,7 +16,7 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
         if not scan or scan.status not in ('pending', 'running'):
             return
 
-        from app import SCAN_FUNCTIONS
+        from scans.registry import SCAN_FUNCTIONS
 
         func = SCAN_FUNCTIONS.get(scan.module)
         if not func:

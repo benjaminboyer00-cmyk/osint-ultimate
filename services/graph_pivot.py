@@ -23,7 +23,7 @@ PIVOT_MODULES = {
 def modules_for_entity(entity_type: str, value: str) -> list[str]:
     """Liste des modules à lancer pour un pivot."""
     from services.target_detector import detect_target_type, target_category
-    from app import SCAN_FUNCTIONS
+    from scans.registry import SCAN_FUNCTIONS
 
     etype = (entity_type or 'unknown').lower()
     mods = list(PIVOT_MODULES.get(etype, PIVOT_MODULES['unknown']))
@@ -67,7 +67,8 @@ def launch_pivot(
         raise ValueError('Entité hors du dossier partagé')
 
     from services.target_detector import target_category
-    from app import run_scan_async, SCAN_FUNCTIONS
+    from app import run_scan_async
+    from scans.registry import SCAN_FUNCTIONS
 
     modules = modules_for_entity(ent.entity_type, ent.value)
     if not modules:

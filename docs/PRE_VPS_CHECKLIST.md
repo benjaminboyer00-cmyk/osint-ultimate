@@ -19,6 +19,11 @@
 | Polling scan unifié (HF) | `static/js/scan-poll.js`, `poll_token` sur tous les lancements |
 | Socket.IO désactivé sur HF | `static/js/socketio-client.js` |
 | Bannière mode démo HF | `static/js/runtime-banner.js`, `GET /api/runtime` |
+| Scans extraits de `app.py` | `scans/core_scans.py`, `scans/registry.py` |
+| CSS partagé | `static/css/osint-base.css`, `templates/includes/head_assets.html` |
+| Fernet découplé | `services/crypto_service.py` |
+| Index JSONB (PostgreSQL) | migration `013_jsonb_scan_indexes` |
+| Upload authentifié | `POST /upload` exige connexion |
 
 ## Hugging Face (avant VPS)
 

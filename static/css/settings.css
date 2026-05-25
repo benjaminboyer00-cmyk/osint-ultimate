@@ -1,0 +1,54 @@
+@import url('osint-base.css');
+
+body {
+    padding: 1.5rem;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.settings-page h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.settings-page section {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+}
+
+.settings-page label {
+    display: block;
+    margin: 0.5rem 0 0.25rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.settings-page input,
+.settings-page button {
+    font: inherit;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+}
+
+.settings-page button {
+    margin-top: 0.75rem;
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+.flash.success {
+    color: var(--success);
+}
+
+.flash.error {
+    color: var(--error);
+}

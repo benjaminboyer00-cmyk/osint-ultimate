@@ -1,0 +1,100 @@
+/**
+ * OSINT Ultimate — styles partagés (variables, utilitaires).
+ * Les pages peuvent garder des styles spécifiques en inline ; éviter de dupliquer :root.
+ */
+:root {
+    --bg: #07080f;
+    --panel: rgba(14, 17, 28, 0.85);
+    --text: #c8cfe8;
+    --text-dim: #5a6180;
+    --accent: #00e5a0;
+    --accent2: #4d9fff;
+    --accent3: #ff6b9d;
+    --error: #ff4757;
+    --warning: #ffa502;
+    --success: #2ed573;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-lit: rgba(0, 229, 160, 0.25);
+    --shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+    --glass: blur(20px) saturate(160%);
+    --r: 14px;
+    --tr: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.light {
+    --bg: #eef2f9;
+    --panel: rgba(255, 255, 255, 0.85);
+    --text: #1a2035;
+    --text-dim: #8090b0;
+    --accent: #00a878;
+    --accent2: #0066dd;
+    --border: rgba(0, 0, 0, 0.07);
+    --shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+}
+
+a {
+    color: var(--accent2);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.osint-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.osint-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    box-shadow: var(--shadow);
+    backdrop-filter: var(--glass);
+}
+
+.skeleton {
+    height: 14px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.04) 75%);
+    background-size: 200% 100%;
+    animation: osint-shimmer 1.2s infinite;
+    margin-bottom: 0.5rem;
+}
+
+@keyframes osint-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.timeout-banner {
+    background: rgba(255, 160, 50, 0.12);
+    border: 1px solid rgba(255, 160, 50, 0.35);
+    border-radius: var(--r);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}

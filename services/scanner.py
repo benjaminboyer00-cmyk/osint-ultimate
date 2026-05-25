@@ -80,7 +80,7 @@ def _resolve_target_for_module(module: str, target: str, category: str) -> str:
 
 def _run_one_module(module: str, target: str, options: dict, category: str, app=None) -> tuple:
     """Exécute un module ; retourne (module, payload, status). status: ok|timeout|error"""
-    from app import SCAN_FUNCTIONS
+    from scans.registry import SCAN_FUNCTIONS
     from services.result_hints import annotate_result
 
     func = SCAN_FUNCTIONS.get(module)
@@ -144,7 +144,7 @@ def launch_multi_scan(
     module_list = modules or strategies.get(category) or [detect_target_type(target)]
 
     # Filtrer modules disponibles
-    from app import SCAN_FUNCTIONS
+    from scans.registry import SCAN_FUNCTIONS
     module_list = [m for m in module_list if m in SCAN_FUNCTIONS]
 
     if options.get('_deep_dorking') and 'dorking' in SCAN_FUNCTIONS and 'dorking' not in module_list:
