@@ -30,7 +30,7 @@ from extensions import db, login_manager, migrate, limiter, init_csrf, csrf
 from models import User, Scan
 
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 app.config.update(build_config())
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
