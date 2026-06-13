@@ -41,7 +41,10 @@ db.init_app(app)
 migrate.init_app(app, db)
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
-login_manager.session_protection = 'strong'
+# 'strong' invalide la session si IP/UA semblent changer entre requêtes —
+# trop agressif derrière le proxy HF (IP/UA forwardés de façon incohérente),
+# ça déconnectait les utilisateurs sur les routes @login_required.
+login_manager.session_protection = 'basic'
 limiter.init_app(app)
 init_csrf(app)
 
