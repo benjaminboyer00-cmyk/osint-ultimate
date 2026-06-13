@@ -18,8 +18,22 @@ _scan_pool = ThreadPoolExecutor(
 
 
 def _run_scan_func(func, target, opts, timeout):
-    """Exécute la fonction de scan avec un timeout mur (wall-clock)."""
-    fut = _scan_pool.submit(func, target, opts)
+    """Exécute la fonction de scan avec un timeout mur (wall-clock).
+
+    Le scan tourne dans un thread du pool, distinct du thread qui détient
+    le `app.app_context()` de process_scan_by_id : on ouvre donc ici un
+    contexte applicatif dédié pour ce thread afin que `current_app`,
+    `db.session`, etc. restent disponibles (ex: connectors/base.py ApiCache).
+    """
+    app = opts.get('_app')
+
+    def _wrapped():
+        if app is not None:
+            with app.app_context():
+                return func(target, opts)
+        return func(target, opts)
+
+    fut = _scan_pool.submit(_wrapped)
     try:
         return fut.result(timeout=timeout)
     except _FutureTimeout:

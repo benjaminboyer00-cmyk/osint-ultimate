@@ -1,5 +1,4 @@
 gunicorn
-gevent
 flask
 flask-socketio
 flask-login
