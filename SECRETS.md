@@ -1,7 +1,7 @@
 # Secrets & clés API — OSINT Ultimate
 
 Configuration dans **Hugging Face Space → Settings → Repository secrets**  
-Projet Supabase : https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz
+Projet Supabase : voir note privée
 
 ## Obligatoires (production HF)
 

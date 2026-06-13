@@ -34,6 +34,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.update(build_config())
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Garde-fou Pillow : refuse les images au-delà de ~64 Mpx (anti-OOM / decompression bomb)
+Image.MAX_IMAGE_PIXELS = int(os.environ.get('MAX_IMAGE_PIXELS', str(64_000_000)))
+
 db.init_app(app)
 migrate.init_app(app, db)
 login_manager.init_app(app)
@@ -99,7 +102,8 @@ _socketio_cors = (
     else '*'
 )
 _on_hf = bool(os.environ.get('SPACE_ID') or os.environ.get('SYSTEM'))
-_socketio_async = 'gevent'
+# gthread → 'threading' (long-polling). gevent worker → 'gevent'. Piloté par env.
+_socketio_async = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 socketio = SocketIO(
     app,
     cors_allowed_origins=_socketio_cors,
@@ -115,6 +119,17 @@ init_request_logging(app)
 
 from services.error_handlers import register_error_handlers
 register_error_handlers(app)
+
+
+@app.teardown_appcontext
+def _shutdown_db_session(exception=None):
+    """Rollback + libération de la session à chaque fin de contexte (anti-cascade)."""
+    if exception is not None:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    db.session.remove()
 
 from services.http_cache import init_http_cache
 init_http_cache(app)

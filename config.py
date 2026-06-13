@@ -89,6 +89,9 @@ def build_config():
         'SQLALCHEMY_ENGINE_OPTIONS': {
             'pool_pre_ping': True,
             'pool_recycle': 300,
+            'pool_size': int(os.environ.get('DB_POOL_SIZE', '5')),
+            'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '2')),
+            'pool_timeout': int(os.environ.get('DB_POOL_TIMEOUT', '10')),
         } if db_url.startswith('postgresql') else {},
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'SESSION_COOKIE_HTTPONLY': True,

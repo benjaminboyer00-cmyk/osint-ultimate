@@ -35,8 +35,11 @@ else
 fi
 
 WORKERS="${GUNICORN_WORKERS:-1}"
+THREADS="${GUNICORN_THREADS:-8}"
 TIMEOUT="${GUNICORN_TIMEOUT:-120}"
 MAX_REQ="${GUNICORN_MAX_REQUESTS:-1000}"
-echo "[OSINT] Gunicorn workers=${WORKERS} timeout=${TIMEOUT}"
-exec gunicorn -k gevent -w "${WORKERS}" -b 0.0.0.0:7860 \
-  --timeout "${TIMEOUT}" --max-requests "${MAX_REQ}" ${PRELOAD_FLAG} app:app
+echo "[OSINT] Gunicorn (gthread) workers=${WORKERS} threads=${THREADS} timeout=${TIMEOUT}"
+exec gunicorn -k gthread -w "${WORKERS}" --threads "${THREADS}" -b 0.0.0.0:7860 \
+  --timeout "${TIMEOUT}" --graceful-timeout 30 \
+  --max-requests "${MAX_REQ}" --max-requests-jitter 100 \
+  ${PRELOAD_FLAG} app:app

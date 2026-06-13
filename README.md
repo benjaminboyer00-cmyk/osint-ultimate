@@ -10,7 +10,7 @@ pinned: false
 
 # OSINT Ultimate V5.0
 
-Plateforme OSINT (Flask) déployée sur [Hugging Face Spaces](https://huggingface.co/spaces/benji4565/osint_ultimate_backend), base PostgreSQL [Supabase](https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz).
+Plateforme OSINT (Flask) déployée sur [Hugging Face Spaces](https://huggingface.co/spaces/benji4565/osint_ultimate_backend), base PostgreSQL Supabase (voir note privée pour l'accès au projet).
 
 Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** · Secrets : **`SECRETS.md`** · Collaboration V8 : **`docs/COLLABORATION_V8.md`**
 
@@ -64,7 +64,7 @@ Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** ·
 
 ### Où trouver `DATABASE_URL` sur Supabase
 
-1. [Dashboard projet](https://supabase.com/dashboard/project/mkciozumxpxllsjmcsyz) → **Project Settings** → **Database**
+1. Dashboard projet Supabase (voir note privée) → **Project Settings** → **Database**
 2. Section **Connection string** → **URI** (mode Session, pas Transaction pooler pour les migrations)
 3. Remplacer `[YOUR-PASSWORD]` par le mot de passe base
 4. Coller dans HF Secrets (le code ajoute `sslmode=require` automatiquement)

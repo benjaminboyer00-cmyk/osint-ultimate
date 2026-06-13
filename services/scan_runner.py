@@ -1,12 +1,32 @@
 """Exécution fiable des scans (thread dédié, compatible Gunicorn/gevent)."""
 import json
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeout
 from datetime import datetime
 
 from extensions import db
 from models import Scan, User
 
 logger = logging.getLogger(__name__)
+
+_SCAN_HARD_TIMEOUT = int(os.environ.get('SCAN_HARD_TIMEOUT', '180'))
+_scan_pool = ThreadPoolExecutor(
+    max_workers=int(os.environ.get('SCAN_POOL_SIZE', '4')),
+    thread_name_prefix='scan-exec',
+)
+
+
+def _run_scan_func(func, target, opts, timeout):
+    """Exécute la fonction de scan avec un timeout mur (wall-clock)."""
+    fut = _scan_pool.submit(func, target, opts)
+    try:
+        return fut.result(timeout=timeout)
+    except _FutureTimeout:
+        fut.cancel()  # libère le slot si encore en file
+        raise TimeoutError(
+            f'Scan interrompu : dépassement de {timeout}s.'
+        )
 
 
 def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
@@ -53,7 +73,7 @@ def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
                             poll_token = poll_token or opts.get('_poll_token')
                 except Exception:
                     pass
-            result = func(scan.target, opts)
+            result = _run_scan_func(func, scan.target, opts, _SCAN_HARD_TIMEOUT)
             if isinstance(result, dict):
                 from services.result_hints import annotate_result, annotate_multi_results
                 from services.scan_poll import attach_poll_token_to_result
