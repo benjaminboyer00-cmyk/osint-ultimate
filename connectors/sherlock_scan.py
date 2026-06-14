@@ -4,7 +4,7 @@ import shutil
 import subprocess
 
 
-def search(username: str, fallback_fn=None, timeout: int = 90) -> dict:
+def search(username: str, fallback_fn=None, timeout: int = 40) -> dict:
     """
     Lance Sherlock CLI si disponible, sinon utilise fallback_fn (scan_pseudo).
     """
@@ -16,7 +16,7 @@ def search(username: str, fallback_fn=None, timeout: int = 90) -> dict:
     if sherlock_bin:
         try:
             proc = subprocess.run(
-                [sherlock_bin, username, '--print-found', '--timeout', '10', '--no-color'],
+                [sherlock_bin, username, '--print-found', '--timeout', '8', '--no-color'],
                 capture_output=True,
                 text=True,
                 timeout=timeout,

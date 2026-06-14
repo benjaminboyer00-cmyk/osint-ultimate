@@ -368,6 +368,7 @@
             #scan-btn { width:100%; }
             .input-row { flex-direction:column; }
             .hdr-right { justify-content:center; }
+            .mod { padding:.62rem 1.1rem; font-size:.85rem; }
         }
     </style>
 </head>
@@ -695,7 +696,10 @@ if(socket){
 function pollFallback(scan_id, pollToken){
     const tok = pollToken || activePollToken || null;
     if (typeof OsintScanPoll === 'undefined') return;
+    const slowModules = ['pseudo', 'sherlock', 'multi'];
+    const maxMs = slowModules.includes(currentModule) ? 180000 : 120000;
     OsintScanPoll.startPoll(scan_id, tok, {
+        maxMs,
         isActive: (id) => id === activeScanId,
         on401: () => {
             clearScanProgress();
@@ -1183,6 +1187,14 @@ function tutorialNext(){
     if(tutStep < TUTORIAL_STEPS.length - 1){ tutStep++; renderTutorialStep(); }
     else closeTutorial(true);
 }
+document.getElementById('tutorial-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'tutorial-overlay') closeTutorial(true);
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('tutorial-overlay').classList.contains('open')) {
+        closeTutorial(true);
+    }
+});
 try {
     if(!localStorage.getItem('osint_expert_tutorial_done') && !(_autoTarget && _autoLaunch))
         setTimeout(openTutorial, 800);

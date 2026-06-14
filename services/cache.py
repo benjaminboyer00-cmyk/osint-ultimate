@@ -21,6 +21,7 @@ PROVIDER_TTL = {
     'groq': 0,
     'hibp': 48,
     'dorking': 12,
+    'dns': 1,
 }
 
 

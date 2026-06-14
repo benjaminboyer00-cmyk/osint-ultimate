@@ -2,6 +2,7 @@
 import logging
 import os
 import secrets
+from datetime import timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,11 @@ def build_config():
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'SESSION_COOKIE_HTTPONLY': True,
         'SESSION_COOKIE_SECURE': session_secure,
+        'PERMANENT_SESSION_LIFETIME': timedelta(days=int(os.environ.get('SESSION_LIFETIME_DAYS', '14'))),
+        'REMEMBER_COOKIE_DURATION': timedelta(days=int(os.environ.get('REMEMBER_COOKIE_DAYS', '14'))),
+        'REMEMBER_COOKIE_SECURE': session_secure,
+        'REMEMBER_COOKIE_HTTPONLY': True,
+        'REMEMBER_COOKIE_SAMESITE': 'Lax',
         'WTF_CSRF_ENABLED': csrf_enabled,
         'FORCE_HTTPS': force_https,
         'WTF_CSRF_TIME_LIMIT': None,

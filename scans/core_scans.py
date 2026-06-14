@@ -8,6 +8,7 @@ import os
 import re
 import socket
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
 import dns.resolver
@@ -26,100 +27,155 @@ def scan_site(target, options=None):
         domain = urlparse(domain).netloc
     domain = re.sub(r'^www\.', '', domain).split('/')[0]
     results = {}
-    http_resp = None
 
     # ── WHOIS (RDAP + repli, timeouts courts) ──
-    try:
-        from connectors.whois_domain import lookup as whois_lookup
-        results['WHOIS'] = whois_lookup(domain, options)
-    except Exception as e:
-        results['WHOIS'] = {'Erreur': str(e)}
-
-    # ── DNS ──
-    dns_rec = {}
-    for rtype in ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME']:
+    def _task_whois():
         try:
-            dns_rec[rtype] = [str(r) for r in dns.resolver.resolve(domain, rtype)]
+            from connectors.whois_domain import lookup as whois_lookup
+            return whois_lookup(domain, options)
+        except Exception as e:
+            return {'Erreur': str(e)}
+
+    # ── DNS (cache court pour limiter la latence sur scans répétés) ──
+    def _task_dns():
+        try:
+            from services.cache import get_cached, set_cached
+            cached = get_cached('dns', domain)
+            if cached is not None:
+                return cached
         except Exception:
-            dns_rec[rtype] = []
-    results['DNS'] = dns_rec
+            get_cached = set_cached = None
+        dns_rec = {}
+        for rtype in ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME']:
+            try:
+                dns_rec[rtype] = [str(r) for r in dns.resolver.resolve(domain, rtype)]
+            except Exception:
+                dns_rec[rtype] = []
+        try:
+            if set_cached:
+                set_cached('dns', domain, dns_rec)
+        except Exception:
+            pass
+        return dns_rec
 
     # ── HTTP + IP + Geo ──
-    try:
-        http_resp = safe_get(f'https://{domain}', options=options) or safe_get(f'http://{domain}', options=options)
-        if not http_resp or (http_resp.status_code in (403, 503, 520, 521, 522, 523)):
-            from connectors.scraper_fallback import fetch_url_protected
-            cf = fetch_url_protected(f'https://{domain}', options)
-            if cf and cf.text:
-                http_resp = cf
-                results['_http_via'] = 'cloudscraper'
-        if http_resp:
-            results['HTTP'] = {
-                'Statut':   http_resp.status_code,
-                'URL finale': http_resp.url,
-            }
-            results['Headers HTTP'] = dict(http_resp.headers)
-        ip = socket.gethostbyname(domain)
-        results['IP'] = ip
-        geo = safe_get(f'http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,proxy,hosting')
-        if geo and geo.status_code == 200:
-            g = geo.json()
-            if g.get('status') == 'success':
-                results['Géolocalisation'] = {
-                    'Pays': g.get('country'), 'Région': g.get('regionName'),
-                    'Ville': g.get('city'),   'FAI': g.get('isp'),
-                    'Organisation': g.get('org'), 'AS': g.get('as'),
-                    'Lat': g.get('lat'),      'Lon': g.get('lon'),
-                    'Fuseau': g.get('timezone'),
-                    'Proxy/VPN': 'Oui ⚠️' if g.get('proxy') else 'Non',
-                    'Hébergement': 'Oui' if g.get('hosting') else 'Non',
+    def _task_http_geo():
+        out = {}
+        try:
+            http_resp = safe_get(f'https://{domain}', options=options) or safe_get(f'http://{domain}', options=options)
+            if not http_resp or (http_resp.status_code in (403, 503, 520, 521, 522, 523)):
+                from connectors.scraper_fallback import fetch_url_protected
+                cf = fetch_url_protected(f'https://{domain}', options)
+                if cf and cf.text:
+                    http_resp = cf
+                    out['_http_via'] = 'cloudscraper'
+            if http_resp:
+                out['HTTP'] = {
+                    'Statut':   http_resp.status_code,
+                    'URL finale': http_resp.url,
                 }
-    except Exception as e:
-        results['Réseau'] = str(e)
+                out['Headers HTTP'] = dict(http_resp.headers)
+            ip = socket.gethostbyname(domain)
+            out['IP'] = ip
+            geo = safe_get(f'http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,proxy,hosting')
+            if geo and geo.status_code == 200:
+                g = geo.json()
+                if g.get('status') == 'success':
+                    out['Géolocalisation'] = {
+                        'Pays': g.get('country'), 'Région': g.get('regionName'),
+                        'Ville': g.get('city'),   'FAI': g.get('isp'),
+                        'Organisation': g.get('org'), 'AS': g.get('as'),
+                        'Lat': g.get('lat'),      'Lon': g.get('lon'),
+                        'Fuseau': g.get('timezone'),
+                        'Proxy/VPN': 'Oui ⚠️' if g.get('proxy') else 'Non',
+                        'Hébergement': 'Oui' if g.get('hosting') else 'Non',
+                    }
+            out['_http_resp'] = http_resp
+        except Exception as e:
+            out['Réseau'] = str(e)
+        return out
 
     # ── SSL ──
-    try:
-        import ssl as _ssl
-        ctx = _ssl.create_default_context()
-        with ctx.wrap_socket(socket.socket(), server_hostname=domain) as ss:
-            ss.settimeout(5); ss.connect((domain, 443))
-            cert = ss.getpeercert()
-            results['SSL/TLS'] = {
-                'Valide jusqu\'au': cert.get('notAfter', 'N/A'),
-                'Émetteur': dict(x[0] for x in cert.get('issuer', [])).get('organizationName', 'N/A'),
-                'Sujet':    dict(x[0] for x in cert.get('subject', [])).get('commonName', 'N/A'),
-            }
-    except Exception as e:
-        results['SSL/TLS'] = {'Erreur': str(e)}
+    def _task_ssl():
+        try:
+            import ssl as _ssl
+            ctx = _ssl.create_default_context()
+            with ctx.wrap_socket(socket.socket(), server_hostname=domain) as ss:
+                ss.settimeout(5); ss.connect((domain, 443))
+                cert = ss.getpeercert()
+                return {
+                    'Valide jusqu\'au': cert.get('notAfter', 'N/A'),
+                    'Émetteur': dict(x[0] for x in cert.get('issuer', [])).get('organizationName', 'N/A'),
+                    'Sujet':    dict(x[0] for x in cert.get('subject', [])).get('commonName', 'N/A'),
+                }
+        except Exception as e:
+            return {'Erreur': str(e)}
 
     # ── Ports (socket fallback, nmap si dispo) ──
     common = {21:'FTP',22:'SSH',25:'SMTP',80:'HTTP',110:'POP3',
               143:'IMAP',443:'HTTPS',3306:'MySQL',3389:'RDP',
               5432:'PostgreSQL',8080:'HTTP-Alt',8443:'HTTPS-Alt'}
-    try:
-        import nmap
-        nm = nmap.PortScanner()
-        nm.scan(domain, ','.join(str(p) for p in common.keys()), arguments='-T4 --open')
-        open_ports = []
-        for host in nm.all_hosts():
-            for proto in nm[host].all_protocols():
-                for port, info in nm[host][proto].items():
-                    if info.get('state') == 'open':
-                        svc = info.get('name', common.get(port, ''))
-                        open_ports.append(f'{port}/{proto} ({svc})')
-        results['Ports ouverts'] = open_ports or ['Aucun port ouvert détecté']
-    except Exception:
-        open_ports = []
-        for port, svc in list(common.items())[:8]:
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(1)
-                if s.connect_ex((domain, port)) == 0:
-                    open_ports.append(f'{port} ({svc})')
-                s.close()
-            except Exception:
-                pass
-        results['Ports ouverts'] = open_ports or ['Aucun détecté']
+
+    def _task_ports():
+        try:
+            import nmap
+            nm = nmap.PortScanner()
+            nm.scan(domain, ','.join(str(p) for p in common.keys()), arguments='-T4 --open')
+            open_ports = []
+            for host in nm.all_hosts():
+                for proto in nm[host].all_protocols():
+                    for port, info in nm[host][proto].items():
+                        if info.get('state') == 'open':
+                            svc = info.get('name', common.get(port, ''))
+                            open_ports.append(f'{port}/{proto} ({svc})')
+            return open_ports or ['Aucun port ouvert détecté']
+        except Exception:
+            open_ports = []
+            for port, svc in list(common.items())[:8]:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(1)
+                    if s.connect_ex((domain, port)) == 0:
+                        open_ports.append(f'{port} ({svc})')
+                    s.close()
+                except Exception:
+                    pass
+            return open_ports or ['Aucun détecté']
+
+    # ── Wayback Machine ──
+    def _task_wayback():
+        try:
+            wb = safe_get(f'https://web.archive.org/cdx/search/cdx?url={domain}/*&output=json&limit=5&fl=timestamp,original&collapse=urlkey')
+            if wb and wb.status_code == 200:
+                data = wb.json()
+                if len(data) > 1:
+                    return [{'Date': r[0][:8], 'URL': r[1]} for r in data[1:]]
+        except Exception:
+            pass
+        return None
+
+    # ── Exécution parallèle des opérations indépendantes ──
+    with ThreadPoolExecutor(max_workers=6, thread_name_prefix='site-scan') as pool:
+        fut_whois = pool.submit(_task_whois)
+        fut_dns = pool.submit(_task_dns)
+        fut_http = pool.submit(_task_http_geo)
+        fut_ssl = pool.submit(_task_ssl)
+        fut_ports = pool.submit(_task_ports)
+        fut_wayback = pool.submit(_task_wayback)
+
+        results['WHOIS'] = fut_whois.result()
+        results['DNS'] = fut_dns.result()
+
+        http_out = fut_http.result()
+        http_resp = http_out.pop('_http_resp', None)
+        results.update(http_out)
+
+        results['SSL/TLS'] = fut_ssl.result()
+        results['Ports ouverts'] = fut_ports.result()
+
+        wb_result = fut_wayback.result()
+        if wb_result:
+            results['Wayback Machine'] = wb_result
 
     # ── Technologies ──
     techs = {}
@@ -139,9 +195,12 @@ def scan_site(target, options=None):
             if 'react' in ct.lower():   techs['Frontend'] = 'React'
             elif 'vue.js' in ct.lower(): techs['Frontend'] = 'Vue.js'
             elif 'angular' in ct.lower(): techs['Frontend'] = 'Angular'
-            for path, label in [('/robots.txt','robots.txt'),('/sitemap.xml','sitemap.xml')]:
-                r = safe_get(f'https://{domain}{path}')
-                techs[label] = 'Accessible ✓' if r and r.status_code == 200 else 'Absent'
+            with ThreadPoolExecutor(max_workers=2, thread_name_prefix='site-scan-rb') as pool:
+                paths = [('/robots.txt','robots.txt'),('/sitemap.xml','sitemap.xml')]
+                futs = {label: pool.submit(safe_get, f'https://{domain}{path}') for path, label in paths}
+                for label, fut in futs.items():
+                    r = fut.result()
+                    techs[label] = 'Accessible ✓' if r and r.status_code == 200 else 'Absent'
         except Exception as e:
             techs['Erreur analyse'] = str(e)
     results['Technologies'] = techs
@@ -154,18 +213,6 @@ def scan_site(target, options=None):
         results['En-têtes sécurité'] = {
             h: (http_resp.headers.get(h) or '❌ Absent') for h in hdrs
         }
-
-    # ── Wayback Machine ──
-    try:
-        wb = safe_get(f'https://web.archive.org/cdx/search/cdx?url={domain}/*&output=json&limit=5&fl=timestamp,original&collapse=urlkey')
-        if wb and wb.status_code == 200:
-            data = wb.json()
-            if len(data) > 1:
-                results['Wayback Machine'] = [
-                    {'Date': r[0][:8], 'URL': r[1]} for r in data[1:]
-                ]
-    except Exception:
-        pass
 
     return results
 
