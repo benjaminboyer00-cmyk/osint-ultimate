@@ -471,8 +471,8 @@ async function loadMergeSuggestions(entityId){
     membersEl.innerHTML = members.length
         ? '<div style="color:var(--dim);margin-bottom:.2rem">Regroupés :</div>' + members.map(m =>
             `<div style="display:flex;justify-content:space-between;gap:.4rem;margin:.15rem 0">
-                <span>${m.entity_type} : ${(m.value || '').slice(0, 26)}</span>
-                <button type="button" onclick="doUnmerge(${entityId},${m.id})"
+                <span>${escapeHtml(m.entity_type)} : ${escapeHtml((m.value || '').slice(0, 26))}</span>
+                <button type="button" onclick="doUnmerge(${entityId},${parseInt(m.id, 10)})"
                     style="background:none;border:none;color:var(--dim);cursor:pointer" title="Séparer">✕</button>
              </div>`).join('')
         : '';
@@ -481,9 +481,9 @@ async function loadMergeSuggestions(entityId){
     sugEl.innerHTML = sugs.length
         ? '<div style="color:var(--dim);margin:.3rem 0 .2rem">Suggestions :</div>' + sugs.map(s =>
             `<div style="display:flex;justify-content:space-between;gap:.4rem;align-items:center;margin:.2rem 0">
-                <span title="${s.reason}">${s.entity.entity_type} : ${(s.entity.value || '').slice(0, 22)}
+                <span title="${escapeHtml(s.reason)}">${escapeHtml(s.entity.entity_type)} : ${escapeHtml((s.entity.value || '').slice(0, 22))}
                     <small style="color:var(--dim)"> ${Math.round(s.score * 100)}%</small></span>
-                <button type="button" onclick="doMerge(${entityId},${s.entity.id})"
+                <button type="button" onclick="doMerge(${entityId},${parseInt(s.entity.id, 10)})"
                     style="background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">Lier</button>
              </div>`).join('')
         : (members.length ? '' : '<div style="color:var(--dim)">Aucune suggestion</div>');
