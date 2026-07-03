@@ -494,6 +494,54 @@ def graph_scan_node():
     })
 
 
+@views_bp.route('/graph/merge', methods=['POST'])
+@login_required
+def graph_merge():
+    """Marque deux entités comme la même personne (fusion réversible)."""
+    from services.entity_merge import merge_entities
+    data = request.json or {}
+    a, b = data.get('entity_id_a'), data.get('entity_id_b')
+    if not a or not b:
+        return jsonify({'error': 'entity_id_a et entity_id_b requis'}), 400
+    try:
+        out = merge_entities(
+            current_user.id, a, b,
+            proof=(data.get('proof') or 'Fusion manuelle')[:500],
+        )
+        return jsonify(out)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@views_bp.route('/graph/unmerge', methods=['POST'])
+@login_required
+def graph_unmerge():
+    """Annule une fusion « même personne » entre deux entités."""
+    from services.entity_merge import unmerge_entities
+    data = request.json or {}
+    a, b = data.get('entity_id_a'), data.get('entity_id_b')
+    if not a or not b:
+        return jsonify({'error': 'entity_id_a et entity_id_b requis'}), 400
+    try:
+        return jsonify(unmerge_entities(current_user.id, a, b))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@views_bp.route('/graph/entity/<int:entity_id>/merge-suggestions')
+@login_required
+def graph_merge_suggestions(entity_id):
+    """Candidats « même personne » pour une entité (déterministe)."""
+    from services.entity_merge import suggest_person_merges, get_person_cluster
+    ent = Entity.query.filter_by(id=entity_id, user_id=current_user.id).first()
+    if not ent:
+        return jsonify({'error': 'Entité non trouvée'}), 404
+    return jsonify({
+        'suggestions': suggest_person_merges(current_user.id, entity_id),
+        'cluster': get_person_cluster(current_user.id, entity_id),
+    })
+
+
 @views_bp.route('/graph/entity/<int:entity_id>/intel')
 @login_required
 def graph_entity_intel(entity_id):

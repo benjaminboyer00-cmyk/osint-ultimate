@@ -89,6 +89,7 @@
     <button type="button" id="ctx-scan">🔍 Analyser (module unique)</button>
     <button type="button" id="ctx-dossier">📁 Ouvrir le dossier</button>
     <hr>
+    <button type="button" id="ctx-merge">🔗 Même personne…</button>
     <button type="button" id="ctx-copy">📋 Copier la valeur</button>
 </div>
 <div class="main">
@@ -111,6 +112,11 @@
             <div class="legend-item"><span class="dot" style="background:#ffd700;border:2px solid #fff"></span> priorité (mode enquête)</div>
         </div>
         <p id="enquiry-tip" style="display:none;margin-top:.5rem;font-size:.75rem;color:#ffd700"></p>
+        <div id="merge-block" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
+            <strong style="font-size:.75rem;color:var(--dim)">🔗 Même personne</strong>
+            <div id="cluster-members" style="margin:.35rem 0;font-size:.78rem"></div>
+            <div id="merge-suggestions" style="font-size:.78rem"></div>
+        </div>
         <div id="links-list" style="margin-top:.75rem"></div>
         <div id="comments-block" style="margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
             <strong style="font-size:.75rem;color:var(--dim)">💬 Commentaires</strong>
@@ -190,6 +196,15 @@ const cy = cytoscape({
             'font-size': '7px',
             'color': '#8090b0',
         }},
+        { selector: 'edge[ltype = "MEME_PERSONNE"]', style: {
+            'line-color': '#ffd700',
+            'line-style': 'dashed',
+            'target-arrow-shape': 'none',
+            'source-arrow-shape': 'none',
+            'color': '#ffd700',
+            'width': 3,
+            'opacity': 0.9,
+        }},
         { selector: 'node.suggested', style: {
             'border-color': '#ffd700',
             'border-width': 4,
@@ -240,12 +255,17 @@ async function showNodeIntel(entityId) {
 
 cy.on('tap', 'node', evt => {
     const n = evt.target.data();
+    if (mergeSourceId && String(n.id) !== String(mergeSourceId)) {
+        doMerge(mergeSourceId, n.id);
+        return;
+    }
     selectedNode = n;
     cy.$('node:selected').unselect();
     evt.target.select();
     document.getElementById('panel-title').textContent = n.type + ' : ' + (n.value || n.label);
     showNodeIntel(n.id);
     loadComments(n.id);
+    loadMergeSuggestions(n.id);
     document.getElementById('btn-scan').style.display = 'block';
     document.getElementById('btn-dossier').style.display = 'block';
     document.getElementById('dossier-link').style.display = 'inline';
@@ -282,6 +302,86 @@ document.getElementById('ctx-copy').onclick = () => {
     hideCtxMenu();
     if (selectedNode?.value) navigator.clipboard.writeText(selectedNode.value);
 };
+
+let mergeSourceId = null;
+document.getElementById('ctx-merge').onclick = () => {
+    hideCtxMenu();
+    if (!selectedNode) return;
+    mergeSourceId = selectedNode.id;
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = `🔗 Cliquez un 2ᵉ nœud à lier à « ${selectedNode.value || selectedNode.label} » (même personne). Échap pour annuler.`;
+};
+
+function cancelMergeMode(){
+    if (!mergeSourceId) return;
+    mergeSourceId = null;
+    scanStatusEl.textContent = '';
+    scanStatusEl.style.display = 'none';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cancelMergeMode(); });
+
+async function doMerge(aId, bId){
+    const wasSource = mergeSourceId;
+    mergeSourceId = null;
+    scanStatusEl.style.display = 'block';
+    scanStatusEl.textContent = '🔗 Fusion en cours…';
+    const { ok, data: d } = await parseJsonResponse(await fetch('/graph/merge', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ entity_id_a: parseInt(aId, 10), entity_id_b: parseInt(bId, 10) }),
+    }));
+    if (!ok) {
+        scanStatusEl.textContent = '❌ ' + (d.error || 'Échec de la fusion');
+        mergeSourceId = wasSource;
+        return;
+    }
+    scanStatusEl.textContent = `✅ Entités liées (personne : ${d.cluster?.size || 2} identifiants)`;
+    const root = graphData?.root_id || document.getElementById('entity-select').value;
+    if (root) loadGraph(root);
+}
+
+async function doUnmerge(aId, bId){
+    const { ok, data: d } = await parseJsonResponse(await fetch('/graph/unmerge', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ entity_id_a: parseInt(aId, 10), entity_id_b: parseInt(bId, 10) }),
+    }));
+    if (!ok) { alert(d.error || 'Échec'); return; }
+    const root = graphData?.root_id || document.getElementById('entity-select').value;
+    if (root) loadGraph(root);
+}
+
+async function loadMergeSuggestions(entityId){
+    const block = document.getElementById('merge-block');
+    const membersEl = document.getElementById('cluster-members');
+    const sugEl = document.getElementById('merge-suggestions');
+    if (!block) return;
+    const { ok, data: d } = await parseJsonResponse(
+        await fetch(`/graph/entity/${entityId}/merge-suggestions`));
+    if (!ok) { block.style.display = 'none'; return; }
+    block.style.display = 'block';
+
+    const members = (d.cluster?.members || []).filter(m => String(m.id) !== String(entityId));
+    membersEl.innerHTML = members.length
+        ? '<div style="color:var(--dim);margin-bottom:.2rem">Regroupés :</div>' + members.map(m =>
+            `<div style="display:flex;justify-content:space-between;gap:.4rem;margin:.15rem 0">
+                <span>${m.entity_type} : ${(m.value || '').slice(0, 26)}</span>
+                <button type="button" onclick="doUnmerge(${entityId},${m.id})"
+                    style="background:none;border:none;color:var(--dim);cursor:pointer" title="Séparer">✕</button>
+             </div>`).join('')
+        : '';
+
+    const sugs = d.suggestions || [];
+    sugEl.innerHTML = sugs.length
+        ? '<div style="color:var(--dim);margin:.3rem 0 .2rem">Suggestions :</div>' + sugs.map(s =>
+            `<div style="display:flex;justify-content:space-between;gap:.4rem;align-items:center;margin:.2rem 0">
+                <span title="${s.reason}">${s.entity.entity_type} : ${(s.entity.value || '').slice(0, 22)}
+                    <small style="color:var(--dim)"> ${Math.round(s.score * 100)}%</small></span>
+                <button type="button" onclick="doMerge(${entityId},${s.entity.id})"
+                    style="background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">Lier</button>
+             </div>`).join('')
+        : (members.length ? '' : '<div style="color:var(--dim)">Aucune suggestion</div>');
+}
 
 async function runPivot(){
     if (!selectedNode) return;
@@ -341,6 +441,7 @@ function mergeGraphUpdate(payload){
             group: 'edges',
             data: {
                 id: e.id, source: srcStr, target: tgtStr,
+                ltype: e.label || '',
                 label: e.label || '', width: e.width || 3, opacity: 0.5 + conf * 0.5,
             },
         });
@@ -564,6 +665,7 @@ function render(data){
         return {
             data: {
                 id: e.id, source: e.source, target: e.target,
+                ltype: e.label || '',
                 label: (e.label || '') + (pct ? ` (${pct}%)` : ''),
                 width: e.width || Math.max(1, Math.round(conf * 6)),
                 opacity: 0.4 + conf * 0.6,
