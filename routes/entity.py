@@ -528,6 +528,34 @@ def graph_unmerge():
         return jsonify({'error': str(e)}), 400
 
 
+@views_bp.route('/graph/entity/<int:entity_id>/analysis')
+@login_required
+def graph_analysis(entity_id):
+    """Analyse IA du graphe : incohérences, hypothèses, pistes priorisées."""
+    from services.graph_analysis import analyze_graph
+    from services.dossier_access import get_dossier_context
+    ctx = get_dossier_context(entity_id, current_user.id, min_role='reader')
+    if not ctx:
+        return jsonify({'error': 'Accès refusé'}), 403
+    return jsonify(analyze_graph(ctx['owner_user_id'], entity_id))
+
+
+@views_bp.route('/graph/compare', methods=['POST'])
+@login_required
+def graph_compare():
+    """Compare deux graphes (recouvrement d'identifiants + verdict IA)."""
+    from services.graph_analysis import compare_graphs
+    data = request.json or {}
+    a, b = data.get('entity_id_a'), data.get('entity_id_b')
+    if not a or not b:
+        return jsonify({'error': 'entity_id_a et entity_id_b requis'}), 400
+    ent_a = Entity.query.filter_by(id=int(a), user_id=current_user.id).first()
+    ent_b = Entity.query.filter_by(id=int(b), user_id=current_user.id).first()
+    if not ent_a or not ent_b:
+        return jsonify({'error': 'Entité non trouvée'}), 404
+    return jsonify(compare_graphs(current_user.id, int(a), int(b)))
+
+
 @views_bp.route('/graph/entity/<int:entity_id>/merge-suggestions')
 @login_required
 def graph_merge_suggestions(entity_id):

@@ -78,6 +78,13 @@
         <button type="button" onclick="exportSvg()">SVG</button>
         <button type="button" onclick="loadLinksPanel()">Liens</button>
         <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">🎯 Mode Enquête</button>
+        <button type="button" onclick="runAnalysis()" title="Analyse IA du graphe : incohérences, pistes">🧠 Analyse IA</button>
+        <select id="compare-select" onchange="runCompare(this.value)" title="Comparer ce graphe à un autre">
+            <option value="">⇄ Comparer à…</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}">{{ e.entity_type }}: {{ e.value[:30] }}</option>
+            {% endfor %}
+        </select>
         <button type="button" id="btn-show-all" onclick="showAllNodes()" style="display:none">Afficher tout</button>
         <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
         <a href="#" id="map-link" style="display:none;font-size:.85rem">🗺️ Carte</a>
@@ -98,6 +105,7 @@
         <h3 id="panel-title">Sélectionnez un nœud</h3>
         <p id="panel-desc" style="color:var(--dim)">Cliquez sur un nœud pour lancer une analyse ou ouvrir le dossier.</p>
         <p id="scan-status" style="display:none;margin-top:.4rem;font-size:.8rem;color:var(--accent2)"></p>
+        <div id="analysis-block" style="display:none;margin-top:.5rem;padding:.5rem;background:#14171c;border:1px solid var(--border);border-radius:8px;max-height:340px;overflow:auto"></div>
         <button type="button" id="btn-scan" style="display:none;margin-top:.5rem;width:100%;padding:.6rem;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer">🔍 Analyser cette entité</button>
         <button type="button" id="btn-dossier" style="display:none;margin-top:.4rem;width:100%;padding:.5rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:8px;cursor:pointer">📁 Voir le dossier</button>
         <div class="legend">
@@ -349,6 +357,104 @@ async function doUnmerge(aId, bId){
     if (!ok) { alert(d.error || 'Échec'); return; }
     const root = graphData?.root_id || document.getElementById('entity-select').value;
     if (root) loadGraph(root);
+}
+
+function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function currentRootId(){
+    return graphData?.root_id || document.getElementById('entity-select').value;
+}
+
+async function runAnalysis(){
+    const root = currentRootId();
+    if (!root) { alert('Chargez d’abord un graphe.'); return; }
+    const block = document.getElementById('analysis-block');
+    block.style.display = 'block';
+    block.innerHTML = '🧠 Analyse du graphe en cours…';
+    const { ok, data: d } = await parseJsonResponse(
+        await fetch(`/graph/entity/${root}/analysis`));
+    if (!ok) { block.innerHTML = '❌ ' + escapeHtml(d.error || 'Erreur analyse'); return; }
+    renderAnalysis(d);
+}
+
+function renderAnalysis(d){
+    const block = document.getElementById('analysis-block');
+    const tag = d.source === 'ia' ? 'IA' : 'hors-ligne';
+    let h = `<div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:.8rem">🧠 Analyse (${tag})</strong>
+        <button type="button" onclick="document.getElementById('analysis-block').style.display='none'"
+            style="background:none;border:none;color:var(--dim);cursor:pointer">✕</button></div>`;
+    if (d.error) { block.innerHTML = h + `<p style="font-size:.8rem">${escapeHtml(d.error)}</p>`; return; }
+    if (d.synthese) h += `<p style="font-size:.82rem;margin:.4rem 0">${escapeHtml(d.synthese)}</p>`;
+    const GRAV = { elevee:'#ff5c7a', moyenne:'#ffa502', faible:'#8090b0' };
+    if (d.incoherences?.length) {
+        h += '<strong style="font-size:.74rem;color:#ff6b9d">⚠️ Incohérences</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
+        d.incoherences.forEach(i => {
+            h += `<li><span style="color:${GRAV[i.gravite] || '#8090b0'}">[${escapeHtml(i.gravite || '?')}]</span> ${escapeHtml(i.observation)}</li>`;
+        });
+        h += '</ul>';
+    }
+    if (d.liens_hypothetiques?.length) {
+        h += '<strong style="font-size:.74rem;color:var(--accent2)">🔗 Hypothèses de liens</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
+        d.liens_hypothetiques.forEach(l => {
+            const c = l.confiance != null ? ` (${Math.round(l.confiance * 100)}%)` : '';
+            h += `<li>${escapeHtml(l.de)} → ${escapeHtml(l.vers)} : ${escapeHtml(l.hypothese)}${c}</li>`;
+        });
+        h += '</ul>';
+    }
+    if (d.pistes?.length) {
+        const pistes = [...d.pistes].sort((a, b) => (a.priorite || 9) - (b.priorite || 9));
+        h += '<strong style="font-size:.74rem;color:#ffd700">🎯 Pistes d’investigation</strong><ol style="padding-left:1.1rem;font-size:.78rem;margin:.25rem 0">';
+        pistes.forEach(p => {
+            h += `<li><strong>${escapeHtml(p.action)}</strong> — <span style="color:var(--dim)">${escapeHtml(p.raison || '')}</span></li>`;
+        });
+        h += '</ol>';
+    }
+    block.innerHTML = h;
+}
+
+async function runCompare(otherId){
+    const root = currentRootId();
+    document.getElementById('compare-select').value = '';
+    if (!root || !otherId) return;
+    if (String(root) === String(otherId)) { alert('Choisissez un autre graphe.'); return; }
+    const block = document.getElementById('analysis-block');
+    block.style.display = 'block';
+    block.innerHTML = '⇄ Comparaison des deux graphes…';
+    const { ok, data: d } = await parseJsonResponse(await fetch('/graph/compare', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ entity_id_a: parseInt(root, 10), entity_id_b: parseInt(otherId, 10) }),
+    }));
+    if (!ok) { block.innerHTML = '❌ ' + escapeHtml(d.error || 'Erreur comparaison'); return; }
+    renderCompare(d);
+}
+
+function renderCompare(d){
+    const block = document.getElementById('analysis-block');
+    const v = d.analyse_ia || {};
+    const VLABEL = {
+        meme_personne: '🟢 Même personne', lies: '🟡 Personnes liées',
+        distincts: '⚪ Distincts', incertain: '🟠 Incertain',
+    };
+    let h = `<div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:.8rem">⇄ Comparaison (${d.source === 'ia' ? 'IA' : 'hors-ligne'})</strong>
+        <button type="button" onclick="document.getElementById('analysis-block').style.display='none'"
+            style="background:none;border:none;color:var(--dim);cursor:pointer">✕</button></div>`;
+    h += `<p style="font-size:.8rem;margin:.35rem 0">${escapeHtml(d.cible_a)} <span style="color:var(--dim)">vs</span> ${escapeHtml(d.cible_b)}</p>`;
+    h += `<p style="font-size:.82rem"><strong>${escapeHtml(VLABEL[v.verdict] || v.verdict || '?')}</strong>`;
+    if (v.confiance != null) h += ` <span style="color:var(--dim)">(${Math.round(v.confiance * 100)}%)</span>`;
+    h += `</p>`;
+    if (v.explication) h += `<p style="font-size:.78rem;color:var(--dim)">${escapeHtml(v.explication)}</p>`;
+    if (d.identifiants_partages?.length) {
+        h += '<strong style="font-size:.74rem">Identifiants communs</strong><ul style="padding-left:1rem;font-size:.78rem">';
+        d.identifiants_partages.forEach(s => { h += `<li>${escapeHtml(s)}</li>`; });
+        h += '</ul>';
+    }
+    block.innerHTML = h;
 }
 
 async function loadMergeSuggestions(entityId){
