@@ -134,14 +134,49 @@ def _fallback_analysis(payload: dict, user_id: int) -> dict:
     }
 
 
+def _pseudonymize_facts(payload: dict, pseudo) -> dict:
+    """Copie tokenisée des faits : aucune valeur réelle n'est envoyée à l'IA."""
+    val_type = {
+        e.get('valeur'): e.get('type')
+        for e in payload.get('entites', []) if e.get('valeur')
+    }
+
+    def tok(v):
+        return pseudo.token_for(v, val_type.get(v)) if v not in (None, '') else v
+
+    return {
+        'cible': tok(payload.get('cible')),
+        'nb_entites': payload.get('nb_entites'),
+        'nb_liens': payload.get('nb_liens'),
+        'entites': [
+            {'type': e.get('type'), 'valeur': tok(e.get('valeur'))}
+            for e in payload.get('entites', [])
+        ],
+        'liens': [
+            {'de': tok(l.get('de')), 'vers': tok(l.get('vers')),
+             'type': l.get('type'), 'confiance': l.get('confiance')}
+            for l in payload.get('liens', [])
+        ],
+        'personnes_regroupees': [
+            [tok(v) for v in grp] for grp in payload.get('personnes_regroupees', [])
+        ],
+    }
+
+
 def analyze_graph(user_id: int, entity_id: int) -> dict:
-    """Analyse IA structurée du graphe (avec repli déterministe)."""
+    """Analyse IA structurée du graphe (avec repli déterministe).
+
+    Les identifiants réels sont pseudonymisés avant l'appel LLM et la réponse
+    est ré-hydratée localement : le fournisseur ne voit que des jetons.
+    """
     payload = build_analysis_payload(user_id, entity_id)
     if payload.get('_empty'):
         return {'error': 'Graphe vide — lancez d\'abord des scans.'}
 
+    from services.pseudonymize import Pseudonymizer
+    pseudo = Pseudonymizer()
     facts = json.dumps(
-        {k: v for k, v in payload.items() if not k.startswith('_')},
+        _pseudonymize_facts(payload, pseudo),
         ensure_ascii=False, default=str,
     )[:9000]
 
@@ -153,6 +188,7 @@ def analyze_graph(user_id: int, entity_id: int) -> dict:
             system=_SYSTEM,
         )
         if isinstance(out, dict) and out.get('synthese'):
+            out = pseudo.rehydrate(out)  # rétablit les vraies valeurs côté serveur
             out.setdefault('personnes', [])
             out.setdefault('incoherences', [])
             out.setdefault('liens_hypothetiques', [])
@@ -196,13 +232,29 @@ def compare_graphs(user_id: int, entity_id_a: int, entity_id_b: int) -> dict:
 
     try:
         from services.llm import chat_json
+        from services.pseudonymize import Pseudonymizer
+        pseudo = Pseudonymizer()
+
+        def tok_entities(payload):
+            vt = {e.get('valeur'): e.get('type')
+                  for e in payload.get('entites', []) if e.get('valeur')}
+            return [
+                {'type': e.get('type'),
+                 'valeur': pseudo.token_for(e.get('valeur'), vt.get(e.get('valeur')))}
+                for e in payload.get('entites', [])
+            ]
+
+        ea, eb = tok_entities(ga), tok_entities(gb)                 # tokens (types connus)
+        shared_tok = [pseudo.token_for(s) for s in shared]         # réutilise les mêmes jetons
+        cible_a_tok, cible_b_tok = pseudo.token_for(ga.get('cible')), pseudo.token_for(gb.get('cible'))
+
         verdict = chat_json(
             "Deux graphes OSINT.\n"
-            f"Graphe A (cible {ga.get('cible')}) entités : "
-            f"{json.dumps(ga.get('entites'), ensure_ascii=False)[:2500]}\n"
-            f"Graphe B (cible {gb.get('cible')}) entités : "
-            f"{json.dumps(gb.get('entites'), ensure_ascii=False)[:2500]}\n"
-            f"Identifiants en commun : {shared}\n"
+            f"Graphe A (cible {cible_a_tok}) entités : "
+            f"{json.dumps(ea, ensure_ascii=False)[:2500]}\n"
+            f"Graphe B (cible {cible_b_tok}) entités : "
+            f"{json.dumps(eb, ensure_ascii=False)[:2500]}\n"
+            f"Identifiants en commun : {shared_tok}\n"
             "Ces deux graphes concernent-ils la même personne ou des personnes "
             "liées ? Réponds en JSON : "
             '{"verdict": "meme_personne|lies|distincts|incertain", '
@@ -210,7 +262,7 @@ def compare_graphs(user_id: int, entity_id_a: int, entity_id_b: int) -> dict:
             system="Tu es un analyste OSINT. Réponds uniquement en JSON valide.",
         )
         if isinstance(verdict, dict) and verdict.get('verdict'):
-            result['analyse_ia'] = verdict
+            result['analyse_ia'] = pseudo.rehydrate(verdict)       # vraies valeurs rétablies
             result['source'] = 'ia'
             return result
     except ValueError:
