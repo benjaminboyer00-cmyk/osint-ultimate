@@ -242,17 +242,17 @@ async function showNodeIntel(entityId) {
         const r = await fetch(`/graph/entity/${entityId}/intel`);
         const d = await r.json();
         if (!r.ok) { desc.textContent = d.error || 'Erreur'; return; }
-        let html = `<strong>${d.entity_type}</strong> : ${d.value}<br><small>ID ${d.entity_id}</small>`;
+        let html = `<strong>${escapeHtml(d.entity_type)}</strong> : ${escapeHtml(d.value)}<br><small>ID ${escapeHtml(d.entity_id)}</small>`;
         if (d.highlights?.length) {
             html += '<ul style="margin:.5rem 0;padding-left:1.1rem;font-size:.78rem">';
-            d.highlights.forEach(h => { html += `<li>${h}</li>`; });
+            d.highlights.forEach(h => { html += `<li>${escapeHtml(h)}</li>`; });
             html += '</ul>';
         } else if (d.hint) {
-            html += `<p style="color:var(--dim);font-size:.78rem">${d.hint}</p>`;
+            html += `<p style="color:var(--dim);font-size:.78rem">${escapeHtml(d.hint)}</p>`;
         }
         if (d.scans?.length) {
             html += '<p style="font-size:.75rem;color:var(--dim)">Scans : ';
-            html += d.scans.map(s => `#${s.scan_id} ${s.module}`).join(', ');
+            html += d.scans.map(s => `#${escapeHtml(s.scan_id)} ${escapeHtml(s.module)}`).join(', ');
             html += '</p>';
         }
         desc.innerHTML = html;
@@ -685,9 +685,9 @@ async function loadComments(entityId) {
     const ul = document.getElementById('comments-list');
     if (!ul || !entityId) return;
     const { ok, data: d } = await parseJsonResponse(await fetch(`/entity/${entityId}/comments`));
-    if (!ok) { ul.innerHTML = '<li style="color:var(--dim)">' + (d.error || '—') + '</li>'; return; }
+    if (!ok) { ul.innerHTML = '<li style="color:var(--dim)">' + escapeHtml(d.error || '—') + '</li>'; return; }
     ul.innerHTML = (d.comments || []).map(c =>
-        `<li style="margin:.25rem 0"><strong>${c.author}</strong> : ${c.content.slice(0,120)}<br><small style="color:var(--dim)">${c.created_at || ''}</small></li>`
+        `<li style="margin:.25rem 0"><strong>${escapeHtml(c.author)}</strong> : ${escapeHtml((c.content || '').slice(0,120))}<br><small style="color:var(--dim)">${escapeHtml(c.created_at || '')}</small></li>`
     ).join('') || '<li style="color:var(--dim)">Aucun commentaire</li>';
 }
 
@@ -836,7 +836,7 @@ async function loadLinksPanel(){
     if (!d.links?.length) { el.innerHTML = '<p style="color:var(--dim)">Aucun lien</p>'; return; }
     el.innerHTML = d.links.map(l =>
         `<div style="margin:.35rem 0;padding:.4rem;background:rgba(255,255,255,.04);border-radius:6px">
-            <strong>${l.type}</strong><br><span style="color:var(--dim)">${l.related?.value || ''}</span>
+            <strong>${escapeHtml(l.type)}</strong><br><span style="color:var(--dim)">${escapeHtml(l.related?.value || '')}</span>
         </div>`
     ).join('');
 }
