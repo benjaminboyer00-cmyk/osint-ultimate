@@ -1,4 +1,9 @@
-"""Client API Groq (format OpenAI-compatible)."""
+"""Client IA — délègue à la couche multi-fournisseur ``services.llm``.
+
+Conserve le nom ``_groq_request`` (contrat historique, mocké par les tests)
+et le support d'une clé Groq fournie par l'utilisateur. Sans clé explicite,
+les appels passent par la bascule multi-fournisseur (Groq → Gemini → …).
+"""
 import json
 import os
 import requests
@@ -7,34 +12,44 @@ GROQ_API_BASE = 'https://api.groq.com/openai/v1'
 GROQ_DEFAULT_MODEL = 'llama-3.3-70b-versatile'
 
 
-def _groq_request(messages: list, api_key: str | None = None) -> str:
-    """Appel unique POST vers Groq. Lève une exception en cas d'échec."""
-    key = api_key or os.environ.get('GROQ_API_KEY')
-    if not key:
-        raise ValueError('GROQ_API_KEY non configurée dans les secrets du Space')
-
+def _groq_direct(messages: list, api_key: str, json_mode: bool = False) -> str:
+    """Appel Groq direct avec une clé explicite (clé utilisateur)."""
     model = os.environ.get('GROQ_MODEL', GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
+    payload = {'model': model, 'messages': messages}
+    if json_mode:
+        payload['response_format'] = {'type': 'json_object'}
     r = requests.post(
         f'{GROQ_API_BASE}/chat/completions',
         headers={
-            'Authorization': f'Bearer {key}',
+            'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
         },
-        json={
-            'model': model,
-            'messages': messages,
-        },
+        json=payload,
         timeout=45,
     )
     if r.status_code != 200:
         err = r.text[:200] if r.text else f'HTTP {r.status_code}'
         raise RuntimeError(f'Erreur API Groq: {err}')
-
     data = r.json()
     choices = data.get('choices') or []
     if not choices or not choices[0].get('message', {}).get('content'):
         raise RuntimeError('Réponse Groq vide')
     return choices[0]['message']['content'].strip()
+
+
+def _groq_request(messages: list, api_key: str | None = None, json_mode: bool = False) -> str:
+    """Complétion chat robuste. Lève une exception en cas d'échec total.
+
+    - Clé utilisateur explicite : Groq direct, avec repli multi-fournisseur.
+    - Sinon : bascule multi-fournisseur (``services.llm``).
+    """
+    from services.llm import llm_chat
+    if api_key:
+        try:
+            return _groq_direct(messages, api_key, json_mode)
+        except Exception:
+            pass  # repli sur les fournisseurs serveur
+    return llm_chat(messages, json_mode=json_mode)
 
 
 def chat_completion(prompt: str, api_key: str | None = None, system: str | None = None) -> str:
