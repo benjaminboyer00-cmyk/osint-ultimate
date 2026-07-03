@@ -239,8 +239,13 @@ def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
     return suggestions
 
 
-def build_graph_json(entity_id: int, user_id: int) -> dict:
-    """Retourne nœuds et arêtes pour Cytoscape / vis-network."""
+def build_graph_json(entity_id: int, user_id: int, max_depth: int = 2) -> dict:
+    """Retourne nœuds et arêtes pour Cytoscape / vis-network.
+
+    Chargement en masse (2 requêtes) + BFS avec visited set. L'ancienne
+    version faisait une requête par nœud et par lien : sur Supabase (base
+    distante) chaque requête = un aller-retour réseau, d'où la lenteur.
+    """
     from services.dossier_access import get_dossier_context
     ctx = get_dossier_context(entity_id, user_id, min_role='reader')
     if ctx:
@@ -251,48 +256,63 @@ def build_graph_json(entity_id: int, user_id: int) -> dict:
     if not ent:
         return {'nodes': [], 'edges': []}
 
-    nodes = {}
+    # 1 requête : tous les liens de l'utilisateur → table d'adjacence en mémoire
+    all_links = EntityLink.query.filter(EntityLink.user_id == user_id).all()
+    adjacency: dict[int, list] = {}
+    for link in all_links:
+        adjacency.setdefault(link.source_id, []).append(link)
+        adjacency.setdefault(link.target_id, []).append(link)
+
+    # BFS borné à max_depth avec visited set (évite les re-visites)
+    visited = {ent.id}
+    frontier = [ent.id]
+    for _ in range(max(0, max_depth)):
+        nxt = []
+        for eid in frontier:
+            for link in adjacency.get(eid, ()):
+                other_id = link.target_id if link.source_id == eid else link.source_id
+                if other_id not in visited:
+                    visited.add(other_id)
+                    nxt.append(other_id)
+        if not nxt:
+            break
+        frontier = nxt
+
+    # 1 requête : toutes les entités du sous-graphe (filtrées sur l'utilisateur)
+    ent_rows = Entity.query.filter(
+        Entity.id.in_(visited), Entity.user_id == user_id,
+    ).all()
+    node_ids = {e.id for e in ent_rows}
+    nodes = {
+        e.id: {
+            'id': str(e.id),
+            'label': f'{e.entity_type}\n{e.value[:40]}',
+            'type': e.entity_type,
+            'value': e.value,
+        }
+        for e in ent_rows
+    }
+
+    # Arêtes : tout lien dont les deux extrémités sont dans le sous-graphe
     edges = []
+    seen_edges = set()
+    for link in all_links:
+        if link.source_id not in node_ids or link.target_id not in node_ids:
+            continue
+        edge_id = f'{link.source_id}-{link.target_id}-{link.link_type}'
+        if edge_id in seen_edges:
+            continue
+        seen_edges.add(edge_id)
+        conf = link.confidence if link.confidence is not None else 0.5
+        edges.append({
+            'id': edge_id,
+            'source': str(link.source_id),
+            'target': str(link.target_id),
+            'label': link.link_type,
+            'confidence': conf,
+            'width': max(1, int(conf * 6)),
+        })
 
-    def add_node(e: Entity):
-        if e.id not in nodes:
-            nodes[e.id] = {
-                'id': str(e.id),
-                'label': f'{e.entity_type}\n{e.value[:40]}',
-                'type': e.entity_type,
-                'value': e.value,
-            }
-
-    def explore(eid: int, depth=0, max_depth=2):
-        if depth > max_depth:
-            return
-        e = db.session.get(Entity, eid)
-        if not e or e.user_id != user_id:
-            return
-        add_node(e)
-        links = EntityLink.query.filter(
-            ((EntityLink.source_id == eid) | (EntityLink.target_id == eid)),
-            EntityLink.user_id == user_id,
-        ).all()
-        for link in links:
-            other_id = link.target_id if link.source_id == eid else link.source_id
-            other = db.session.get(Entity, other_id)
-            if other:
-                add_node(other)
-                edge_id = f'{link.source_id}-{link.target_id}-{link.link_type}'
-                if edge_id not in {ed['id'] for ed in edges}:
-                    conf = link.confidence if link.confidence is not None else 0.5
-                    edges.append({
-                        'id': edge_id,
-                        'source': str(link.source_id),
-                        'target': str(link.target_id),
-                        'label': link.link_type,
-                        'confidence': conf,
-                        'width': max(1, int(conf * 6)),
-                    })
-                explore(other_id, depth + 1, max_depth)
-
-    explore(ent.id)
     return {'nodes': list(nodes.values()), 'edges': edges, 'root_id': str(ent.id)}
 
 
