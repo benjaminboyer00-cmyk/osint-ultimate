@@ -28,6 +28,13 @@ Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** ·
 - Exports **PDF** (horodaté, empreinte SHA-256), **CSV**, **JSON**.
 - Analyse de fichiers (EXIF, PDF, DOCX).
 
+### Graphe unifié & analyse IA (V6)
+- **Graphe rapide** : chargement en 2 requêtes (bulk-load) au lieu de N+1 — fin des lenteurs sur les cibles riches.
+- **Unification d'entités** (« même personne ») : regroupe plusieurs identifiants d'un individu (ex. `benji` = `benjamin.boyer00`) via menu contextuel ou suggestions. Réversible, sans migration.
+- **Analyse IA** `🧠` : incohérences, hypothèses de liens et **pistes d'investigation priorisées** (pas un simple résumé).
+- **Comparaison de graphes** `⇄` : recouvrement d'identifiants + verdict IA (même personne / liés / distincts).
+- **IA multi-fournisseur** : bascule automatique Groq → Gemini → Cerebras → OpenRouter (tiers gratuits) + cache — robustesse même en cas de rate-limit.
+
 ### Corrélation & API
 - **Graphe** `/graph` : Cytoscape, clic → nouveau scan, export PNG/SVG, légende.
 - **API REST** `/api/v1` : search, export, scans programmés, webhooks, OpenAPI.
@@ -51,10 +58,15 @@ Notes de version : **`RELEASE_V5.md`** · Feuille de route : **`ROADMAP.md`** ·
 |--------|-------------|-------------|
 | `SECRET_KEY` | ✅ | Clé Flask (sessions/cookies). Générer : `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `DATABASE_URL` | ✅ | URI Supabase **Session mode** (port 5432). Ajouter `?sslmode=require` si absent |
-| `GROQ_API_KEY` | ✅ | Clé API [Groq](https://console.groq.com/keys) pour le résumé IA |
+| `GROQ_API_KEY` | ✅ | Clé API [Groq](https://console.groq.com/keys) pour l'IA (fournisseur principal) |
 | `FERNET_KEY` | ✅ | Chiffrement des clés API utilisateur. Générer : `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `SESSION_COOKIE_SECURE` | Recommandé | `true` sur HF (HTTPS) |
 | `GROQ_MODEL` | Optionnel | Défaut : `llama-3.3-70b-versatile` |
+| `GEMINI_API_KEY` | Optionnel | Secours IA — Google AI Studio (Flash gratuit ~1500 req/j) |
+| `CEREBRAS_API_KEY` | Optionnel | Secours IA — inference gratuite rapide |
+| `OPENROUTER_API_KEY` | Optionnel | Secours IA — modèles `:free` (dernier recours) |
+| `LLM_PROVIDER_ORDER` | Optionnel | Ordre de bascule, ex. `groq,gemini,cerebras` |
+| `LLM_CACHE_TTL` | Optionnel | Cache réponses IA en secondes (défaut 900) |
 | `HIBP_API_KEY` | Optionnel | Fuites email (Have I Been Pwned) |
 | `SHODAN_API_KEY` | Optionnel | Enrichissement scan IP |
 | `GITHUB_TOKEN` | Optionnel | Limite rate GitHub API |
