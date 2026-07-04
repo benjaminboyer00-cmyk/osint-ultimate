@@ -122,6 +122,14 @@ def generate_narrative_report(
         'liens': (data.get('links') or [])[:20],
         'sources_documentees': (data.get('sources') or [])[:15],
     }
+
+    # Confidentialité : le LLM ne reçoit que des jetons ; le Markdown produit
+    # est ré-hydraté avec les vraies valeurs avant retour.
+    from services.pseudonymize import Pseudonymizer
+    pseudo = Pseudonymizer()
+    facts_block = pseudo.pseudonymize_text(facts_block)
+    slim = pseudo.pseudonymize_obj(slim)
+
     payload = json.dumps(slim, ensure_ascii=False, default=str)[:8000]
 
     system = (
@@ -159,7 +167,7 @@ def generate_narrative_report(
         {'role': 'user', 'content': user},
     ]
     try:
-        return _groq_request(messages, api_key)
+        return pseudo.rehydrate(_groq_request(messages, api_key))
     except ValueError as e:
         return f'## Rapport narratif\n\n_Rapport IA indisponible : {e}_'
     except RuntimeError as e:

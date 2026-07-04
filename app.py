@@ -660,9 +660,21 @@ def ai_summary():
         if scan and scan.ai_summary:
             return jsonify({'summary': scan.ai_summary, 'cached': True})
 
-    summary = summarize_osint_with_groq(text)
+    # Confidentialité : pseudonymise avant envoi à l'IA, ré-hydrate ensuite.
+    from services.pseudonymize import Pseudonymizer
+    from services.target_detector import target_category
+    pseudo = Pseudonymizer()
+    if scan is not None:
+        _t = 'username' if scan.module in ('sherlock', 'pseudo', 'github') \
+            else target_category(scan.target)
+        pseudo.token_for(scan.target, _t)
+    tok_text = pseudo.pseudonymize_obj(text) if isinstance(text, dict) \
+        else pseudo.pseudonymize_text(text)
+
+    summary = summarize_osint_with_groq(tok_text)
     if summary.startswith('Résumé IA indisponible'):
         return jsonify({'error': summary}), 500
+    summary = pseudo.rehydrate(summary)
     if scan:
         if scan.user_id and current_user.is_authenticated and scan.user_id != current_user.id:
             return jsonify({'error': 'Accès refusé'}), 403

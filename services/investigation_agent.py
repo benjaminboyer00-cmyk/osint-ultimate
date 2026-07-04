@@ -95,11 +95,19 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
         'ou {"action":"TERMINE","summary":"synthèse finale en français"} si objectif atteint ou plus rien à faire. '
         'Modules autorisés: sherlock, dehashed, hunter, epieos, email, phone, whois, wayback, site, ip, github, pseudo.'
     )
+
+    # Confidentialité : le LLM ne voit que des jetons (USERNAME_1, EMAIL_2…) ;
+    # l'action est ré-hydratée pour cibler la vraie valeur.
+    from services.pseudonymize import Pseudonymizer
+    pseudo = Pseudonymizer()
+    tok_objective = pseudo.pseudonymize_text(objective)
+    tok_prev = pseudo.pseudonymize_obj(prev_compact)
+
     prompt = (
-        f'Objectif utilisateur: {objective}\n'
+        f'Objectif utilisateur: {tok_objective}\n'
         f'Étape {step_num}/{MAX_STEPS}\n'
         f'Outils: {json.dumps(MODULES_SPEC, ensure_ascii=False)}\n'
-        f'Résultats précédents: {json.dumps(prev_compact, ensure_ascii=False)}\n'
+        f'Résultats précédents: {json.dumps(tok_prev, ensure_ascii=False)}\n'
         'Propose UNE seule prochaine action logique. Ne répète pas un scan identique déjà fait.'
     )
 
@@ -107,7 +115,7 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
         raw = chat_completion(prompt, system=system)
         parsed = _parse_action_json(raw)
         if parsed and parsed.get('action'):
-            return parsed
+            return pseudo.rehydrate(parsed)
     except Exception:
         pass
 

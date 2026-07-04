@@ -28,10 +28,15 @@ def investigate_step(user_message: str, context: dict | None = None) -> dict:
         'Exemples: "→ Rechercher le pseudo X sur Sherlock", "→ Vérifier le domaine sur Hunter.io". '
         'Ne invente pas de données, base-toi sur le contexte fourni.'
     )
-    prompt = f"Question utilisateur: {user_message}\nContexte: {json.dumps(ctx, ensure_ascii=False)[:3000]}"
+    # Confidentialité : jetons vers le LLM, ré-hydratation locale de la réponse.
+    from services.pseudonymize import Pseudonymizer
+    pseudo = Pseudonymizer()
+    tok_message = pseudo.pseudonymize_text(user_message)
+    tok_ctx = pseudo.pseudonymize_obj(ctx)
+    prompt = f"Question utilisateur: {tok_message}\nContexte: {json.dumps(tok_ctx, ensure_ascii=False)[:3000]}"
 
     try:
-        reply = chat_completion(prompt, system=system)
+        reply = pseudo.rehydrate(chat_completion(prompt, system=system))
         source = 'groq'
     except Exception as e:
         reply = fallback_explain(
