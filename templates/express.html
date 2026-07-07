@@ -47,6 +47,20 @@
             padding:.4rem .6rem;border-radius:8px;background:#0f1119;color:var(--text);
             border:1px solid var(--border);max-width:190px;
         }
+        .ai-panel{
+            max-width:680px;margin:1rem auto 0;padding:1rem 1.25rem;
+            background:linear-gradient(180deg,rgba(77,159,255,.06),transparent);
+            border:1px solid var(--border);border-radius:16px;
+        }
+        .ai-head{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.5rem}
+        .ai-panel .synth{font-size:.9rem;line-height:1.5;margin:.3rem 0 .6rem}
+        .ai-panel h4{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;margin:.6rem 0 .3rem}
+        .ai-panel ul{padding-left:1.1rem;font-size:.85rem;line-height:1.5}
+        .ai-panel .piste{margin:.2rem 0}
+        .ai-panel .piste b{color:var(--accent)}
+        .ai-panel .inco{color:#ffb347}
+        #mini-graph{height:260px;margin-top:.75rem;border:1px solid var(--border);border-radius:12px;background:#0a0b12}
+        @media(max-width:600px){ #mini-graph{height:220px} }
         .mode-switch{
             display:inline-flex;border:1px solid var(--border);border-radius:999px;
             overflow:hidden;font-size:.78rem;margin-left:auto;
@@ -211,10 +225,21 @@
 </section>
 
 <div class="prog" id="prog"><div class="prog-bar" id="prog-bar"></div></div>
-<div class="results"><div id="card" class="card"></div></div>
+<div class="results">
+    <div id="card" class="card"></div>
+    <div id="ai-panel" class="ai-panel" style="display:none">
+        <div class="ai-head">
+            <strong>🧠 Première analyse</strong>
+            <a id="ai-open-graph" class="btn btn-primary" href="#" style="display:none">Ouvrir le graphe complet →</a>
+        </div>
+        <div id="ai-analysis"></div>
+        <div id="mini-graph" style="display:none"></div>
+    </div>
+</div>
 <p class="legal">Sources publiques uniquement. Usage responsable et conforme au RGPD.</p>
 
 <script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/cytoscape.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
 <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
@@ -405,6 +430,93 @@ async function showCard(result){
     const el = document.getElementById('card');
     el.innerHTML = html;
     el.classList.add('show');
+    enrichWithGraph();
+}
+
+function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let miniCy = null;
+// Après une recherche : si un graphe est actif, on montre une première
+// analyse IA + un mini-graphe DANS la page (plutôt que « allez sur le graphe »).
+async function enrichWithGraph(){
+    const panel = document.getElementById('ai-panel');
+    if (!panel) return;
+    let active = null;
+    try { active = (await (await fetch('/graph/active')).json()).active; } catch (e) {}
+    if (!active) {
+        panel.style.display = 'block';
+        document.getElementById('ai-open-graph').style.display = 'none';
+        document.getElementById('mini-graph').style.display = 'none';
+        document.getElementById('ai-analysis').innerHTML =
+            '<p class="synth" style="color:var(--dim)">💡 Astuce : créez un graphe (barre du haut) '
+            + 'pour que vos recherches se corrèlent et obtenir une analyse IA + un graphe visuel ici même.</p>';
+        return;
+    }
+    const root = active.root_id;
+    panel.style.display = 'block';
+    const openBtn = document.getElementById('ai-open-graph');
+    openBtn.style.display = 'inline-block';
+    openBtn.href = '/graph?entity_id=' + root;
+    document.getElementById('ai-analysis').innerHTML = '<p class="synth" style="color:var(--dim)">⏳ Analyse en cours…</p>';
+    renderMiniGraph(root);
+    renderFirstAnalysis(root);
+}
+
+async function renderFirstAnalysis(root){
+    const box = document.getElementById('ai-analysis');
+    let d;
+    try { d = await (await fetch('/graph/entity/' + root + '/analysis')).json(); }
+    catch (e) { box.innerHTML = '<p class="synth" style="color:var(--dim)">Analyse indisponible.</p>'; return; }
+    if (d.error) { box.innerHTML = `<p class="synth" style="color:var(--dim)">${escapeHtml(d.error)}</p>`; return; }
+    let h = '';
+    if (d.synthese) h += `<p class="synth">${escapeHtml(d.synthese)}</p>`;
+    if (d.incoherences?.length) {
+        h += '<h4>⚠️ Incohérences</h4><ul>';
+        d.incoherences.forEach(i => { h += `<li class="inco">${escapeHtml(i.observation)}</li>`; });
+        h += '</ul>';
+    }
+    if (d.pistes?.length) {
+        h += '<h4>🎯 Pistes suggérées</h4><ul>';
+        [...d.pistes].sort((a,b)=>(a.priorite||9)-(b.priorite||9)).forEach(p => {
+            h += `<li class="piste"><b>${escapeHtml(p.action)}</b> — <span style="color:var(--dim)">${escapeHtml(p.raison||'')}</span></li>`;
+        });
+        h += '</ul>';
+    }
+    box.innerHTML = h || '<p class="synth" style="color:var(--dim)">Pas encore assez de données pour une analyse.</p>';
+}
+
+const MINI_COLORS = {email:'#00e5a0',phone:'#4d9fff',username:'#ff6b9d',domain:'#ffa502',
+    platform:'#a29bfe',ip:'#a29bfe',person:'#ffd700',unknown:'#5a6180'};
+async function renderMiniGraph(root){
+    const wrap = document.getElementById('mini-graph');
+    if (typeof cytoscape === 'undefined') { wrap.style.display = 'none'; return; }
+    let g;
+    try { g = await (await fetch('/graph/data/' + root)).json(); } catch (e) { return; }
+    if (!g.nodes?.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    const els = [
+        ...g.nodes.slice(0, 40).map(n => ({ data: {
+            id: String(n.id), label: (n.value||'').slice(0,18), color: MINI_COLORS[n.type]||MINI_COLORS.unknown } })),
+    ];
+    const ids = new Set(els.map(e => e.data.id));
+    (g.edges||[]).forEach(e => {
+        if (ids.has(String(e.source)) && ids.has(String(e.target)))
+            els.push({ data: { id: e.id, source: String(e.source), target: String(e.target) } });
+    });
+    if (miniCy) { miniCy.destroy(); miniCy = null; }
+    miniCy = cytoscape({
+        container: wrap, elements: els,
+        style: [
+            { selector: 'node', style: { 'background-color':'data(color)','label':'data(label)',
+                'font-size':'8px','color':'#c8cfe8','width':22,'height':22,'text-max-width':'70px','text-wrap':'wrap' } },
+            { selector: 'edge', style: { 'width':1.5,'line-color':'#2a3350','curve-style':'bezier' } },
+        ],
+        layout: { name: 'cose', animate: false, padding: 20 },
+    });
+    miniCy.on('tap', 'node', () => { window.location = '/graph?entity_id=' + root; });
 }
 
 async function askAssistant(){
