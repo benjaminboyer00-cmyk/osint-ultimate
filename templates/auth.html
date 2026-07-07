@@ -3,104 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ 'Inscription' if mode == 'register' else 'Connexion' }} – OSINT Ultimate</title>
+    <title>{{ 'Inscription' if mode == 'register' else 'Connexion' }} · OSINT Ultimate</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <style>
-        :root {
-            --bg: #0a0a0f;
-            --panel-bg: rgba(20, 20, 30, 0.6);
-            --text: #cfcfcf;
-            --accent: #00e676;
-            --error: #ff5555;
-            --border: rgba(255, 255, 255, 0.08);
-            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            --glass: blur(16px) saturate(180%);
-            --radius: 16px;
+        .auth-wrap { position: relative; overflow: hidden; }
+        .auth-card {
+            width: 100%; max-width: 420px; padding: clamp(1.5rem, 5vw, 2.5rem);
+            border-radius: var(--r-xl);
         }
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .auth-container {
-            background: var(--panel-bg);
-            backdrop-filter: var(--glass);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 2.5rem;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: var(--shadow);
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            font-size: 1.8rem;
-            color: var(--accent);
-        }
-        input {
-            width: 100%;
-            padding: 0.8rem;
-            margin: 0.5rem 0;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 1rem;
-        }
-        input:focus { outline: none; border-color: var(--accent); }
-        button {
-            width: 100%;
-            padding: 0.8rem;
-            background: var(--accent);
-            border: none;
-            border-radius: 8px;
-            color: #000;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            margin-top: 1rem;
-            transition: background 0.3s;
-        }
-        button:hover { background: #00c853; }
-        .error-msg { color: var(--error); margin-bottom: 1rem; }
-        .link { text-align: center; margin-top: 1rem; }
-        .link a { color: var(--accent); text-decoration: none; }
+        .auth-brand { display: flex; flex-direction: column; align-items: center; gap: .8rem; margin-bottom: 1.6rem; }
+        .auth-brand .ds-logo { width: 52px; height: 52px; font-size: 1.5rem; border-radius: 14px; }
+        .auth-brand h1 { font-size: 1.5rem; }
+        .auth-brand p { color: var(--muted); font-size: .88rem; text-align: center; }
+        .auth-tabs { display: flex; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-pill); padding: 4px; margin-bottom: 1.4rem; }
+        .auth-tabs a { flex: 1; text-align: center; padding: .5rem; border-radius: var(--r-pill); font-size: .85rem; font-weight: 600; color: var(--muted); }
+        .auth-tabs a.active { background: var(--grad); color: var(--accent-ink); }
+        .auth-form { display: flex; flex-direction: column; gap: .9rem; }
+        .flash { background: rgba(255,92,122,.12); border: 1px solid rgba(255,92,122,.35); color: #ff9db0; padding: .7rem .9rem; border-radius: var(--r-md); font-size: .85rem; }
+        .auth-foot { text-align: center; margin-top: 1.3rem; font-size: .85rem; color: var(--muted); }
+        .auth-back { display: block; text-align: center; margin-top: .8rem; font-size: .82rem; }
     </style>
 </head>
-<body>
-    <div class="auth-container">
-        <h2>{{ 'Créer un compte' if mode == 'register' else 'Connexion' }}</h2>
+<body class="ds-center auth-wrap">
+    <div class="ds-card ds-card-glass auth-card">
+        <div class="auth-brand">
+            <span class="ds-logo">◈</span>
+            <h1>OSINT&nbsp;Ultimate</h1>
+            <p>Plateforme d'investigation en sources ouvertes.<br>Vos recherches, corrélées et analysées par l'IA.</p>
+        </div>
+
+        <div class="auth-tabs">
+            <a href="{{ url_for('auth.login') }}" class="{{ 'active' if mode != 'register' else '' }}">Connexion</a>
+            <a href="{{ url_for('auth.register') }}" class="{{ 'active' if mode == 'register' else '' }}">Inscription</a>
+        </div>
+
         {% with messages = get_flashed_messages() %}
           {% if messages %}
-            <div class="error-msg">
-              {% for msg in messages %}<p>{{ msg }}</p>{% endfor %}
-            </div>
+            <div class="flash">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>
           {% endif %}
         {% endwith %}
-        <form method="post">
+
+        <form method="post" class="auth-form">
             {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
-            <input type="text" name="username" placeholder="Nom d'utilisateur" required>
+            <div class="ds-field">
+                <label class="ds-label" for="username">Nom d'utilisateur</label>
+                <input class="ds-input" id="username" type="text" name="username" placeholder="votre_pseudo" required autofocus autocomplete="username">
+            </div>
             {% if mode == 'register' %}
-            <input type="email" name="email" placeholder="Email" required>
+            <div class="ds-field">
+                <label class="ds-label" for="email">Email</label>
+                <input class="ds-input" id="email" type="email" name="email" placeholder="vous@exemple.com" required autocomplete="email">
+            </div>
             {% endif %}
-            <input type="password" name="password" placeholder="Mot de passe" required>
-            <button type="submit">{{ 'S\'inscrire' if mode == 'register' else 'Se connecter' }}</button>
+            <div class="ds-field">
+                <label class="ds-label" for="password">Mot de passe</label>
+                <input class="ds-input" id="password" type="password" name="password" placeholder="••••••••" required autocomplete="{{ 'new-password' if mode == 'register' else 'current-password' }}">
+            </div>
+            <button type="submit" class="ds-btn ds-btn-primary ds-btn-block ds-mt-2">
+                {{ 'Créer mon compte' if mode == 'register' else 'Se connecter' }}
+            </button>
         </form>
-        <p style="text-align:center;margin-top:1rem;font-size:.85rem">
-            <a href="{{ url_for('views.express') }}" style="color:#4d9fff">← Recherche Express</a>
-        </p>
-        <div class="link">
+
+        <div class="auth-foot">
             {% if mode == 'login' %}
-                Pas de compte ? <a href="{{ url_for('auth.register') }}">Inscrivez-vous</a>
+                Pas encore de compte ? <a href="{{ url_for('auth.register') }}">Inscrivez-vous</a>
             {% else %}
-                Déjà un compte ? <a href="{{ url_for('auth.login') }}">Connectez-vous</a>
+                Déjà inscrit ? <a href="{{ url_for('auth.login') }}">Connectez-vous</a>
             {% endif %}
         </div>
+        <a href="{{ url_for('views.express') }}" class="auth-back ds-text-dim">← Continuer sans compte (Express)</a>
     </div>
 </body>
 </html>

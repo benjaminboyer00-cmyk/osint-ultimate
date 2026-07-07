@@ -1,0 +1,30 @@
+{# Barre de navigation partagée — identité + responsive.
+   Usage : {% include 'partials/nav.html' %} (nécessite design-system.css). #}
+{% set _p = request.path %}
+<nav class="ds-nav">
+    <a href="{{ url_for('views.express') }}" class="ds-brand" aria-label="OSINT Ultimate — accueil">
+        <span class="ds-logo">◈</span>
+        <span>OSINT&nbsp;Ultimate</span>
+    </a>
+    <input type="checkbox" id="ds-nav-toggle" class="ds-nav-toggle" hidden>
+    <label for="ds-nav-toggle" class="ds-burger" aria-label="Ouvrir le menu">☰</label>
+    <div class="ds-nav-links">
+        <a href="{{ url_for('views.express') }}" class="{{ 'active' if _p == '/express' else '' }}">Express</a>
+        <a href="{{ url_for('views.expert') }}" class="{{ 'active' if _p == '/expert' else '' }}">Expert</a>
+        <a href="{{ url_for('views.investigate_page') }}" class="{{ 'active' if _p.startswith('/investigate') else '' }}">Enquête IA</a>
+        <a href="{{ url_for('views.graph_view') }}" class="{{ 'active' if _p.startswith('/graph') else '' }}">Graphe</a>
+        <a href="{{ url_for('views.recipes_page') }}" class="{{ 'active' if _p.startswith('/recipes') else '' }}">Recettes</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('history') }}" class="{{ 'active' if _p.startswith('/history') else '' }}">Historique</a>
+        <span class="ds-nav-right">
+            <a href="{{ url_for('views.privacy') }}">RGPD</a>
+            <a href="{{ url_for('auth.logout') }}" class="ds-btn ds-btn-ghost ds-btn-sm">Déconnexion</a>
+        </span>
+        {% else %}
+        <span class="ds-nav-right">
+            <a href="{{ url_for('views.privacy') }}">RGPD</a>
+            <a href="{{ url_for('auth.login') }}" class="ds-btn ds-btn-primary ds-btn-sm">Connexion</a>
+        </span>
+        {% endif %}
+    </div>
+</nav>

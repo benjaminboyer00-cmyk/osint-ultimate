@@ -6,11 +6,7 @@
     <title>OSINT Ultimate — Recherche Express</title>
     {% include 'includes/head_assets.html' %}
     <style>
-        :root {
-            --bg:#07080f; --text:#c8cfe8; --dim:#5a6180;
-            --accent:#00e5a0; --accent2:#4d9fff; --err:#ff4757; --warn:#ffa502;
-            --border:rgba(255,255,255,.1);
-        }
+        /* Palette unifiée via design-system.css (identité + contraste). */
         *{box-sizing:border-box;margin:0;padding:0}
         html{-webkit-text-size-adjust:100%}
         body{
@@ -165,23 +161,7 @@
     </style>
 </head>
 <body>
-<nav>
-    <div class="mode-switch" role="tablist" aria-label="Mode de recherche">
-        <a href="{{ url_for('views.express') }}" class="active" aria-current="page">Express</a>
-        <a href="{{ url_for('views.expert') }}">Expert</a>
-    <a href="{{ url_for('views.investigate_page') }}">Enquête IA</a>
-    <a href="{{ url_for('views.recipes_page') }}">Recettes</a>
-    <a href="{{ url_for('views.marketplace_page') }}">Marketplace</a>
-    </div>
-    {% if authenticated %}
-    <a href="{{ url_for('history') }}">Historique</a>
-    <a href="{{ url_for('views.graph_view') }}">Graphe</a>
-    <a href="{{ url_for('auth.logout') }}">Déconnexion</a>
-    {% else %}
-    <a href="{{ url_for('auth.login') }}">Connexion</a>
-    {% endif %}
-    <a href="{{ url_for('views.privacy') }}">RGPD</a>
-</nav>
+{% include 'partials/nav.html' %}
 
 {% if current_user.is_authenticated %}
 <div id="graph-bar" class="graph-bar">
