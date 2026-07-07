@@ -3,7 +3,7 @@
 {% set _p = request.path %}
 <nav class="ds-nav">
     <a href="{{ url_for('views.express') }}" class="ds-brand" aria-label="OSINT Ultimate — accueil">
-        <span class="ds-logo">◈</span>
+        <span class="ds-logo">{% include 'partials/logo.html' %}</span>
         <span>OSINT&nbsp;Ultimate</span>
     </a>
     <input type="checkbox" id="ds-nav-toggle" class="ds-nav-toggle" hidden>

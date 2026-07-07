@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surveillance — OSINT Ultimate</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <style>
-        :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--border:rgba(255,255,255,.1)}
         body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:960px;margin:0 auto}
         h1{color:var(--accent);font-size:1.5rem}
         h2{font-size:1rem;color:var(--accent2);margin:1.5rem 0 .75rem}
@@ -31,6 +31,7 @@
     </style>
 </head>
 <body>
+{% include 'partials/nav.html' %}
     <p>
         <a href="{{ url_for('views.expert') }}">← Expert</a>
         <a href="{{ url_for('views.express') }}">Express</a>

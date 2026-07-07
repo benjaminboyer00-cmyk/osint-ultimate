@@ -4,17 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historique – OSINT Ultimate</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #07080f;
-            --panel: rgba(14, 17, 28, 0.9);
-            --text: #c8cfe8;
-            --text-dim: #5a6180;
-            --accent: #00e5a0;
-            --accent2: #4d9fff;
-            --border: rgba(255,255,255,0.08);
-        }
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
             background: var(--bg);
@@ -79,6 +71,7 @@
     </style>
 </head>
 <body>
+{% include 'partials/nav.html' %}
 <div class="wrap">
     <div class="nav">
         <a href="{{ url_for('views.expert') }}">← Expert</a>

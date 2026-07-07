@@ -31,10 +31,18 @@
     --danger:  #ff5c7a;
     --info:    #4d9fff;
 
-    /* — Alias legacy (templates existants : --accent2, --err) — */
-    --accent2: #4d9fff;
-    --err:     #ff5c7a;
-    --error:   #ff5c7a;
+    /* — Alias legacy (compat templates existants -> palette unifiée) — */
+    --accent2:    #4d9fff;
+    --accent3:    #ff6b9d;
+    --err:        #ff5c7a;
+    --error:      #ff5c7a;
+    --warning:    #ffb454;
+    --text-dim:   #9aa4bd;
+    --panel:      rgba(20,24,36,.85);
+    --border-lit: rgba(0,229,160,.25);
+    --shadow:     0 16px 44px rgba(0,0,0,.5);
+    --glass:      blur(16px) saturate(160%);
+    --r:          12px;
 
     /* — Rayons / ombres / espacement — */
     --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
@@ -102,11 +110,8 @@ h1,h2,h3,h4 { line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
 }
 .ds-brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 800; letter-spacing: -.02em; color: var(--text); font-size: 1.02rem; white-space: nowrap; }
 .ds-brand:hover { color: var(--text); }
-.ds-logo {
-    width: 30px; height: 30px; border-radius: 9px; background: var(--grad);
-    display: grid; place-items: center; color: #041016; font-weight: 900; font-size: .95rem;
-    box-shadow: var(--glow); flex-shrink: 0;
-}
+.ds-logo { width: 32px; height: 32px; display: grid; place-items: center; flex-shrink: 0; }
+.ds-logo-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 2px 8px rgba(0,229,160,.25)); }
 .ds-brand small { color: var(--dim); font-weight: 600; font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; }
 .ds-nav-links { display: flex; align-items: center; gap: .2rem; margin-left: var(--s-4); flex: 1 1 auto; flex-wrap: wrap; }
 .ds-nav-links a {

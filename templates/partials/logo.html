@@ -1,0 +1,23 @@
+{# Logo OSINT Ultimate : loupe + anneau de chiffrement. Réutilisable. #}
+<svg class="ds-logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="dsLogoGrad" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00e5a0"/><stop offset="1" stop-color="#4d9fff"/>
+    </linearGradient>
+  </defs>
+  <!-- anneau « chiffré » (pointillés) -->
+  <circle cx="20" cy="20" r="18" stroke="url(#dsLogoGrad)" stroke-width="1.4" stroke-dasharray="2.2 3" opacity=".55"/>
+  <!-- glyphes de chiffrement autour -->
+  <g fill="url(#dsLogoGrad)" font-family="ui-monospace,monospace" font-size="4.4" opacity=".85" text-anchor="middle">
+    <text x="20" y="6.2">1</text><text x="34" y="14">0</text>
+    <text x="33.5" y="30">1</text><text x="20" y="38">0</text>
+    <text x="6" y="30">1</text><text x="6.4" y="14">0</text>
+  </g>
+  <!-- loupe -->
+  <circle cx="17" cy="17" r="8" stroke="url(#dsLogoGrad)" stroke-width="2.6"/>
+  <line x1="23" y1="23" x2="30.5" y2="30.5" stroke="url(#dsLogoGrad)" stroke-width="2.8" stroke-linecap="round"/>
+  <!-- binaire dans la lentille -->
+  <g fill="url(#dsLogoGrad)" font-family="ui-monospace,monospace" font-size="4.6" text-anchor="middle" opacity=".9">
+    <text x="17" y="15.5">01</text><text x="17" y="20.5">10</text>
+  </g>
+</svg>

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recettes — OSINT Ultimate</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <style>
-        :root{--bg:#07080f;--text:#c8cfe8;--dim:#5a6180;--accent:#00e5a0;--accent2:#4d9fff;--border:rgba(255,255,255,.1)}
         body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.5rem;max-width:960px;margin:0 auto}
         h1{color:var(--accent)}a{color:var(--accent2);text-decoration:none;margin-right:1rem;font-size:.85rem}
         .intro{color:var(--dim);font-size:.9rem;line-height:1.5;margin:1rem 0}
@@ -29,13 +29,7 @@
     </style>
 </head>
 <body>
-<nav>
-    <a href="{{ url_for('views.express') }}">Express</a>
-    <a href="{{ url_for('views.expert') }}">Expert</a>
-    <a href="{{ url_for('views.recipes_page') }}" class="active">Recettes</a>
-    <a href="{{ url_for('views.marketplace_page') }}">Marketplace</a>
-    {% if authenticated %}<a href="{{ url_for('auth.logout') }}">Déconnexion</a>{% else %}<a href="{{ url_for('auth.login') }}">Connexion</a>{% endif %}
-</nav>
+{% include 'partials/nav.html' %}
 <h1>📋 Recettes d'investigation</h1>
 <p class="intro">
     Enchaînements de modules prêts à l'emploi. Lancez une recette avec une cible — un scan multi s'exécute automatiquement.
