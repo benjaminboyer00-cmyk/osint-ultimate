@@ -4,15 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graphe de corrélation – OSINT Ultimate</title>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Librairies hébergées localement (fin de la dépendance CDN qui faisait
+         échouer le graphe si unpkg était lent/bloqué). -->
+    <script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
     <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
-    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
-    <script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
-    <script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
-    <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
-    <script>cytoscape.use(cytoscapeCoseBilkent);</script>
+    <script src="{{ url_for('static', filename='js/vendor/cytoscape.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendor/layout-base.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendor/cose-base.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendor/cytoscape-cose-bilkent.js') }}"></script>
+    <script>
+        // Enregistre le layout avancé si dispo ; sinon on retombera sur 'cose'.
+        try {
+            if (window.cytoscape && window.cytoscapeCoseBilkent) {
+                cytoscape.use(cytoscapeCoseBilkent);
+                window.__coseBilkent = true;
+            }
+        } catch (e) { console.warn('cose-bilkent indisponible, fallback cose', e); }
+    </script>
     <style>
         :root { --bg:#07080f; --text:#c8cfe8; --dim:#5a6180; --accent:#00e5a0; --accent2:#4d9fff; --border:rgba(255,255,255,.1); }
         *{box-sizing:border-box}
@@ -171,6 +181,15 @@ if (graphSocket) {
     graphSocket.on('scan_completed', p => {
         if (scanStatusEl) scanStatusEl.textContent = `✅ Scan #${p.scan_id} terminé (${p.module})`;
     });
+}
+
+if (typeof cytoscape === 'undefined') {
+    const cyEl = document.getElementById('cy');
+    if (cyEl) cyEl.innerHTML = '<div style="padding:2rem;text-align:center;color:#ff6b9d">'
+        + '⚠️ La librairie du graphe n\'a pas pu être chargée.<br>'
+        + '<button onclick="location.reload()" style="margin-top:1rem;padding:.5rem 1rem;'
+        + 'background:#4d9fff;color:#fff;border:none;border-radius:8px;cursor:pointer">Recharger</button></div>';
+    throw new Error('cytoscape indisponible');
 }
 
 const cy = cytoscape({
@@ -672,13 +691,25 @@ function highlightEntity(eid) {
 async function loadGraph(entityId){
     if (!entityId) return;
     dossierRootId = entityId;
-    graphSocket.emit('join_dossier', { root_entity_id: entityId });
-    const r = await fetch(`/graph/data/${entityId}`);
-    if (!r.ok) { alert('Graphe indisponible'); return; }
-    graphData = await r.json();
-    render(graphData);
-    const hi = new URLSearchParams(location.search).get('highlight');
-    if (hi) setTimeout(() => highlightEntity(hi), 500);
+    try { graphSocket?.emit('join_dossier', { root_entity_id: entityId }); } catch (e) {}
+    const desc = document.getElementById('panel-desc');
+    if (desc) desc.textContent = '⏳ Chargement du graphe…';
+    try {
+        const r = await fetch(`/graph/data/${entityId}`);
+        const { ok, data } = await parseJsonResponse(r);
+        if (!ok) {
+            if (desc) desc.textContent = '⚠️ ' + (data.error || 'Graphe indisponible');
+            return;
+        }
+        graphData = data;
+        render(graphData);
+        if (desc) desc.textContent = `${(graphData.nodes || []).length} entité(s) — cliquez un nœud pour analyser.`;
+        const hi = new URLSearchParams(location.search).get('highlight');
+        if (hi) setTimeout(() => highlightEntity(hi), 500);
+    } catch (e) {
+        if (desc) desc.textContent = '⚠️ Erreur réseau au chargement du graphe.';
+        console.error('loadGraph', e);
+    }
 }
 
 async function loadComments(entityId) {
@@ -714,7 +745,7 @@ document.getElementById('btn-comment')?.addEventListener('click', async () => {
 
 function applyGraphLayout(){
     const n = cy.nodes().length;
-    const bilkent = n > 20 ? {
+    const bilkent = (n > 20 && window.__coseBilkent) ? {
         name: 'cose-bilkent',
         animate: false,
         randomize: true,
