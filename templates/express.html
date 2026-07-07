@@ -24,6 +24,29 @@
             border-bottom:1px solid var(--border);
         }
         nav a{color:var(--accent2);text-decoration:none}
+        .graph-bar{
+            display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;
+            padding:.6rem 1.25rem;background:rgba(77,159,255,.06);
+            border-bottom:1px solid var(--border);font-size:.82rem;
+        }
+        .graph-bar-info{display:flex;align-items:center;gap:.5rem;min-width:0}
+        .graph-bar-label,#graph-bar-label{color:var(--dim);overflow:hidden;text-overflow:ellipsis}
+        .graph-bar-dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex-shrink:0}
+        .graph-bar.active{background:rgba(0,229,160,.08)}
+        .graph-bar.active .graph-bar-dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+        .graph-bar.active #graph-bar-label{color:var(--text)}
+        .graph-bar-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+        .gb-btn{
+            padding:.4rem .8rem;border-radius:8px;border:1px solid var(--border);
+            background:transparent;color:var(--text);cursor:pointer;font-size:.8rem;
+            text-decoration:none;display:inline-block;
+        }
+        .gb-btn:hover{border-color:var(--accent2)}
+        .gb-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+        #graph-bar-select{
+            padding:.4rem .6rem;border-radius:8px;background:#0f1119;color:var(--text);
+            border:1px solid var(--border);max-width:190px;
+        }
         .mode-switch{
             display:inline-flex;border:1px solid var(--border);border-radius:999px;
             overflow:hidden;font-size:.78rem;margin-left:auto;
@@ -146,6 +169,21 @@
     <a href="{{ url_for('views.privacy') }}">RGPD</a>
 </nav>
 
+{% if current_user.is_authenticated %}
+<div id="graph-bar" class="graph-bar">
+    <div class="graph-bar-info">
+        <span class="graph-bar-dot" id="graph-bar-dot"></span>
+        <span id="graph-bar-label">Aucun graphe actif — chaque recherche crée un graphe isolé.</span>
+    </div>
+    <div class="graph-bar-actions">
+        <select id="graph-bar-select" onchange="activateGraph(this.value)" aria-label="Choisir un graphe"></select>
+        <button type="button" class="gb-btn gb-primary" onclick="createGraph()">＋ Créer un graphe</button>
+        <a id="graph-bar-open" href="#" class="gb-btn" style="display:none">Ouvrir</a>
+        <button type="button" id="graph-bar-clear" class="gb-btn" onclick="clearActiveGraph()" style="display:none">Détacher</button>
+    </div>
+</div>
+{% endif %}
+
 <section class="hero">
     <p class="mode-label">Mode Express</p>
     <div class="logo">OSINT Ultimate</div>
@@ -176,12 +214,65 @@
 <div class="results"><div id="card" class="card"></div></div>
 <p class="legal">Sources publiques uniquement. Usage responsable et conforme au RGPD.</p>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
 <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
 <script>
 const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
+
+// ---- Graphe actif : crée un graphe, puis les recherches s'y rattachent ----
+async function loadActiveGraph(){
+    const bar = document.getElementById('graph-bar');
+    if (!bar) return;
+    let d;
+    try { d = await (await fetch('/graph/active')).json(); } catch (e) { return; }
+    const sel = document.getElementById('graph-bar-select');
+    const label = document.getElementById('graph-bar-label');
+    const clearBtn = document.getElementById('graph-bar-clear');
+    const openLink = document.getElementById('graph-bar-open');
+    const graphs = d.graphs || [];
+    sel.innerHTML = '<option value="">— Mes graphes —</option>' + graphs.map(g =>
+        `<option value="${g.root_id}" ${g.active ? 'selected' : ''}>${(g.name || '').replace(/</g,'&lt;').slice(0,40)}</option>`
+    ).join('');
+    sel.style.display = graphs.length ? 'inline-block' : 'none';
+    if (d.active) {
+        bar.classList.add('active');
+        label.textContent = `Graphe actif : « ${d.active.name} » — vos recherches s'y ajoutent.`;
+        clearBtn.style.display = 'inline-block';
+        openLink.style.display = 'inline-block';
+        openLink.href = '/graph?entity_id=' + d.active.root_id;
+    } else {
+        bar.classList.remove('active');
+        label.textContent = 'Aucun graphe actif — chaque recherche crée un graphe isolé.';
+        clearBtn.style.display = 'none';
+        openLink.style.display = 'none';
+    }
+}
+async function createGraph(){
+    const name = prompt('Nom du graphe / de l\'enquête :', 'Enquête ' + new Date().toLocaleDateString('fr-FR'));
+    if (!name) return;
+    const r = await fetch('/graph/create', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name })
+    });
+    if (!r.ok) { alert('Création impossible'); return; }
+    await loadActiveGraph();
+}
+async function activateGraph(rootId){
+    if (!rootId) return;
+    await fetch('/graph/set-active', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ root_id: parseInt(rootId, 10) })
+    });
+    await loadActiveGraph();
+}
+async function clearActiveGraph(){
+    await fetch('/graph/clear-active', { method:'POST' });
+    await loadActiveGraph();
+}
+document.addEventListener('DOMContentLoaded', loadActiveGraph);
+
 const TYPE_LABELS = {
     email:'📧 Email', phone:'📞 Téléphone', ip:'🖥️ Adresse IP',
     site:'🌐 Site web', sherlock:'🔍 Pseudo', pseudo:'🔍 Pseudo', whois:'📋 Domaine'

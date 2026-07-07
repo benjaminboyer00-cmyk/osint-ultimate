@@ -494,6 +494,48 @@ def graph_scan_node():
     })
 
 
+@views_bp.route('/graph/active', methods=['GET'])
+@login_required
+def graph_active_get():
+    """Graphe actif de la session + liste des graphes de l'utilisateur."""
+    from services.active_graph import get_active, list_graphs
+    return jsonify({
+        'active': get_active(current_user.id),
+        'graphs': list_graphs(current_user.id),
+    })
+
+
+@views_bp.route('/graph/create', methods=['POST'])
+@login_required
+def graph_create():
+    """Crée un graphe nommé et l'active. Les recherches suivantes s'y rattachent."""
+    from services.active_graph import create_graph
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Nom du graphe requis'}), 400
+    return jsonify(create_graph(current_user.id, name))
+
+
+@views_bp.route('/graph/set-active', methods=['POST'])
+@login_required
+def graph_set_active():
+    from services.active_graph import set_active
+    data = request.json or {}
+    out = set_active(current_user.id, data.get('root_id'))
+    if not out:
+        return jsonify({'error': 'Graphe introuvable'}), 404
+    return jsonify(out)
+
+
+@views_bp.route('/graph/clear-active', methods=['POST'])
+@login_required
+def graph_clear_active():
+    from services.active_graph import clear_active
+    clear_active()
+    return jsonify({'status': 'cleared'})
+
+
 @views_bp.route('/graph/merge', methods=['POST'])
 @login_required
 def graph_merge():

@@ -374,6 +374,15 @@ def scan_start():
     if data.get('root_entity_id'):
         options['_root_entity_id'] = int(data['root_entity_id'])
     user_id = current_user.is_authenticated and current_user.id or None
+    # Rattachement au graphe actif de la session (si aucune racine explicite)
+    if user_id and not options.get('_root_entity_id'):
+        try:
+            from services.active_graph import get_active
+            ag = get_active(user_id)
+            if ag:
+                options['_root_entity_id'] = ag['root_id']
+        except Exception:
+            pass
     try:
         options['_app'] = current_app._get_current_object()
     except Exception:
