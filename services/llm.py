@@ -105,7 +105,7 @@ def llm_chat(
     messages: list,
     *,
     json_mode: bool = False,
-    timeout: int = 45,
+    timeout: int = int(os.environ.get('LLM_TIMEOUT', '20')),
     use_cache: bool = True,
 ) -> str:
     """Complétion chat robuste avec bascule multi-fournisseur.

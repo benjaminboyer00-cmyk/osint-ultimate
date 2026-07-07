@@ -2,7 +2,7 @@
 import json
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeout
+import threading
 from datetime import datetime
 
 from extensions import db
@@ -11,36 +11,41 @@ from models import Scan, User
 logger = logging.getLogger(__name__)
 
 _SCAN_HARD_TIMEOUT = int(os.environ.get('SCAN_HARD_TIMEOUT', '180'))
-_scan_pool = ThreadPoolExecutor(
-    max_workers=int(os.environ.get('SCAN_POOL_SIZE', '4')),
-    thread_name_prefix='scan-exec',
-)
 
 
 def _run_scan_func(func, target, opts, timeout):
     """Exécute la fonction de scan avec un timeout mur (wall-clock).
 
-    Le scan tourne dans un thread du pool, distinct du thread qui détient
-    le `app.app_context()` de process_scan_by_id : on ouvre donc ici un
-    contexte applicatif dédié pour ce thread afin que `current_app`,
+    Chaque scan tourne dans SON PROPRE thread daemon (plus de pool partagé) :
+    un scan lent/bloqué sur un appel externe fuit au pire un seul thread
+    (qui meurt avec le process) sans jamais bloquer les autres scans. L'ancien
+    pool à 4 slots pouvait être saturé par quelques scans bloqués -> tous les
+    suivants tombaient en timeout (bug HF free tier).
+
+    On ouvre un `app.app_context()` dédié dans le thread afin que `current_app`,
     `db.session`, etc. restent disponibles (ex: connectors/base.py ApiCache).
     """
     app = opts.get('_app')
+    box = {}
 
     def _wrapped():
-        if app is not None:
-            with app.app_context():
-                return func(target, opts)
-        return func(target, opts)
+        try:
+            if app is not None:
+                with app.app_context():
+                    box['result'] = func(target, opts)
+            else:
+                box['result'] = func(target, opts)
+        except Exception as e:  # noqa: BLE001 — remontée au thread appelant
+            box['error'] = e
 
-    fut = _scan_pool.submit(_wrapped)
-    try:
-        return fut.result(timeout=timeout)
-    except _FutureTimeout:
-        fut.cancel()  # libère le slot si encore en file
-        raise TimeoutError(
-            f'Scan interrompu : dépassement de {timeout}s.'
-        )
+    t = threading.Thread(target=_wrapped, daemon=True, name='scan-func')
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        raise TimeoutError(f'Scan interrompu : dépassement de {timeout}s.')
+    if 'error' in box:
+        raise box['error']
+    return box.get('result')
 
 
 def process_scan_by_id(scan_id: int, app, socketio=None, fernet=None):
