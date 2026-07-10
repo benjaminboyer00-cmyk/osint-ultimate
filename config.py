@@ -93,6 +93,15 @@ def build_config():
             'pool_size': int(os.environ.get('DB_POOL_SIZE', '5')),
             'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '2')),
             'pool_timeout': int(os.environ.get('DB_POOL_TIMEOUT', '10')),
+            # HA : échec rapide si Supabase injoignable + keepalives anti-coupure
+            'connect_args': {
+                'connect_timeout': int(os.environ.get('DB_CONNECT_TIMEOUT', '10')),
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 5,
+                'application_name': 'osint-ultimate',
+            },
         } if db_url.startswith('postgresql') else {},
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'SESSION_COOKIE_HTTPONLY': True,
@@ -108,6 +117,8 @@ def build_config():
         'UPLOAD_FOLDER': 'uploads',
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
         'APP_VERSION': '5.0',
+        # Cache long des statiques (URLs versionnées ?v= -> jamais périmé après déploiement)
+        'SEND_FILE_MAX_AGE_DEFAULT': int(os.environ.get('STATIC_MAX_AGE', str(60 * 60 * 24 * 365))),
         # Compression gzip + brotli si paquet brotli installé
         'COMPRESS_ALGORITHM': os.environ.get('COMPRESS_ALGORITHM', 'br,gzip'),
         'COMPRESS_BR_LEVEL': int(os.environ.get('COMPRESS_BR_LEVEL', '5')),
@@ -117,5 +128,8 @@ def build_config():
             'text/html',
             'text/css',
             'application/javascript',
+            'text/javascript',
+            'image/svg+xml',
+            'application/manifest+json',
         ],
     }

@@ -51,6 +51,40 @@ init_csrf(app)
 from flask_compress import Compress
 Compress(app)
 
+# ---------- Perf : cache long + versionnement des assets statiques ----------
+_ASSET_VER_CACHE: dict[str, str] = {}
+
+
+def _asset_version(filename: str) -> str:
+    """Version d'un asset = mtime (bust le cache après chaque déploiement)."""
+    v = _ASSET_VER_CACHE.get(filename)
+    if v is not None:
+        return v
+    try:
+        path = os.path.join(app.static_folder, filename)
+        v = str(int(os.path.getmtime(path)))
+    except OSError:
+        v = app.config.get('APP_VERSION', '1')
+    _ASSET_VER_CACHE[filename] = v
+    return v
+
+
+@app.url_defaults
+def _static_cache_buster(endpoint, values):
+    if endpoint == 'static' and values.get('filename') and 'v' not in values:
+        values['v'] = _asset_version(values['filename'])
+
+
+@app.after_request
+def _immutable_static(resp):
+    """Les URLs statiques sont versionnées -> cache immutable sûr et rapide."""
+    try:
+        if request.path.startswith('/static/') and resp.status_code == 200:
+            resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    except Exception:
+        pass
+    return resp
+
 # Sentry (optionnel — SENTRY_DSN dans les secrets)
 _sentry_dsn = os.environ.get('SENTRY_DSN', '').strip()
 if _sentry_dsn:
