@@ -412,6 +412,21 @@
         </div>
     </div>
 
+    {% if authenticated %}
+    <div id="graph-bar" class="graph-bar" style="border-radius:12px;margin:.5rem 0">
+        <div class="graph-bar-info">
+            <span class="graph-bar-dot" id="graph-bar-dot"></span>
+            <span id="graph-bar-label">Aucun graphe actif — chaque recherche crée un graphe isolé.</span>
+        </div>
+        <div class="graph-bar-actions">
+            <select id="graph-bar-select" onchange="activateGraph(this.value)" aria-label="Choisir un graphe"></select>
+            <button type="button" class="gb-btn gb-primary" onclick="createGraph()">＋ Créer un graphe</button>
+            <a id="graph-bar-open" href="#" class="gb-btn" style="display:none">Ouvrir</a>
+            <button type="button" id="graph-bar-clear" class="gb-btn" onclick="clearActiveGraph()" style="display:none">Détacher</button>
+        </div>
+    </div>
+    {% endif %}
+
     <p class="mode-hint">
         Console complète : choisissez un module, lancez des scans parallèles, exportez PDF/CSV/JSON, activez le mode furtif.
         <a href="{{ url_for('views.express') }}" style="color:var(--accent2)">Recherche simple → Express</a>
@@ -550,6 +565,7 @@
 <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
 <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/active-graph.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 // ── Particle canvas ──────────────────────────────────────────

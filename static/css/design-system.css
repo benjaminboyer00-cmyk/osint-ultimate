@@ -245,6 +245,33 @@ h1,h2,h3,h4 { line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
     .ds-pulse, .ds-btn-primary::after { animation: none; transition: none; }
 }
 
+/* ============================================================
+   Barre « graphe actif » (créer un graphe -> les recherches s'y rattachent)
+   ============================================================ */
+.graph-bar {
+    display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between;
+    padding: .6rem clamp(1rem, 4vw, 2rem); background: rgba(77,159,255,.06);
+    border-bottom: 1px solid var(--border); font-size: .82rem;
+}
+.graph-bar-info { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.graph-bar-label, #graph-bar-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.graph-bar-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+.graph-bar.active { background: rgba(0,229,160,.08); }
+.graph-bar.active .graph-bar-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.graph-bar.active #graph-bar-label { color: var(--text); }
+.graph-bar-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.gb-btn {
+    padding: .4rem .8rem; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); cursor: pointer; font-size: .8rem;
+    text-decoration: none; display: inline-block;
+}
+.gb-btn:hover { border-color: var(--accent-2); }
+.gb-primary { background: var(--grad); color: var(--accent-ink); border-color: transparent; font-weight: 700; }
+#graph-bar-select {
+    padding: .4rem .6rem; border-radius: 8px; background: var(--bg-elev); color: var(--text);
+    border: 1px solid var(--border); max-width: 190px;
+}
+
 /* — Utilitaires — */
 .ds-text-muted { color: var(--muted); }
 .ds-text-dim { color: var(--dim); }
