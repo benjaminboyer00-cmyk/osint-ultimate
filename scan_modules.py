@@ -138,6 +138,12 @@ def scan_dorking(target, options=None):
     return dorking_search(target, options or {})
 
 
+def scan_subdomains(target, options=None):
+    """Sous-domaines via Certificate Transparency (crt.sh) — gratuit, sans clé."""
+    from connectors.crtsh import search_subdomains
+    return search_subdomains(target, options)
+
+
 def scan_multi(target, options=None):
     """Scan parallèle multi-modules (Expert / Express)."""
     from services.scanner import launch_multi_scan
@@ -161,5 +167,6 @@ EXTRA_SCAN_FUNCTIONS = {
     'otx': scan_otx,
     'urlhaus': scan_urlhaus,
     'dorking': scan_dorking,
+    'subdomains': scan_subdomains,
     'multi': scan_multi,
 }

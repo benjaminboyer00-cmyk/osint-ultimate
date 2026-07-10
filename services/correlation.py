@@ -76,11 +76,11 @@ def process_scan_correlations(
         return
 
     target = (target or '').strip()
-    if module in ('site', 'whois', 'wayback'):
+    if module in ('site', 'whois', 'wayback', 'subdomains'):
         target = _normalize_domain_value(target)
     etype_map = {
         'email': 'email', 'phone': 'phone', 'ip': 'ip', 'site': 'domain',
-        'whois': 'domain', 'wayback': 'domain',
+        'whois': 'domain', 'wayback': 'domain', 'subdomains': 'domain',
         'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown',
     }
     root = _get_or_create_entity(
@@ -142,6 +142,14 @@ def process_scan_correlations(
         de = _get_or_create_entity('domain', _normalize_domain_value(target), user_id, scan_id)
         if not _entities_equivalent(root, de):
             _link(root, de, 'DOMAINE', module, scan_id, user_id)
+
+    elif module == 'subdomains':
+        for sub in (result.get('Liste') or [])[:80]:
+            if not isinstance(sub, str):
+                continue
+            sd = _get_or_create_entity('domain', _normalize_domain_value(sub), user_id, scan_id)
+            if not _entities_equivalent(root, sd):
+                _link(root, sd, 'SOUS_DOMAINE', 'crt.sh', scan_id, user_id)
 
     elif module == 'dorking':
         type_map = {
