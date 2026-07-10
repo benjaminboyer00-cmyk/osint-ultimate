@@ -421,6 +421,7 @@
         <div class="graph-bar-actions">
             <select id="graph-bar-select" onchange="activateGraph(this.value)" aria-label="Choisir un graphe"></select>
             <button type="button" class="gb-btn gb-primary" onclick="createGraph()">＋ Créer un graphe</button>
+            <button type="button" id="graph-bar-analyze" class="gb-btn" onclick="analyzeActiveGraph()" style="display:none">🧠 Analyser</button>
             <a id="graph-bar-open" href="#" class="gb-btn" style="display:none">Ouvrir</a>
             <button type="button" id="graph-bar-clear" class="gb-btn" onclick="clearActiveGraph()" style="display:none">Détacher</button>
         </div>
