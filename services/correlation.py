@@ -81,7 +81,7 @@ def process_scan_correlations(
     etype_map = {
         'email': 'email', 'phone': 'phone', 'ip': 'ip', 'site': 'domain',
         'whois': 'domain', 'wayback': 'domain', 'subdomains': 'domain',
-        'typosquat': 'domain',
+        'typosquat': 'domain', 'reverse_ip': 'ip',
         'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown',
     }
     root = _get_or_create_entity(
@@ -159,6 +159,14 @@ def process_scan_correlations(
             le = _get_or_create_entity('domain', _normalize_domain_value(look), user_id, scan_id)
             if not _entities_equivalent(root, le):
                 _link(root, le, 'LOOKALIKE', 'typosquat', scan_id, user_id)
+
+    elif module == 'reverse_ip':
+        for dom in (result.get('Liste') or [])[:80]:
+            if not isinstance(dom, str):
+                continue
+            de = _get_or_create_entity('domain', _normalize_domain_value(dom), user_id, scan_id)
+            if not _entities_equivalent(root, de):
+                _link(root, de, 'HEBERGE_SUR', 'reverse-ip', scan_id, user_id)
 
     elif module == 'dorking':
         type_map = {
@@ -252,6 +260,9 @@ def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
         suggestions.append({'module': 'hunter', 'target': ent.value, 'reason': 'Emails professionnels'})
         suggestions.append({'module': 'wayback', 'target': ent.value, 'reason': 'Historique web'})
         suggestions.append({'module': 'whois', 'target': ent.value, 'reason': 'WHOIS'})
+    elif ent.entity_type == 'ip':
+        suggestions.append({'module': 'reverse_ip', 'target': ent.value, 'reason': 'Domaines sur la même IP'})
+        suggestions.append({'module': 'ip', 'target': ent.value, 'reason': 'Géoloc & Shodan'})
     elif ent.entity_type == 'phone':
         suggestions.append({'module': 'messaging', 'target': ent.value, 'reason': 'Messageries'})
         suggestions.append({'module': 'phone', 'target': ent.value, 'reason': 'Analyse téléphone'})

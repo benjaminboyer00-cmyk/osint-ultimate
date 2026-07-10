@@ -150,6 +150,12 @@ def scan_typosquat(target, options=None):
     return find_lookalikes(target, options)
 
 
+def scan_reverse_ip(target, options=None):
+    """Reverse IP : domaines hébergés sur la même IP — gratuit, sans clé."""
+    from connectors.reverse_ip import reverse_ip
+    return reverse_ip(target, options)
+
+
 def scan_multi(target, options=None):
     """Scan parallèle multi-modules (Expert / Express)."""
     from services.scanner import launch_multi_scan
@@ -175,5 +181,6 @@ EXTRA_SCAN_FUNCTIONS = {
     'dorking': scan_dorking,
     'subdomains': scan_subdomains,
     'typosquat': scan_typosquat,
+    'reverse_ip': scan_reverse_ip,
     'multi': scan_multi,
 }
