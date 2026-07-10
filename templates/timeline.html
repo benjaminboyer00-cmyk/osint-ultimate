@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timeline OSINT – OSINT Ultimate</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
-    <link href="https://unpkg.com/vis-timeline@7.7.3/styles/vis-timeline-graph2d.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/vis/vis-timeline-graph2d.min.css') }}" rel="stylesheet">
     <script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
-    <script src="https://unpkg.com/vis-timeline@7.7.3/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/vis/vis-timeline-graph2d.min.js') }}"></script>
     <style>
         *{box-sizing:border-box}
         body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
