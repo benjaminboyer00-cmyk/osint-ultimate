@@ -83,6 +83,45 @@
 const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
 if (socket) socket.on('connect', () => socket.emit('join_investigation', {}));
 let activeInvId = null;
+let pollTimer = null;
+let investigationFinished = false;
+
+// Filet de sécurité : même si les événements Socket.IO n'arrivent pas
+// (réseau, long-polling…), on interroge le statut pour ne jamais tourner
+// à l'infini.
+function startPolling(id){
+    investigationFinished = false;
+    if (pollTimer) clearInterval(pollTimer);
+    let ticks = 0;
+    pollTimer = setInterval(async () => {
+        ticks++;
+        if (investigationFinished || ticks > 120) { clearInterval(pollTimer); return; }
+        try {
+            const st = await fetch('/investigate/' + id + '/status').then(r => r.json());
+            if (st && st.steps && st.steps.length) {
+                setProgress(`Enquête en cours — ${st.steps.length} étape(s)…`, true);
+            }
+            if (st && (st.status === 'completed' || st.status === 'failed')) {
+                finalizeInvestigation(st);
+            }
+        } catch (e) { /* on réessaie au prochain tick */ }
+    }, 3000);
+}
+
+function finalizeInvestigation(st){
+    if (investigationFinished) return;
+    investigationFinished = true;
+    if (pollTimer) clearInterval(pollTimer);
+    setProgress('', false);
+    document.getElementById('go').disabled = false;
+    if (st.summary) addBubble('📋 ' + String(st.summary).replace(/</g,'&lt;'), 'done');
+    if (st.graph_url){
+        const box = document.createElement('div');
+        box.className = 'bubble agent';
+        box.innerHTML = '<a href="' + st.graph_url + '" style="color:var(--accent2)">🕸️ Ouvrir le graphe de l\'enquête</a>';
+        document.getElementById('timeline').appendChild(box);
+    }
+}
 
 function setProgress(text, show=true){
     const bar = document.getElementById('progress-bar');
@@ -123,6 +162,7 @@ async function startInvestigation(){
     if(d.investigation_id){
         activeInvId = d.investigation_id;
         addBubble('Enquête <strong>#' + d.investigation_id + '</strong> démarrée.', 'agent');
+        startPolling(d.investigation_id);
     } else {
         setProgress('', false);
         addBubble('❌ ' + (d.error || 'Erreur'), 'step-err');
@@ -157,16 +197,15 @@ socket.on('investigation_step', p => {
 
 if (socket) socket.on('investigation_done', p => {
     if(activeInvId && p.investigation_id !== activeInvId) return;
-    setProgress('', false);
-    addBubble('📋 ' + (p.summary || 'Terminé').replace(/</g,'&lt;'), 'done');
-    fetch('/investigate/' + p.investigation_id + '/status').then(r=>r.json()).then(st => {
-        if(st.graph_url){
-            const box = document.createElement('div');
-            box.className = 'bubble agent';
-            box.innerHTML = '<a href="' + st.graph_url + '" style="color:var(--accent2)">🕸️ Ouvrir le graphe de l\'enquête</a>';
-            document.getElementById('timeline').appendChild(box);
-        }
-    });
+    if(investigationFinished) return;
+    fetch('/investigate/' + p.investigation_id + '/status')
+        .then(r=>r.json())
+        .then(st => finalizeInvestigation({
+            summary: st.summary || p.summary || 'Terminé',
+            graph_url: st.graph_url,
+            status: 'completed',
+        }))
+        .catch(() => finalizeInvestigation({ summary: p.summary || 'Terminé', status: 'completed' }));
 });
 
 async function loadInvestigation(id){

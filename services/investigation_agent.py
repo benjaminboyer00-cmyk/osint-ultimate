@@ -1,5 +1,7 @@
 """Agent d'enquête OSINT — planificateur Groq + exécution séquentielle."""
 import json
+import logging
+import os
 import re
 import threading
 from datetime import datetime
@@ -9,7 +11,35 @@ from models import Investigation, Scan, User
 from services.groq import chat_completion
 from services.target_detector import detect_target_type, target_category
 
+logger = logging.getLogger(__name__)
+
 MAX_STEPS = 8
+MODULE_TIMEOUT = int(os.environ.get('INVESTIGATION_MODULE_TIMEOUT', '60'))
+
+
+def _run_module_with_timeout(func, target, opts, app, timeout=MODULE_TIMEOUT):
+    """Exécute un module dans un thread daemon borné : un scan lent ne bloque
+    plus la boucle d'enquête à l'infini (cause du « chargement infini »)."""
+    box = {}
+
+    def _w():
+        try:
+            if app is not None:
+                with app.app_context():
+                    box['r'] = func(target, opts)
+            else:
+                box['r'] = func(target, opts)
+        except Exception as e:  # noqa: BLE001
+            box['e'] = e
+
+    t = threading.Thread(target=_w, daemon=True, name='inv-module')
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        return {'_timeout': True, 'Erreur': f'Module interrompu (>{timeout}s)'}
+    if 'e' in box:
+        return {'Erreur': str(box['e'])}
+    return box.get('r') or {}
 
 MODULES_SPEC = [
     {'name': 'sherlock', 'description': 'Recherche un pseudo sur 300+ réseaux sociaux', 'inputs': ['pseudo', 'username']},
@@ -178,10 +208,7 @@ def execute_module(module: str, target: str, user_id: int, options: dict, invest
     opts = dict(options or {})
     opts['_root_entity_id'] = opts.get('_root_entity_id')
 
-    try:
-        result = func(target, opts)
-    except Exception as e:
-        result = {'Erreur': str(e)}
+    result = _run_module_with_timeout(func, target, opts, opts.get('_app'))
 
     scan = Scan(
         user_id=user_id,
@@ -220,8 +247,8 @@ def _emit(socketio, event: str, payload: dict, user_id: int | None = None):
             socketio.emit(event, payload)
 
 
-def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, fernet):
-    """Boucle d'enquête en arrière-plan."""
+def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, socketio, fernet):
+    """Corps de la boucle d'enquête (enveloppé par run_investigation_loop)."""
     with app.app_context():
         inv = db.session.get(Investigation, investigation_id)
         if not inv:
@@ -233,6 +260,7 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
         steps = []
         options = _build_user_options(user_id, fernet)
         options['_root_entity_id'] = inv.root_entity_id
+        options['_app'] = app
 
         _emit(socketio, 'investigation_started', {
             'investigation_id': investigation_id,
@@ -338,6 +366,30 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
             'investigation_id': investigation_id,
             'summary': inv.result_summary,
             'steps': steps,
+        }, user_id)
+
+
+def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, fernet):
+    """Enveloppe bulletproof : toute exception finalise l'enquête + émet
+    ``investigation_done`` (évite le statut bloqué à « running » = spinner infini)."""
+    try:
+        _run_investigation_loop_inner(investigation_id, user_id, app, socketio, fernet)
+    except Exception as e:  # noqa: BLE001
+        logger.exception('Enquête #%s interrompue', investigation_id)
+        try:
+            with app.app_context():
+                inv = db.session.get(Investigation, investigation_id)
+                if inv and inv.status != 'completed':
+                    inv.status = 'completed'
+                    inv.result_summary = f'Enquête interrompue par une erreur : {e}'
+                    inv.completed_at = datetime.utcnow()
+                    db.session.commit()
+        except Exception:
+            logger.exception('Échec finalisation enquête #%s', investigation_id)
+        _emit(socketio, 'investigation_done', {
+            'investigation_id': investigation_id,
+            'summary': f'Enquête interrompue : {e}',
+            'steps': [],
         }, user_id)
 
 
