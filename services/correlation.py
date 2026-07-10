@@ -238,6 +238,7 @@ def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
     elif ent.entity_type == 'username':
         suggestions.append({'module': 'sherlock', 'target': ent.value, 'reason': 'Recherche multi-plateformes'})
     elif ent.entity_type == 'domain':
+        suggestions.append({'module': 'subdomains', 'target': ent.value, 'reason': 'Sous-domaines (crt.sh)'})
         suggestions.append({'module': 'hunter', 'target': ent.value, 'reason': 'Emails professionnels'})
         suggestions.append({'module': 'wayback', 'target': ent.value, 'reason': 'Historique web'})
         suggestions.append({'module': 'whois', 'target': ent.value, 'reason': 'WHOIS'})
