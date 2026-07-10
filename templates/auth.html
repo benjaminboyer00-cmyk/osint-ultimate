@@ -24,11 +24,12 @@
         .auth-back { display: block; text-align: center; margin-top: .8rem; font-size: .82rem; }
     </style>
 </head>
-<body class="ds-center auth-wrap">
-    <div class="ds-card ds-card-glass auth-card">
+<body class="ds-center auth-wrap has-fx">
+    <canvas class="fx-network" data-network aria-hidden="true"></canvas>
+    <div class="ds-card ds-card-glass auth-card reveal in">
         <div class="auth-brand">
             <span class="ds-logo">{% include 'partials/logo.html' %}</span>
-            <h1>OSINT&nbsp;Ultimate</h1>
+            <h1 class="ds-grad-text">OSINT&nbsp;Ultimate</h1>
             <p>Plateforme d'investigation en sources ouvertes.<br>Vos recherches, corrélées et analysées par l'IA.</p>
         </div>
 
@@ -73,5 +74,6 @@
         </div>
         <a href="{{ url_for('views.express') }}" class="auth-back ds-text-dim">← Continuer sans compte (Express)</a>
     </div>
+    <script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>

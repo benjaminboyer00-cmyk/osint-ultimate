@@ -160,7 +160,8 @@
         }
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
 
 {% if current_user.is_authenticated %}
@@ -180,7 +181,7 @@
 
 <section class="hero">
     <p class="mode-label">Mode Express</p>
-    <div class="logo">OSINT Ultimate</div>
+    <div class="logo ds-grad-text">OSINT Ultimate</div>
     <p class="tagline">Comme une page d'accueil : tapez n'importe quoi — le type est détecté tout seul.</p>
 
     <div class="search-wrap">
@@ -223,6 +224,7 @@
 <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
 <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 <script>
 const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
 
