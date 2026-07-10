@@ -208,7 +208,8 @@ def summarize_osint_with_groq(text, api_key=None, system: str | None = None):
         ),
     })
 
-    model = os.environ.get('GROQ_MODEL', GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
+    # Résumé Express : modèle rapide (8B) + sortie plafonnée -> latence réduite.
+    model = (os.environ.get('GROQ_FAST_MODEL') or '').strip() or 'llama-3.1-8b-instant'
 
     try:
         r = requests.post(
@@ -220,8 +221,9 @@ def summarize_osint_with_groq(text, api_key=None, system: str | None = None):
             json={
                 'model': model,
                 'messages': messages,
+                'max_tokens': int(os.environ.get('AI_SUMMARY_MAX_TOKENS', '900')),
             },
-            timeout=45,
+            timeout=int(os.environ.get('LLM_TIMEOUT', '20')),
         )
         if r.status_code == 200:
             data = r.json()

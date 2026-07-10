@@ -37,7 +37,8 @@ def _groq_direct(messages: list, api_key: str, json_mode: bool = False) -> str:
     return choices[0]['message']['content'].strip()
 
 
-def _groq_request(messages: list, api_key: str | None = None, json_mode: bool = False) -> str:
+def _groq_request(messages: list, api_key: str | None = None, json_mode: bool = False,
+                  fast: bool = False, max_tokens: int | None = None) -> str:
     """Complétion chat robuste. Lève une exception en cas d'échec total.
 
     - Clé utilisateur explicite : Groq direct, avec repli multi-fournisseur.
@@ -49,16 +50,17 @@ def _groq_request(messages: list, api_key: str | None = None, json_mode: bool = 
             return _groq_direct(messages, api_key, json_mode)
         except Exception:
             pass  # repli sur les fournisseurs serveur
-    return llm_chat(messages, json_mode=json_mode)
+    return llm_chat(messages, json_mode=json_mode, fast=fast, max_tokens=max_tokens)
 
 
-def chat_completion(prompt: str, api_key: str | None = None, system: str | None = None) -> str:
+def chat_completion(prompt: str, api_key: str | None = None, system: str | None = None,
+                    fast: bool = False, max_tokens: int | None = None) -> str:
     """Complétion chat pour Express / enquête IA."""
     messages = []
     if system:
         messages.append({'role': 'system', 'content': system})
     messages.append({'role': 'user', 'content': str(prompt)[:6000]})
-    return _groq_request(messages, api_key)
+    return _groq_request(messages, api_key, fast=fast, max_tokens=max_tokens)
 
 
 NARRATIVE_STYLES = {

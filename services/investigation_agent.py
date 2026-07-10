@@ -142,7 +142,10 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
     )
 
     try:
-        raw = chat_completion(prompt, system=system)
+        # Modèle rapide + sortie courte : la planification enchaîne jusqu'à
+        # MAX_STEPS appels -> latence divisée.
+        raw = chat_completion(prompt, system=system, fast=True,
+                              max_tokens=int(os.environ.get('INVESTIGATION_PLAN_MAX_TOKENS', '400')))
         parsed = _parse_action_json(raw)
         if parsed and parsed.get('action'):
             return pseudo.rehydrate(parsed)

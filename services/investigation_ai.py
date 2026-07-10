@@ -36,7 +36,7 @@ def investigate_step(user_message: str, context: dict | None = None) -> dict:
     prompt = f"Question utilisateur: {tok_message}\nContexte: {json.dumps(tok_ctx, ensure_ascii=False)[:3000]}"
 
     try:
-        reply = pseudo.rehydrate(chat_completion(prompt, system=system))
+        reply = pseudo.rehydrate(chat_completion(prompt, system=system, fast=True, max_tokens=700))
         source = 'groq'
     except Exception as e:
         reply = fallback_explain(

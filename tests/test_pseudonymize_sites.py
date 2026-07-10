@@ -33,7 +33,7 @@ def test_investigation_agent_pseudonymized_and_rehydrated():
     from services import investigation_agent as ia
     captured = {}
 
-    def fake_chat(prompt, system=None):
+    def fake_chat(prompt, system=None, **kwargs):
         captured['prompt'] = prompt
         # l'IA répond en jetons
         return '{"action":"whois","params":{"target":"DOMAIN_1"},"reason":"x"}'
@@ -51,7 +51,7 @@ def test_investigation_chat_pseudonymized():
     from services import investigation_ai as iai
     captured = {}
 
-    def fake_chat(prompt, system=None):
+    def fake_chat(prompt, system=None, **kwargs):
         captured['prompt'] = prompt
         return 'EMAIL_1 semble lié.\nACTIONS:\n→ Vérifier EMAIL_1'
 

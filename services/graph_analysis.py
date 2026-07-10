@@ -185,7 +185,7 @@ def analyze_graph(user_id: int, entity_id: int) -> dict:
         out = chat_json(
             f"Faits du graphe (JSON) :\n{facts}\n\n"
             "Analyse ce graphe et réponds en JSON selon le format imposé.",
-            system=_SYSTEM,
+            system=_SYSTEM, max_tokens=1600,
         )
         if isinstance(out, dict) and out.get('synthese'):
             out = pseudo.rehydrate(out)  # rétablit les vraies valeurs côté serveur
@@ -260,6 +260,7 @@ def compare_graphs(user_id: int, entity_id_a: int, entity_id_b: int) -> dict:
             '{"verdict": "meme_personne|lies|distincts|incertain", '
             '"confiance": 0.0, "explication": "1-2 phrases"}',
             system="Tu es un analyste OSINT. Réponds uniquement en JSON valide.",
+            fast=True, max_tokens=300,
         )
         if isinstance(verdict, dict) and verdict.get('verdict'):
             result['analyse_ia'] = pseudo.rehydrate(verdict)       # vraies valeurs rétablies

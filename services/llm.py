@@ -34,6 +34,8 @@ PROVIDERS = [
         'key_env': 'GROQ_API_KEY',
         'model_env': 'GROQ_MODEL',
         'default_model': 'llama-3.3-70b-versatile',
+        'fast_env': 'GROQ_FAST_MODEL',
+        'default_fast': 'llama-3.1-8b-instant',
     },
     {
         'name': 'gemini',
@@ -41,6 +43,8 @@ PROVIDERS = [
         'key_env': 'GEMINI_API_KEY',
         'model_env': 'GEMINI_MODEL',
         'default_model': 'gemini-2.0-flash',
+        'fast_env': 'GEMINI_FAST_MODEL',
+        'default_fast': 'gemini-2.0-flash-lite',
     },
     {
         'name': 'cerebras',
@@ -48,6 +52,8 @@ PROVIDERS = [
         'key_env': 'CEREBRAS_API_KEY',
         'model_env': 'CEREBRAS_MODEL',
         'default_model': 'llama-3.3-70b',
+        'fast_env': 'CEREBRAS_FAST_MODEL',
+        'default_fast': 'llama3.1-8b',
     },
     {
         'name': 'openrouter',
@@ -55,6 +61,8 @@ PROVIDERS = [
         'key_env': 'OPENROUTER_API_KEY',
         'model_env': 'OPENROUTER_MODEL',
         'default_model': 'meta-llama/llama-3.3-70b-instruct:free',
+        'fast_env': 'OPENROUTER_FAST_MODEL',
+        'default_fast': 'meta-llama/llama-3.1-8b-instruct:free',
     },
 ]
 
@@ -71,17 +79,23 @@ def _configured_providers() -> list[dict]:
     return [p for p in provs if os.environ.get(p['key_env'])]
 
 
-def _cache_key(messages: list, json_mode: bool) -> str:
+def _cache_key(messages: list, json_mode: bool, fast: bool, max_tokens) -> str:
     raw = json.dumps(messages, ensure_ascii=False, sort_keys=True, default=str)
-    return hashlib.sha256(f'{raw}|{json_mode}'.encode('utf-8')).hexdigest()
+    return hashlib.sha256(f'{raw}|{json_mode}|{fast}|{max_tokens}'.encode('utf-8')).hexdigest()
 
 
-def _one_call(provider: dict, messages: list, json_mode: bool, timeout: int) -> str:
+def _one_call(provider: dict, messages: list, json_mode: bool, timeout: int,
+              fast: bool, max_tokens) -> str:
     key = os.environ.get(provider['key_env'])
-    model = (os.environ.get(provider['model_env']) or '').strip() or provider['default_model']
+    if fast:
+        model = (os.environ.get(provider.get('fast_env', '')) or '').strip() or provider.get('default_fast') or provider['default_model']
+    else:
+        model = (os.environ.get(provider['model_env']) or '').strip() or provider['default_model']
     payload = {'model': model, 'messages': messages}
     if json_mode:
         payload['response_format'] = {'type': 'json_object'}
+    if max_tokens:
+        payload['max_tokens'] = int(max_tokens)
     r = requests.post(
         f"{provider['base']}/chat/completions",
         headers={
@@ -107,11 +121,14 @@ def llm_chat(
     json_mode: bool = False,
     timeout: int = int(os.environ.get('LLM_TIMEOUT', '20')),
     use_cache: bool = True,
+    fast: bool = False,
+    max_tokens: int | None = None,
 ) -> str:
     """Complétion chat robuste avec bascule multi-fournisseur.
 
-    Lève ``ValueError`` si aucun fournisseur n'est configuré, ``RuntimeError``
-    si tous échouent (même contrat que l'ancien client Groq).
+    ``fast`` : utilise un modèle 8B rapide (planification/chat/résumés).
+    ``max_tokens`` : plafonne la génération -> latence réduite.
+    Lève ``ValueError`` si aucun fournisseur, ``RuntimeError`` si tous échouent.
     """
     providers = _configured_providers()
     if not providers:
@@ -119,14 +136,14 @@ def llm_chat(
             'Aucun fournisseur LLM configuré '
             '(GROQ_API_KEY, GEMINI_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY)'
         )
-    ck = _cache_key(messages, json_mode) if use_cache else None
+    ck = _cache_key(messages, json_mode, fast, max_tokens) if use_cache else None
     if ck and ck in _CACHE:
         return _CACHE[ck]
 
     errors = []
     for p in providers:
         try:
-            out = _one_call(p, messages, json_mode, timeout)
+            out = _one_call(p, messages, json_mode, timeout, fast, max_tokens)
             if ck:
                 _CACHE[ck] = out
             return out
@@ -137,18 +154,20 @@ def llm_chat(
     raise RuntimeError('Tous les fournisseurs LLM ont échoué — ' + ' | '.join(errors[:4]))
 
 
-def chat(prompt: str, *, system: str | None = None, json_mode: bool = False) -> str:
+def chat(prompt: str, *, system: str | None = None, json_mode: bool = False,
+         fast: bool = False, max_tokens: int | None = None) -> str:
     """Raccourci prompt/système."""
     messages = []
     if system:
         messages.append({'role': 'system', 'content': system})
     messages.append({'role': 'user', 'content': str(prompt)[:12000]})
-    return llm_chat(messages, json_mode=json_mode)
+    return llm_chat(messages, json_mode=json_mode, fast=fast, max_tokens=max_tokens)
 
 
-def chat_json(prompt: str, *, system: str | None = None) -> dict | list | None:
+def chat_json(prompt: str, *, system: str | None = None,
+              fast: bool = False, max_tokens: int | None = None) -> dict | list | None:
     """Complétion attendue en JSON. Retourne None si le parsing échoue."""
-    raw = chat(prompt, system=system, json_mode=True)
+    raw = chat(prompt, system=system, json_mode=True, fast=fast, max_tokens=max_tokens)
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):

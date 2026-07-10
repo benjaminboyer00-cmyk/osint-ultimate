@@ -65,7 +65,7 @@ def test_analyze_graph_never_sends_real_values(app, user):
 
         captured = {}
 
-        def fake_chat_json(prompt, system=None):
+        def fake_chat_json(prompt, system=None, **kwargs):
             captured['prompt'] = prompt
             captured['system'] = system
             # l'IA répond en jetons (comme le vrai modèle le ferait)
