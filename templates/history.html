@@ -70,7 +70,8 @@
         }
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
 <div class="wrap">
     <div class="nav">
@@ -119,5 +120,6 @@
     <p class="empty">Aucun scan enregistré pour le moment. Lancez une analyse depuis l'accueil.</p>
     {% endif %}
 </div>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>

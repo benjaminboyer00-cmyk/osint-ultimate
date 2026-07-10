@@ -25,7 +25,8 @@
         nav a.active{color:var(--accent);font-weight:600}
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
 <h1>🔌 Marketplace connecteurs</h1>
 <p class="intro">
@@ -70,5 +71,6 @@ document.querySelectorAll('#filters button').forEach(btn => {
     });
 });
 </script>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>

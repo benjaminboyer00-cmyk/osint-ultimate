@@ -28,7 +28,8 @@
         .ok{color:var(--accent);font-size:.85rem}
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
 <h1>📋 Recettes d'investigation</h1>
 <p class="intro">
@@ -133,5 +134,6 @@ document.getElementById('create-form')?.addEventListener('submit', async e => {
 });
 {% endif %}
 </script>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>

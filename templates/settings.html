@@ -17,7 +17,8 @@
         a{color:#4d9fff;margin-right:1rem} .ok{color:#00e5a0}
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
     <p><a href="{{ url_for('views.expert') }}">Expert</a> <a href="{{ url_for('views.express') }}">Express</a>
        <a href="{{ url_for('views.investigate_page') }}">Enquête guidée IA</a></p>
@@ -77,5 +78,6 @@
         <button type="submit">Enregistrer tout</button>
     </form>
     <p style="margin-top:2rem;font-size:.8rem"><a href="{{ url_for('views.privacy') }}">Politique de confidentialité</a></p>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>

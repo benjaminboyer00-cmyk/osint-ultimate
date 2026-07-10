@@ -30,7 +30,8 @@
         .ok{color:var(--accent);font-size:.85rem}
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
     <p>
         <a href="{{ url_for('views.expert') }}">← Expert</a>
@@ -148,5 +149,6 @@ async function markAllRead(){
     document.querySelectorAll('.alert-item.unread').forEach(el => el.classList.remove('unread'));
 }
 </script>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>

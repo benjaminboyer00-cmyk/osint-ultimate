@@ -12,7 +12,8 @@
         th{background:#12152a;color:#00e5a0}
     </style>
 </head>
-<body>
+<body class="has-fx">
+<canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
     <p><a href="{{ url_for('views.express') }}">← Accueil</a></p>
     <h1>Politique de confidentialité &amp; RGPD</h1>
@@ -114,5 +115,6 @@
         <li>Groq (synthèse IA, si clé configurée)</li>
         <li>Connecteurs tiers (Shodan, Hunter, etc. — selon vos clés)</li>
     </ul>
+<script src="{{ url_for('static', filename='js/fx.js') }}"></script>
 </body>
 </html>
