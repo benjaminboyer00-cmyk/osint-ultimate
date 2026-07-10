@@ -144,6 +144,12 @@ def scan_subdomains(target, options=None):
     return search_subdomains(target, options)
 
 
+def scan_typosquat(target, options=None):
+    """Domaines sosies (typosquatting) qui résolvent — anti-phishing, sans clé."""
+    from connectors.typosquat import find_lookalikes
+    return find_lookalikes(target, options)
+
+
 def scan_multi(target, options=None):
     """Scan parallèle multi-modules (Expert / Express)."""
     from services.scanner import launch_multi_scan
@@ -168,5 +174,6 @@ EXTRA_SCAN_FUNCTIONS = {
     'urlhaus': scan_urlhaus,
     'dorking': scan_dorking,
     'subdomains': scan_subdomains,
+    'typosquat': scan_typosquat,
     'multi': scan_multi,
 }

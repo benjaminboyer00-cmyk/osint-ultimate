@@ -76,11 +76,12 @@ def process_scan_correlations(
         return
 
     target = (target or '').strip()
-    if module in ('site', 'whois', 'wayback', 'subdomains'):
+    if module in ('site', 'whois', 'wayback', 'subdomains', 'typosquat'):
         target = _normalize_domain_value(target)
     etype_map = {
         'email': 'email', 'phone': 'phone', 'ip': 'ip', 'site': 'domain',
         'whois': 'domain', 'wayback': 'domain', 'subdomains': 'domain',
+        'typosquat': 'domain',
         'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown',
     }
     root = _get_or_create_entity(
@@ -150,6 +151,14 @@ def process_scan_correlations(
             sd = _get_or_create_entity('domain', _normalize_domain_value(sub), user_id, scan_id)
             if not _entities_equivalent(root, sd):
                 _link(root, sd, 'SOUS_DOMAINE', 'crt.sh', scan_id, user_id)
+
+    elif module == 'typosquat':
+        for look in (result.get('Liste') or [])[:60]:
+            if not isinstance(look, str):
+                continue
+            le = _get_or_create_entity('domain', _normalize_domain_value(look), user_id, scan_id)
+            if not _entities_equivalent(root, le):
+                _link(root, le, 'LOOKALIKE', 'typosquat', scan_id, user_id)
 
     elif module == 'dorking':
         type_map = {
@@ -239,6 +248,7 @@ def get_rebound_suggestions(entity_id: int, user_id: int) -> list:
         suggestions.append({'module': 'sherlock', 'target': ent.value, 'reason': 'Recherche multi-plateformes'})
     elif ent.entity_type == 'domain':
         suggestions.append({'module': 'subdomains', 'target': ent.value, 'reason': 'Sous-domaines (crt.sh)'})
+        suggestions.append({'module': 'typosquat', 'target': ent.value, 'reason': 'Domaines sosies (anti-phishing)'})
         suggestions.append({'module': 'hunter', 'target': ent.value, 'reason': 'Emails professionnels'})
         suggestions.append({'module': 'wayback', 'target': ent.value, 'reason': 'Historique web'})
         suggestions.append({'module': 'whois', 'target': ent.value, 'reason': 'WHOIS'})
