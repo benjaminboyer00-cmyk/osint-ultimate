@@ -185,33 +185,86 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
     return _fallback_plan(objective, previous_steps)
 
 
+# Mots vides FR/EN : ne doivent jamais être pris pour un pseudo à scanner.
+_STOPWORDS = {
+    'enquête', 'enquete', 'sur', 'analyse', 'analyser', 'trouve', 'trouver',
+    'qui', 'est', 'les', 'des', 'recherche', 'rechercher', 'tout', 'toute',
+    'toutes', 'tous', 'info', 'infos', 'informations', 'personne', 'compte',
+    'profil', 'identité', 'identite', 'email', 'mail', 'pseudo', 'numéro',
+    'numero', 'téléphone', 'telephone', 'domaine', 'site', 'adresse', 'son',
+    'ses', 'avec', 'pour', 'dans', 'une', 'des', 'the', 'and', 'find', 'about',
+    'complète', 'complete', 'faire', 'sait', 'derrière', 'derriere', 'cache',
+    'se', 'ce', 'cette', 'que', 'quoi', 'comment', 'où', 'quand', 'nom',
+    'prénom', 'prenom', 'this', 'that', 'with', 'from', 'who', 'what', 'his',
+    'her', 'get', 'sais', 'connais', 'donne', 'moi', 'plus', 'possible',
+}
+
+
+def _extract_identifiers(text: str) -> dict:
+    """Identifiants réels d'un objectif en langage naturel, par type + priorité."""
+    text = text or ''
+    def uniq(seq):
+        seen, out = set(), []
+        for x in seq:
+            k = x.lower()
+            if k not in seen:
+                seen.add(k); out.append(x)
+        return out
+
+    emails = re.findall(r'[\w.+-]+@[\w-]+\.[\w.-]+', text)
+    rest = re.sub(r'[\w.+-]+@[\w-]+\.[\w.-]+', ' ', text)  # retire les emails
+    ips = re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', rest)
+    phones = re.findall(r'(?<!\w)(?:\+\d[\d ().-]{7,}\d|0[1-9](?:[ .-]?\d{2}){4})', rest)
+    domains = [d for d in re.findall(r'\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b', rest, re.I)
+               if not re.match(r'^\d+$', d.split('.')[0])]
+    dom_low = {d.lower() for d in domains}
+    # Capture les mots ENTIERS (accents inclus) pour que le filtre de mots
+    # vides fonctionne (« derrière » ne doit pas devenir le pseudo « derri »).
+    usernames = [
+        w for w in re.findall(r'[A-Za-zÀ-ÿ0-9_](?:[A-Za-zÀ-ÿ0-9_.\-]{2,29})', rest)
+        if w.lower() not in _STOPWORDS and '.' not in w and not w.isdigit()
+        and w.lower() not in dom_low and re.search(r'[A-Za-z0-9]', w)
+        # rejette les mots 100% alphabétiques accentués (mots français courants)
+        and not re.search(r'[À-ÿ]', w)
+    ]
+    return {'email': uniq(emails), 'ip': uniq(ips), 'phone': uniq(phones),
+            'domain': uniq(domains), 'username': uniq(usernames)}
+
+
 def _fallback_plan(objective: str, previous_steps: list) -> dict:
-    """Plan local si Groq indisponible."""
+    """Plan local si Groq indisponible — cible le VRAI identifiant, pas les mots vides."""
     done = {s.get('action') for s in previous_steps}
-    t = objective.strip()
-    for word in re.findall(r'[\w.\-@+]+', t):
-        if len(word) < 3:
-            continue
-        cat = target_category(word)
-        if cat == 'email' and 'email' not in done and '@' in word:
-            return {'action': 'email', 'params': {'email': word}, 'reason': 'Analyse email'}
-        if cat == 'pseudo' and 'sherlock' not in done:
-            return {'action': 'sherlock', 'params': {'pseudo': word}, 'reason': 'Recherche pseudo'}
-        if cat == 'domain':
-            # Enchaînement d'enrichissement d'infrastructure sur un domaine
-            for mod, reason in (
-                ('whois', 'WHOIS domaine'),
-                ('subdomains', 'Sous-domaines exposés'),
-                ('site', 'DNS / HTTP / sécurité'),
-                ('hunter', 'Emails professionnels'),
-                ('typosquat', 'Domaines sosies (phishing)'),
-                ('wayback', 'Historique web'),
-            ):
-                if mod not in done:
-                    return {'action': mod, 'params': {'domain': word}, 'reason': reason}
-    if len(previous_steps) >= 3:
-        return {'action': 'TERMINE', 'summary': 'Enquête terminée. Dossier et corrélations disponibles dans le graphe.'}
-    return {'action': 'sherlock', 'params': {'pseudo': t[:40]}, 'reason': 'Recherche initiale'}
+    ids = _extract_identifiers(objective)
+
+    for e in ids['email']:
+        if 'email' not in done:
+            return {'action': 'email', 'params': {'email': e}, 'reason': 'Analyse email'}
+        if 'dehashed' not in done:
+            return {'action': 'dehashed', 'params': {'email': e}, 'reason': 'Fuites de données'}
+        if 'epieos' not in done:
+            return {'action': 'epieos', 'params': {'email': e}, 'reason': 'Enrichissement email'}
+    for ip in ids['ip']:
+        if 'ip' not in done:
+            return {'action': 'ip', 'params': {'ip': ip}, 'reason': 'Géoloc & Shodan'}
+        if 'reverse_ip' not in done:
+            return {'action': 'reverse_ip', 'params': {'ip': ip}, 'reason': 'Domaines même IP'}
+    for ph in ids['phone']:
+        if 'phone' not in done:
+            return {'action': 'phone', 'params': {'phone': ph}, 'reason': 'Analyse téléphone'}
+    for d in ids['domain']:
+        for mod, reason in (('whois', 'WHOIS domaine'), ('subdomains', 'Sous-domaines exposés'),
+                            ('site', 'DNS / HTTP / sécurité'), ('hunter', 'Emails professionnels'),
+                            ('typosquat', 'Domaines sosies'), ('wayback', 'Historique web')):
+            if mod not in done:
+                return {'action': mod, 'params': {'domain': d}, 'reason': reason}
+    for u in ids['username']:
+        if 'sherlock' not in done:
+            return {'action': 'sherlock', 'params': {'pseudo': u}, 'reason': 'Recherche pseudo'}
+        if 'dehashed' not in done:
+            return {'action': 'dehashed', 'params': {'pseudo': u}, 'reason': 'Fuites pseudo'}
+
+    return {'action': 'TERMINE',
+            'summary': 'Enquête terminée. Ouvrez le graphe pour explorer les corrélations.'}
 
 
 def _final_dossier(user_id: int, root_entity_id, base_summary: str) -> str:
