@@ -139,25 +139,69 @@ def _base_token(entity: Entity) -> str:
     return val.lstrip('@')
 
 
-def suggest_person_merges(user_id: int, entity_id, limit: int = 5) -> list[dict]:
-    """Candidats « même personne » (déterministe, sans dépendance ni coût).
+# Diminutifs FR/EN courants (bidirectionnel) — aide « benji = benjamin ».
+_NICKNAMES = {
+    'benji': 'benjamin', 'ben': 'benjamin', 'mike': 'michael', 'mick': 'michael',
+    'alex': 'alexandre', 'max': 'maxime', 'tom': 'thomas', 'nico': 'nicolas',
+    'flo': 'florian', 'manu': 'emmanuel', 'seb': 'sebastien', 'fred': 'frederic',
+    'raf': 'raphael', 'val': 'valentin', 'sam': 'samuel', 'dan': 'daniel',
+    'chris': 'christophe', 'matt': 'mathieu', 'vince': 'vincent', 'greg': 'gregory',
+    'steph': 'stephane', 'will': 'william', 'rob': 'robert', 'toine': 'antoine',
+    'guillon': 'guillaume', 'jé': 'jerome', 'dav': 'david', 'gab': 'gabriel',
+}
 
-    Amorce locale qui sera affinée par l'IA en Phase 2. Compare la partie
-    signifiante des identifiants (pseudo, partie locale d'email) via
-    ``difflib`` : égalité inter-types, inclusion, ou similarité élevée.
-    """
+
+def _canon(tok: str) -> str:
+    """Forme canonique : sans séparateurs ni chiffres finaux."""
+    import re
+    t = re.sub(r'[._\-]', '', (tok or '').lower())
+    return re.sub(r'\d+$', '', t)
+
+
+def _name_forms(tok: str) -> set[str]:
+    """Formes équivalentes (canon + diminutif/expansion)."""
+    c = _canon(tok)
+    forms = {c}
+    if c in _NICKNAMES:
+        forms.add(_NICKNAMES[c])
+    forms |= {nick for nick, full in _NICKNAMES.items() if full == c}
+    return {f for f in forms if f}
+
+
+def _neighbor_map(user_id: int) -> dict[int, set[int]]:
+    """Voisins de chaque entité (hors liens MEME_PERSONNE)."""
+    adj: dict[int, set[int]] = {}
+    links = EntityLink.query.filter(
+        EntityLink.user_id == user_id,
+        EntityLink.link_type != MERGE_LINK_TYPE,
+    ).all()
+    for lk in links:
+        adj.setdefault(lk.source_id, set()).add(lk.target_id)
+        adj.setdefault(lk.target_id, set()).add(lk.source_id)
+    return adj
+
+
+def suggest_person_merges(user_id: int, entity_id, limit: int = 5) -> list[dict]:
+    """Candidats « même personne » — moteur local intelligent (aucune donnée
+    envoyée à un tiers) : diminutifs, similarité, et surtout **signal
+    structurel** (identifiants partageant une connexion commune)."""
     ent = _owned_entity(user_id, entity_id)
     if not ent:
         return []
     src = _base_token(ent)
     if not src or len(src) < 3:
         return []
+    src_canon = _canon(src)
+    src_forms = _name_forms(src)
 
     cluster_ids = {m['id'] for m in get_person_cluster(user_id, entity_id)['members']}
     q = Entity.query.filter(Entity.user_id == user_id)
     if cluster_ids:
         q = q.filter(Entity.id.notin_(cluster_ids))
     candidates = q.limit(500).all()
+
+    adj = _neighbor_map(user_id)
+    src_neighbors = adj.get(ent.id, set())
 
     out = []
     for other in candidates:
@@ -166,22 +210,30 @@ def suggest_person_merges(user_id: int, entity_id, limit: int = 5) -> list[dict]
         tok = _base_token(other)
         if not tok or len(tok) < 3:
             continue
+        tcanon = _canon(tok)
         ratio = difflib.SequenceMatcher(None, src, tok).ratio()
-        reason = None
+        reason, score = None, ratio
+
         if src == tok and other.entity_type != ent.entity_type:
-            ratio, reason = max(ratio, 0.95), 'Identifiant identique sur un autre type'
-        elif (src in tok or tok in src) and min(len(src), len(tok)) >= 3:
-            ratio, reason = max(ratio, 0.8), 'Un identifiant contient l’autre'
+            score, reason = 0.96, 'Identifiant identique sur un autre type'
+        elif src_forms & _name_forms(tok):
+            score, reason = 0.9, 'Diminutif / variante du même prénom'
+        elif src_canon and (src_canon in tcanon or tcanon in src_canon) and min(len(src_canon), len(tcanon)) >= 3:
+            score, reason = max(ratio, 0.82), 'Un identifiant contient l’autre'
         elif ratio >= 0.72:
-            reason = f'Pseudos similaires ({int(ratio * 100)} %)'
+            score, reason = ratio, f'Identifiants similaires ({int(ratio * 100)} %)'
+
+        # Signal structurel : connexion commune (privacy-safe, local)
+        shared = src_neighbors & adj.get(other.id, set())
+        if shared:
+            score = min(0.99, max(score, 0.5) + 0.15 * min(len(shared), 3))
+            extra = f'{len(shared)} connexion(s) commune(s)'
+            reason = f'{reason} + {extra}' if reason else extra
+
         if reason:
             out.append({
-                'entity': {
-                    'id': other.id,
-                    'entity_type': other.entity_type,
-                    'value': other.value,
-                },
-                'score': round(ratio, 2),
+                'entity': {'id': other.id, 'entity_type': other.entity_type, 'value': other.value},
+                'score': round(min(score, 0.99), 2),
                 'reason': reason,
             })
 
