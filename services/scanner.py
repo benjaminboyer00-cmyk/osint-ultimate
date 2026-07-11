@@ -158,7 +158,8 @@ def launch_multi_scan(
     errors = {}
     sources = {}
 
-    max_workers = min(6, len(module_list))
+    import os
+    max_workers = min(int(os.environ.get('MULTI_SCAN_WORKERS', '8')), len(module_list)) or 1
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
             pool.submit(_run_one_module, mod, target, options, category, app): mod

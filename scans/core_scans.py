@@ -8,6 +8,7 @@ import os
 import re
 import socket
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
@@ -516,11 +517,14 @@ def scan_pseudo(username, options=None):
     }
     results = {}
 
+    import os
+    per_site = int(os.environ.get('PSEUDO_SITE_TIMEOUT', '8'))
+
     def check(name, url_tpl, not_found):
         from services.social_fetch import social_http_get
         url = url_tpl.replace('{u}', username)
         try:
-            r = social_http_get(url, options, timeout=12)
+            r = social_http_get(url, options, timeout=per_site)
             if not r:
                 results[name] = 'Timeout'
                 return
@@ -535,10 +539,15 @@ def scan_pseudo(username, options=None):
         except Exception:
             results[name] = 'Erreur'
 
-    threads = [threading.Thread(target=check, args=(n, u, nf))
+    # Toutes les plateformes en parallèle ; threads daemon (pas de fuite si
+    # un site est lent) + fenêtre globale bornée -> ~per_site secondes au total.
+    threads = [threading.Thread(target=check, args=(n, u, nf), daemon=True)
                for n, (u, nf) in platforms.items()]
-    for t in threads: t.start()
-    for t in threads: t.join(timeout=12)
+    for t in threads:
+        t.start()
+    deadline = time.monotonic() + per_site + 2
+    for t in threads:
+        t.join(timeout=max(0.1, deadline - time.monotonic()))
     return results
 
 
