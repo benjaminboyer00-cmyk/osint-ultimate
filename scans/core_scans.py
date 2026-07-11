@@ -27,6 +27,9 @@ def scan_site(target, options=None):
     if domain.startswith('http'):
         domain = urlparse(domain).netloc
     domain = re.sub(r'^www\.', '', domain).split('/')[0]
+    from services.ssrf_guard import host_is_public
+    if domain and not host_is_public(domain):
+        return {'Erreur': 'Cible interne/privée refusée (anti-SSRF).', 'Cible': domain[:60]}
     results = {}
 
     # ── WHOIS (RDAP + repli, timeouts courts) ──
@@ -378,6 +381,9 @@ def scan_phone(phone_str, options=None):
 
 def scan_ip(ip, options=None):
     ip = ip.strip()
+    from services.ssrf_guard import ip_is_internal
+    if ip_is_internal(ip):
+        return {'Erreur': 'Cible interne/privée refusée (anti-SSRF).', 'Cible': ip[:60]}
     results = {}
 
     # Geolocalisation

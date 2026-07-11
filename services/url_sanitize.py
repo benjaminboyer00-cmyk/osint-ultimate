@@ -48,7 +48,14 @@ def _is_safe_http_host(host: str) -> bool:
         return False
     if not re.match(r'^[a-z0-9]([a-z0-9.\-]*[a-z0-9])?$', h):
         return False
-    return '.' in h
+    if '.' not in h:
+        return False
+    # Anti-SSRF : refuse les IP internes / domaines résolvant en interne.
+    try:
+        from services.ssrf_guard import host_is_public
+        return host_is_public(h)
+    except Exception:
+        return True
 
 
 def normalize_http_url(url: str) -> str | None:
