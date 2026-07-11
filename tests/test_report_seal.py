@@ -70,7 +70,16 @@ def test_qr_data_uri():
 
 def test_verify_page_url():
     url = verify_page_url(7, 'https://test.hf.space')
-    assert url == 'https://test.hf.space/verify/7'
+    assert url.startswith('https://test.hf.space/verify/7?t=')
+
+
+def test_verify_token_opaque():
+    from services.report_seal import verify_token, verify_token_ok
+    tok = verify_token(42)
+    assert verify_token_ok(42, tok) is True
+    assert verify_token_ok(42, 'deadbeef') is False
+    assert verify_token_ok(43, tok) is False   # lié au scan_id
+    assert verify_token_ok(42, '') is False
 
 
 def test_seal_scan_report_signs_bytes():

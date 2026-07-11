@@ -20,9 +20,21 @@ def public_base_url(fallback: str | None = None) -> str:
     return (fallback or 'http://localhost:7860').rstrip('/')
 
 
+def verify_token(scan_id) -> str:
+    """Token opaque (HMAC tronqué) pour la page de vérification publique —
+    rend l'URL non énumérable (l'ID séquentiel seul ne suffit plus)."""
+    from services.report_signing import sign_bytes
+    return sign_bytes(f'verify:{scan_id}'.encode('utf-8'))[:20]
+
+
+def verify_token_ok(scan_id, token: str) -> bool:
+    import hmac
+    return bool(token) and hmac.compare_digest(verify_token(scan_id), (token or '').strip().lower())
+
+
 def verify_page_url(scan_id: int, base_url: str | None = None) -> str:
     base = (base_url or public_base_url()).rstrip('/')
-    return f'{base}/verify/{scan_id}'
+    return f'{base}/verify/{scan_id}?t={verify_token(scan_id)}'
 
 
 def qr_code_data_uri(url: str, *, box_size: int = 4) -> str:

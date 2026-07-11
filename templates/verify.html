@@ -21,7 +21,7 @@
 
     <div class="card">
         <p>Uploadez le fichier PDF reçu pour vérifier qu'il n'a pas été modifié depuis sa génération officielle.</p>
-        <form id="verify-form" method="post" enctype="multipart/form-data" action="/verify/{{ scan_id }}">
+        <form id="verify-form" method="post" enctype="multipart/form-data" action="/verify/{{ scan_id }}?t={{ token }}">
             <input type="file" name="pdf" accept="application/pdf,.pdf" required>
             <button type="submit">Vérifier le document</button>
         </form>
