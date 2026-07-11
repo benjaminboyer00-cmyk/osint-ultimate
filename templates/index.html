@@ -242,9 +242,9 @@
             display:inline-block; padding:.15em .55em; border-radius:20px;
             font-size:.72rem; font-weight:700; white-space:nowrap;
         }
-        .b-ok  { background:rgba(0,229,160,.15); color:var(--accent); }
-        .b-err { background:rgba(255,71,87,.15);  color:var(--error); }
-        .b-warn{ background:rgba(255,165,2,.15);  color:var(--warning); }
+        .b-ok { background:rgba(0,229,160,.15); color:var(--accent); }
+        .b-err { background:rgba(255,71,87,.15); color:var(--error); }
+        .b-warn{ background:rgba(255,165,2,.15); color:var(--warning); }
         .b-info{ background:rgba(77,159,255,.15); color:var(--accent2); }
 
         /* ── AI box ── */
@@ -372,7 +372,7 @@
     <!-- Header -->
     <div class="hdr">
         <div>
-            <div class="logo">⚡ OSINT ULTIMATE V{{ version|default('5.0') }}</div>
+            <div class="logo">OSINT ULTIMATE V{{ version|default('5.0') }}</div>
             <div style="font-size:.7rem;color:var(--accent);letter-spacing:.06em;margin-top:.2rem">MODE EXPERT</div>
         </div>
         <div class="hdr-right">
@@ -380,22 +380,22 @@
                 <a href="{{ url_for('views.express') }}">Express</a>
                 <a href="{{ url_for('views.expert') }}" class="active" aria-current="page">Expert</a>
             </div>
-            <button type="button" class="tut-help" onclick="openTutorial()" title="Guide 3 étapes">❓ Guide</button>
+            <button type="button" class="tut-help" onclick="openTutorial()" title="Guide 3 étapes">Guide</button>
             {% if authenticated %}
-                <span class="user-badge">👤 {{ username }}</span>
-                <a href="/history" class="history-link">📋 Historique</a>
-                <a href="{{ url_for('collab.invitations_page') }}" class="history-link" title="Invitations & dossiers partagés">📬 Dossiers</a>
-                <a href="{{ url_for('views.graph_view') }}" class="history-link">🕸️ Graphe</a>
-                <a href="{{ url_for('views.map_view') }}" class="history-link">🗺️ Carte</a>
-                <a href="{{ url_for('views.timeline_view') }}" class="history-link">⏳ Timeline</a>
-                <a href="{{ url_for('views.monitoring_page') }}" class="history-link" title="Surveillance">📡</a>
-                <a href="{{ url_for('views.monitoring_page') }}#alert-history" class="history-link" id="notif-bell" title="Notifications" style="position:relative">
-                    🔔<span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-8px;background:#a5342a;color:#f3ecdd;font-size:.65rem;padding:1px 5px;border-radius:3px;font-weight:700">0</span>
+                <span class="user-badge">{{ username }}</span>
+                <a href="/history" class="history-link">Historique</a>
+                <a href="{{ url_for('collab.invitations_page') }}" class="history-link" title="Invitations & dossiers partagés">Dossiers</a>
+                <a href="{{ url_for('views.graph_view') }}" class="history-link">Graphe</a>
+                <a href="{{ url_for('views.map_view') }}" class="history-link">Carte</a>
+                <a href="{{ url_for('views.timeline_view') }}" class="history-link">Timeline</a>
+                <a href="{{ url_for('views.monitoring_page') }}" class="history-link" title="Surveillance">Veille</a>
+                <a href="{{ url_for('views.monitoring_page') }}#alert-history" class="history-link" id="notif-bell" title="Notifications" style="position:relative">Alertes
+                    <span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-8px;background:#a5342a;color:#f3ecdd;font-size:.65rem;padding:1px 5px;border-radius:3px;font-weight:700">0</span>
                 </a>
-                <a href="{{ url_for('views.investigate_page') }}" class="history-link" title="Enquête guidée IA">🧠 Enquête</a>
-                <a href="{{ url_for('views.recipes_page') }}" class="history-link" title="Recettes">📋</a>
-                <a href="{{ url_for('views.marketplace_page') }}" class="history-link" title="Connecteurs">🔌</a>
-                <a href="{{ url_for('views.settings') }}" class="history-link">⚙️</a>
+                <a href="{{ url_for('views.investigate_page') }}" class="history-link" title="Enquête guidée IA">Enquête</a>
+                <a href="{{ url_for('views.recipes_page') }}" class="history-link" title="Recettes">Recettes</a>
+                <a href="{{ url_for('views.marketplace_page') }}" class="history-link" title="Connecteurs">Connecteurs</a>
+                <a href="{{ url_for('views.settings') }}" class="history-link" title="Réglages">Réglages</a>
                 <a href="/logout" class="auth-btn">Déconnexion</a>
             {% else %}
                 <a href="{{ url_for('auth.login') }}" class="auth-btn">Connexion</a>
@@ -406,15 +406,15 @@
     </div>
 
     {% if authenticated %}
-    <div id="graph-bar" class="graph-bar" style="border-radius:12px;margin:.5rem 0">
+    <div id="graph-bar" class="graph-bar" style="border-radius:3px;margin:.5rem 0">
         <div class="graph-bar-info">
             <span class="graph-bar-dot" id="graph-bar-dot"></span>
             <span id="graph-bar-label">Aucun graphe actif — chaque recherche crée un graphe isolé.</span>
         </div>
         <div class="graph-bar-actions">
             <select id="graph-bar-select" onchange="activateGraph(this.value)" aria-label="Choisir un graphe"></select>
-            <button type="button" class="gb-btn gb-primary" onclick="createGraph()">＋ Créer un graphe</button>
-            <button type="button" id="graph-bar-analyze" class="gb-btn" onclick="analyzeActiveGraph()" style="display:none">🧠 Analyser</button>
+            <button type="button" class="gb-btn gb-primary" onclick="createGraph()">Créer un graphe</button>
+            <button type="button" id="graph-bar-analyze" class="gb-btn" onclick="analyzeActiveGraph()" style="display:none">Analyser</button>
             <a id="graph-bar-open" href="#" class="gb-btn" style="display:none">Ouvrir</a>
             <button type="button" id="graph-bar-clear" class="gb-btn" onclick="clearActiveGraph()" style="display:none">Détacher</button>
         </div>
@@ -428,29 +428,29 @@
 
     <!-- Module selector -->
     <div class="modules" id="modules">
-        <button class="mod active" data-m="site">🌐 Site web</button>
-        <button class="mod" data-m="email">✉️ Email</button>
-        <button class="mod" data-m="phone">📞 Téléphone</button>
-        <button class="mod" data-m="ip">🌍 Adresse IP</button>
-        <button class="mod" data-m="pseudo">🔍 Pseudo</button>
-        <button class="mod" data-m="sherlock" title="Recherche pseudo sur 100+ sites">🕵️ Sherlock</button>
-        <button class="mod" data-m="dorking" title="Dorks OSINT (LinkedIn, docs, mentions)">🔎 Dorking</button>
-        <button class="mod" data-m="hunter" title="Emails professionnels par domaine">🎯 Hunter</button>
-        <button class="mod" data-m="dehashed" title="Fuites de données">💥 Dehashed</button>
-        <button class="mod" data-m="epieos" title="Email / pseudo avancé">🔎 Epieos</button>
-        <button class="mod" data-m="wayback" title="Archives web">🕰️ Wayback</button>
-        <button class="mod" data-m="whois" title="WHOIS domaine">📋 WHOIS</button>
-        <button class="mod" data-m="subdomains" title="Sous-domaines via Certificate Transparency (crt.sh) — gratuit">🌐 Sous-domaines</button>
-        <button class="mod" data-m="typosquat" title="Domaines sosies qui résolvent (anti-phishing) — gratuit">🎭 Sosies</button>
-        <button class="mod" data-m="reverse_ip" title="Domaines hébergés sur la même IP — gratuit">🔁 Reverse IP</button>
-        <button class="mod" data-m="messaging" title="WhatsApp/Telegram (indicatif)">💬 Messagerie</button>
-        <button class="mod" data-m="instagram">📸 Instagram</button>
-        <button class="mod" data-m="twitter">🐦 Twitter/X</button>
-        <button class="mod" data-m="tiktok">🎵 TikTok</button>
-        <button class="mod" data-m="github">🐙 GitHub</button>
-        <button class="mod" data-m="facebook">📘 Facebook</button>
-        <button class="mod" data-m="linkedin">🔗 LinkedIn</button>
-        <button class="mod" data-m="snapchat">👻 Snapchat</button>
+        <button class="mod active" data-m="site">Site web</button>
+        <button class="mod" data-m="email">Email</button>
+        <button class="mod" data-m="phone">Téléphone</button>
+        <button class="mod" data-m="ip">Adresse IP</button>
+        <button class="mod" data-m="pseudo">Pseudo</button>
+        <button class="mod" data-m="sherlock" title="Recherche pseudo sur 100+ sites">Sherlock</button>
+        <button class="mod" data-m="dorking" title="Dorks OSINT (LinkedIn, docs, mentions)">Dorking</button>
+        <button class="mod" data-m="hunter" title="Emails professionnels par domaine">Hunter</button>
+        <button class="mod" data-m="dehashed" title="Fuites de données">Dehashed</button>
+        <button class="mod" data-m="epieos" title="Email / pseudo avancé">Epieos</button>
+        <button class="mod" data-m="wayback" title="Archives web">Wayback</button>
+        <button class="mod" data-m="whois" title="WHOIS domaine">WHOIS</button>
+        <button class="mod" data-m="subdomains" title="Sous-domaines via Certificate Transparency (crt.sh) — gratuit">Sous-domaines</button>
+        <button class="mod" data-m="typosquat" title="Domaines sosies qui résolvent (anti-phishing) — gratuit">Sosies</button>
+        <button class="mod" data-m="reverse_ip" title="Domaines hébergés sur la même IP — gratuit">Reverse IP</button>
+        <button class="mod" data-m="messaging" title="WhatsApp/Telegram (indicatif)">Messagerie</button>
+        <button class="mod" data-m="instagram">Instagram</button>
+        <button class="mod" data-m="twitter">Twitter/X</button>
+        <button class="mod" data-m="tiktok">TikTok</button>
+        <button class="mod" data-m="github">GitHub</button>
+        <button class="mod" data-m="facebook">Facebook</button>
+        <button class="mod" data-m="linkedin">LinkedIn</button>
+        <button class="mod" data-m="snapchat">Snapchat</button>
     </div>
 
     <!-- Input -->
@@ -459,20 +459,20 @@
         <button id="scan-btn" onclick="launchScan()">Scanner</button>
     </div>
     <div id="stealth-opts" style="margin:.5rem 0;font-size:.82rem;color:var(--dim)">
-        <label><input type="checkbox" id="stealth-scan"> Mode furtif (délais aléatoires, rotation User-Agent{% if not authenticated %}, proxy si configuré après connexion{% endif %})</label>
-        <label style="margin-left:1rem"><input type="checkbox" id="multi-scan"> Analyse complète (multi-modules)</label>
+        <label><input type="checkbox" id="stealth-scan">Mode furtif (délais aléatoires, rotation User-Agent{% if not authenticated %}, proxy si configuré après connexion{% endif %})</label>
+        <label style="margin-left:1rem"><input type="checkbox" id="multi-scan">Analyse complète (multi-modules)</label>
         <label style="margin-left:1rem" title="Dorks DuckDuckGo : profils, emails, documents publics">
-            <input type="checkbox" id="deep-dorking"> Recherche profonde (Dorking)
+            <input type="checkbox" id="deep-dorking">Recherche profonde (Dorking)
         </label>
     </div>
 
     <!-- Email options -->
     <div id="email-opts" class="email-opts">
-        <label><input type="checkbox" value="mx" checked> MX</label>
-        <label><input type="checkbox" value="spf" checked> SPF/DMARC</label>
-        <label><input type="checkbox" value="smtp"> Vérif. SMTP</label>
-        <label><input type="checkbox" value="breaches"> Fuites HIBP</label>
-        <label><input type="checkbox" value="gravatar"> Gravatar</label>
+        <label><input type="checkbox" value="mx" checked>MX</label>
+        <label><input type="checkbox" value="spf" checked>SPF/DMARC</label>
+        <label><input type="checkbox" value="smtp">Vérif. SMTP</label>
+        <label><input type="checkbox" value="breaches">Fuites HIBP</label>
+        <label><input type="checkbox" value="gravatar">Gravatar</label>
     </div>
 
     <!-- Progress -->
@@ -481,23 +481,23 @@
     <!-- Results -->
     <div id="result" class="result-box">
         <div class="result-placeholder">
-            <div class="ico">🔍</div>
+            <div class="ico"></div>
             <div>Sélectionnez un module et entrez une cible</div>
         </div>
     </div>
 
     <!-- Export -->
     <div class="export-bar" id="export-bar">
-        <button class="icon-btn" onclick="copyResults()">📋 Copier</button>
-        <button class="icon-btn" onclick="downloadJSON()">💾 JSON</button>
-        <button class="icon-btn" id="pdf-btn" onclick="downloadPDF()" style="display:none">📄 PDF</button>
-        <button class="icon-btn" id="csv-btn" onclick="downloadCSV()" style="display:none">📊 CSV</button>
-        <button class="icon-btn" onclick="window.print()">🖨️ Imprimer</button>
+        <button class="icon-btn" onclick="copyResults()">Copier</button>
+        <button class="icon-btn" onclick="downloadJSON()">JSON</button>
+        <button class="icon-btn" id="pdf-btn" onclick="downloadPDF()" style="display:none">PDF</button>
+        <button class="icon-btn" id="csv-btn" onclick="downloadCSV()" style="display:none">CSV</button>
+        <button class="icon-btn" onclick="window.print()">Imprimer</button>
     </div>
 
     {% if authenticated %}
     <div id="shared-dossiers-panel" style="margin:1rem 0;padding:1rem;background:rgba(77,159,255,.06);border:1px solid var(--border);border-radius:var(--r)">
-        <strong style="color:var(--accent2)">📁 Dossiers partagés avec moi</strong>
+        <strong style="color:var(--accent2)">Dossiers partagés avec moi</strong>
         <p style="font-size:.8rem;color:var(--text-dim);margin:.35rem 0 .6rem">
             Investigations où vous êtes invité (lecteur / éditeur).
             <a href="{{ url_for('collab.invitations_page') }}" style="color:var(--accent2)">Tout voir →</a>
@@ -506,7 +506,7 @@
     </div>
     <div id="monitor-panel">
         <label>
-            <input type="checkbox" id="watch-enable"> 📡 Surveiller cette cible
+            <input type="checkbox" id="watch-enable">Surveiller cette cible
         </label>
         <select id="watch-frequency" title="Fréquence de rescan">
             <option value="daily">Quotidien</option>
@@ -514,7 +514,7 @@
         </select>
         <button type="button" class="watch-btn" onclick="enableMonitoring()">Activer la surveillance</button>
         <p class="watch-meta">
-            Cible : <strong id="watch-target-preview">—</strong> · Module : <strong id="watch-module-preview">—</strong>
+            Cible : <strong id="watch-target-preview">—</strong>· Module : <strong id="watch-module-preview">—</strong>
             · <a href="{{ url_for('views.monitoring_page') }}" style="color:var(--accent2)">Voir toutes les surveillances</a>
         </p>
         <p id="watch-msg" class="watch-meta" style="color:var(--accent)"></p>
@@ -523,7 +523,7 @@
 
     <!-- AI Summary -->
     <div class="ai-box" id="ai-box">
-        <button class="ai-btn" onclick="getAI()">🤖 Résumé IA</button>
+        <button class="ai-btn" onclick="getAI()">Résumé IA</button>
         <div id="ai-text"></div>
     </div>
 
@@ -537,7 +537,7 @@
 
     <!-- File upload -->
     <div class="upload-area" onclick="document.getElementById('file-input').click()">
-        📎 Analyser un fichier — EXIF (images), métadonnées PDF, DOCX
+         Analyser un fichier — EXIF (images), métadonnées PDF, DOCX
         <input type="file" id="file-input" style="display:none"
                accept=".jpg,.jpeg,.png,.pdf,.docx,.tiff,.bmp,.webp"
                onchange="uploadFile(this)">
@@ -659,13 +659,13 @@ const PLACEHOLDERS = {
     snapchat:'nom_utilisateur',
 };
 
-mods.forEach(btn => btn.addEventListener('click', ()=>{
+mods.forEach(btn =>btn.addEventListener('click', ()=>{
     mods.forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     currentModule = btn.dataset.m;
     targetEl.placeholder = PLACEHOLDERS[currentModule] || '';
     emailOpts.style.display = currentModule==='email' ? 'flex' : 'none';
-    resultEl.innerHTML = `<div class="result-placeholder"><div class="ico">🔍</div><div>Entrez une cible et cliquez sur Scanner</div></div>`;
+    resultEl.innerHTML = `<div class="result-placeholder"><div class="ico"></div><div>Entrez une cible et cliquez sur Scanner</div></div>`;
     resultEl.classList.remove('has-error');
     exportBar.style.display = 'none';
     aiBox.style.display = 'none';
@@ -683,7 +683,7 @@ let lastResult = null;
 let progressTimer = null;
 
 if(socket){
-    socket.on('scan_done', ({ scan_id, result }) => {
+    socket.on('scan_done', ({ scan_id, result }) =>{
         if(scan_id !== activeScanId) return;
         clearScanProgress();
         lastResult = result;
@@ -697,10 +697,10 @@ if(socket){
         else mapEl.style.display = 'none';
     });
 
-    socket.on('scan_error', ({ scan_id, error }) => {
+    socket.on('scan_error', ({ scan_id, error }) =>{
         if(scan_id !== activeScanId) return;
         clearScanProgress();
-        resultEl.innerHTML = `<p style="color:var(--error)">❌ ${error}</p>`;
+        resultEl.innerHTML = `<p style="color:var(--error)">${error}</p>`;
         resultEl.classList.add('has-error');
     });
 }
@@ -713,13 +713,13 @@ function pollFallback(scan_id, pollToken){
     const maxMs = slowModules.includes(currentModule) ? 180000 : 120000;
     OsintScanPoll.startPoll(scan_id, tok, {
         maxMs,
-        isActive: (id) => id === activeScanId,
-        on401: () => {
+        isActive: (id) =>id === activeScanId,
+        on401: () =>{
             clearScanProgress();
-            resultEl.innerHTML = '<p style="color:var(--error)">❌ Session expirée — reconnectez-vous et relancez le scan.</p>';
+            resultEl.innerHTML = '<p style="color:var(--error)">Session expirée — reconnectez-vous et relancez le scan.</p>';
             resultEl.classList.add('has-error');
         },
-        onDone: (d) => {
+        onDone: (d) =>{
             if (!scanRunning && !(d.status === 'completed' || (d._meta && d._meta.status === 'completed'))) return;
             clearScanProgress();
             lastResult = d;
@@ -735,10 +735,10 @@ function pollFallback(scan_id, pollToken){
             if (geo.Lat && geo.Lon) showMap(geo.Lat, geo.Lon);
             else mapEl.style.display = 'none';
         },
-        onTimeout: () => {
+        onTimeout: () =>{
             if (scanRunning) {
                 clearScanProgress();
-                resultEl.innerHTML = '<p style="color:var(--warning)">⏱ Délai dépassé — le scan peut encore tourner côté serveur. Consultez l\'historique.</p>';
+                resultEl.innerHTML = '<p style="color:var(--warning)">Délai dépassé — le scan peut encore tourner côté serveur. Consultez l\'historique.</p>';
                 resultEl.classList.add('has-error');
             }
         },
@@ -799,12 +799,12 @@ async function launchScan(){
             pollFallback(data.scan_id, activePollToken);
         } else {
             clearScanProgress();
-            resultEl.innerHTML = `<p style="color:var(--error)">❌ ${data.error||'Erreur inconnue'}</p>`;
+            resultEl.innerHTML = `<p style="color:var(--error)">${data.error||'Erreur inconnue'}</p>`;
             resultEl.classList.add('has-error');
         }
     } catch(e){
         clearScanProgress();
-        resultEl.innerHTML = `<p style="color:var(--error)">⚠️ Erreur réseau: ${e.message}</p>`;
+        resultEl.innerHTML = `<p style="color:var(--error)">Erreur réseau: ${e.message}</p>`;
         resultEl.classList.add('has-error');
     }
 }
@@ -824,12 +824,12 @@ let pseudoChartInst = null;
 
 function renderTimeoutBanner(meta){
     if(!meta || (!meta.timeouts?.length && !Object.keys(meta.errors||{}).length)) return '';
-    let html = '<div class="timeout-banner"><strong>⚠️ Certains services n\'ont pas répondu à temps</strong><ul>';
-    (meta.timeouts||[]).forEach(m => { html += `<li>${m} — timeout</li>`; });
-    Object.entries(meta.errors||{}).forEach(([m,e]) => { html += `<li>${m} — ${e}</li>`; });
+    let html = '<div class="timeout-banner"><strong>Certains services n\'ont pas répondu à temps</strong><ul>';
+    (meta.timeouts||[]).forEach(m =>{ html += `<li>${m} — timeout</li>`; });
+    Object.entries(meta.errors||{}).forEach(([m,e]) =>{ html += `<li>${m} — ${e}</li>`; });
     html += '</ul>';
     if(meta.timeouts?.length && activeScanId){
-        html += `<button type="button" onclick="retryTimeouts(${activeScanId})">🔄 Réessayer les services en timeout</button>`;
+        html += `<button type="button" onclick="retryTimeouts(${activeScanId})">Réessayer les services en timeout</button>`;
     }
     html += '</div>';
     return html;
@@ -845,10 +845,10 @@ async function retryTimeouts(scanId){
             renderResult(d.result);
             exportBar.style.display = 'flex';
         } else {
-            resultEl.innerHTML = `<p style="color:var(--error)">❌ ${d.error||'Échec retry'}</p>`;
+            resultEl.innerHTML = `<p style="color:var(--error)">${d.error||'Échec retry'}</p>`;
         }
     } catch(e){
-        resultEl.innerHTML = `<p style="color:var(--error)">❌ ${e.message}</p>`;
+        resultEl.innerHTML = `<p style="color:var(--error)">${e.message}</p>`;
     }
 }
 
@@ -858,12 +858,12 @@ function renderResult(data){
         resultEl.innerHTML = `<p>${data}</p>`; return;
     }
     if(data.error){
-        resultEl.innerHTML = `<p style="color:var(--error)">❌ ${data.error}</p>`;
+        resultEl.innerHTML = `<p style="color:var(--error)">${data.error}</p>`;
         resultEl.classList.add('has-error'); return;
     }
 
     const meta = data._meta;
-    const entries = Object.entries(data).filter(([k]) => !k.startsWith('_'));
+    const entries = Object.entries(data).filter(([k]) =>!k.startsWith('_'));
     let html = renderTimeoutBanner(meta);
     html += renderDegradedBanner(meta);
     for(const [key, value] of entries){
@@ -920,7 +920,7 @@ async function enableMonitoring(){
     }
     const target = targetEl.value.trim();
     if(!target){ msg.textContent = 'Aucune cible à surveiller.'; return; }
-    msg.textContent = '⏳ Création…';
+    msg.textContent = ' Création…';
     try {
         const r = await fetch('/monitoring/quick', {
             method:'POST',
@@ -934,10 +934,10 @@ async function enableMonitoring(){
         if(d.ok){
             msg.innerHTML = `✓ Surveillance activée — <a href="${d.monitoring_url}" style="color:var(--accent2)">voir le tableau de bord</a>`;
         } else {
-            msg.textContent = '❌ ' + (d.error || 'Erreur');
+            msg.textContent = ' ' + (d.error || 'Erreur');
         }
     } catch(e){
-        msg.textContent = '❌ ' + e.message;
+        msg.textContent = ' ' + e.message;
     }
 }
 
@@ -950,7 +950,7 @@ function toggleAcc(hdr){
 function renderDegradedBanner(meta){
     const mods = meta?.degraded || [];
     if(!mods.length) return '';
-    return `<div class="degraded-banner"><strong>⚠ Résultats partiels</strong> — Quota API dépassé pour : `
+    return `<div class="degraded-banner"><strong>Résultats partiels</strong>— Quota API dépassé pour : `
         + mods.join(', ')
         + `. Bascule automatique sur scraping public (DuckDuckGo). Données non certifiées par l'API.</div>`;
 }
@@ -958,32 +958,32 @@ function renderDegradedBanner(meta){
 function getBadge(key, value){
     if(value && typeof value === 'object'){
         if(value._key_required)
-            return '<span class="badge b-key">🔑 <a href="/settings">Clé requise</a></span>';
+            return '<span class="badge b-key"><a href="/settings">Clé requise</a></span>';
         if(value._degraded || value._source === 'scraping_fallback')
             return '<span class="badge b-scrape">scraping</span>';
     }
     const s = String(value || '');
     if(s.includes('✓') || s === 'true' || s.includes('Valide') || s.includes('Existe'))
         return '<span class="badge b-ok">OK</span>';
-    if(s.includes('❌') || s.includes('Erreur') || s.includes('Non trouvé') || s.includes('Absent'))
+    if(s.includes('') || s.includes('Erreur') || s.includes('Non trouvé') || s.includes('Absent'))
         return '<span class="badge b-err">—</span>';
-    if(s.includes('⚠️') || s.includes('Proxy') || s.includes('Surtaxé'))
-        return '<span class="badge b-warn">⚠</span>';
+    if(s.includes('') || s.includes('Proxy') || s.includes('Surtaxé'))
+        return '<span class="badge b-warn"></span>';
     return '';
 }
 
 function getIcon(key){
-    if(key.startsWith('Module:') && key.toLowerCase().includes('dorking')) return '🔎';
-    if(key.startsWith('Module:')) return '🔌';
-    if(key.includes('Wayback') || key.includes('Historique')) return '🕰️';
+    if(key.startsWith('Module:') && key.toLowerCase().includes('dorking')) return '';
+    if(key.startsWith('Module:')) return '';
+    if(key.includes('Wayback') || key.includes('Historique')) return '';
     const icons = {
-        'WHOIS':'📄','DNS':'🔗','HTTP':'🌐','IP':'🖥️','Géolocalisation':'📍',
-        'Ports ouverts':'🔓','Ports':'🔒','Technologies':'⚙️','SSL/TLS':'🔐',
-        'En-têtes sécurité':'🛡️','Wayback Machine':'🕰️','Shodan':'👁️',
-        'MX':'📬','SPF':'✅','DMARC':'📋','DKIM':'🔑','Gravatar':'🖼️',
-        'Fuites (HIBP)':'💥','SMTP':'📧','Followers':'👥','Following':'👣',
-        'Stories actives':'📱','Stories à la une':'⭐','Posts récents':'📸',
-        'Repos récents':'📦','GitHub':'🐙',
+        'WHOIS':'','DNS':'','HTTP':'','IP':'','Géolocalisation':'',
+        'Ports ouverts':'','Ports':'','Technologies':'','SSL/TLS':'',
+        'En-têtes sécurité':'','Wayback Machine':'','Shodan':'',
+        'MX':'','SPF':'','DMARC':'','DKIM':'','Gravatar':'',
+        'Fuites (HIBP)':'','SMTP':'','Followers':'','Following':'',
+        'Stories actives':'','Stories à la une':'','Posts récents':'',
+        'Repos récents':'','GitHub':'',
     };
     for(const [k, ico] of Object.entries(icons)){
         if(key.includes(k)) return ico;
@@ -1004,9 +1004,9 @@ function renderValue(val, depth=0){
         }
         let html='';
         if(val._manual_link && depth === 0)
-            html += `<p><a href="${val._manual_link}" target="_blank" rel="noopener" style="color:var(--accent2)">🔗 Recherche manuelle</a></p>`;
+            html += `<p><a href="${val._manual_link}" target="_blank" rel="noopener" style="color:var(--accent2)">Recherche manuelle</a></p>`;
         if(val._key_required && depth === 0)
-            html += `<p class="badge b-key" style="display:inline-block;margin-bottom:.5rem">🔑 Clé API requise — <a href="${val._settings_url || '/settings'}">Paramètres</a></p>`;
+            html += `<p class="badge b-key" style="display:inline-block;margin-bottom:.5rem">Clé API requise — <a href="${val._settings_url || '/settings'}">Paramètres</a></p>`;
         for(const [k,v] of Object.entries(val)){
             if(k.startsWith('_')) continue;
             html+=`<div class="kv"><span class="k">${k}:</span><span class="v">${renderValue(v,depth+1)}</span></div>`;
@@ -1015,9 +1015,9 @@ function renderValue(val, depth=0){
     }
     const s = String(val);
     if(s.startsWith('http')) return `<a href="${s}" target="_blank" rel="noopener" style="color:var(--accent2)">${s}</a>`;
-    if(s.includes('⚠️')) return `<span style="color:var(--warning)">${s}</span>`;
+    if(s.includes('')) return `<span style="color:var(--warning)">${s}</span>`;
     if(s.includes('✓')) return `<span style="color:var(--accent)">${s}</span>`;
-    if(s.includes('❌') || s.toLowerCase().includes('erreur')) return `<span style="color:var(--error)">${s}</span>`;
+    if(s.includes('') || s.toLowerCase().includes('erreur')) return `<span style="color:var(--error)">${s}</span>`;
     return s;
 }
 
@@ -1057,7 +1057,7 @@ async function uploadFile(input){
 // ── AI Summary ─────────────────────────────────────────────
 async function getAI(){
     const aiText = document.getElementById('ai-text');
-    aiText.textContent = '⏳ Analyse en cours…';
+    aiText.textContent = ' Analyse en cours…';
     try {
         const r = await fetch('/ai-summary',{
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -1076,7 +1076,7 @@ function copyResults(){
     const text = resultEl.innerText;
     navigator.clipboard.writeText(text).then(()=>{
         const btn = event.target; btn.textContent='✓ Copié';
-        setTimeout(()=>btn.textContent='📋 Copier',2000);
+        setTimeout(()=>btn.textContent=' Copier',2000);
     });
 }
 async function downloadPDF(){
@@ -1088,7 +1088,7 @@ async function downloadPDF(){
             body: JSON.stringify({}),
         });
         if(!r.ok){
-            const err = await r.json().catch(() => ({}));
+            const err = await r.json().catch(() =>({}));
             alert(err.error || 'Export PDF impossible');
             return;
         }
@@ -1123,7 +1123,7 @@ async function loadScanFromHistory(scanId){
         const r = await fetch(`/scan/${scanId}`);
         const d = await r.json();
         if(!r.ok){
-            resultEl.innerHTML = `<p style="color:var(--error)">❌ ${d.error||'Scan inaccessible'}</p>`;
+            resultEl.innerHTML = `<p style="color:var(--error)">${d.error||'Scan inaccessible'}</p>`;
             resultEl.classList.add('has-error');
             return;
         }
@@ -1160,7 +1160,7 @@ const _autoTarget = _urlParams.get('target') || _urlParams.get('query') || _urlP
 
 function scheduleAutoLaunch(){
     if(!_autoTarget || scanRunning) return;
-    setTimeout(() => { if(!scanRunning) launchScan(); }, 500);
+    setTimeout(() =>{ if(!scanRunning) launchScan(); }, 500);
 }
 
 if(_autoTarget){
@@ -1181,7 +1181,7 @@ if(_autoTarget){
 const TUTORIAL_STEPS = [
     { title: '1 — Choisir un module', text: 'Sélectionnez un type d\'analyse (email, Sherlock, Hunter…) ou cochez « Analyse complète » pour lancer plusieurs outils en parallèle.' },
     { title: '2 — Lancer un scan', text: 'Entrez votre cible (email, domaine, pseudo…) et cliquez sur Scanner. Les timeouts s\'affichent en avertissement, pas en erreur bloquante.' },
-    { title: '3 — Dossier & graphe', text: 'Après le scan, ouvrez le Graphe 🕸️ pour voir les corrélations. Depuis /monitoring, le graphe charge l\'historique de la cible surveillée.' },
+    { title: '3 — Dossier & graphe', text: 'Après le scan, ouvrez le Graphe pour voir les corrélations. Depuis /monitoring, le graphe charge l\'historique de la cible surveillée.' },
 ];
 let tutStep = 0;
 function openTutorial(){ tutStep = 0; renderTutorialStep(); document.getElementById('tutorial-overlay').classList.add('open'); }
@@ -1194,16 +1194,16 @@ function renderTutorialStep(){
     document.getElementById('tut-title').textContent = s.title;
     document.getElementById('tut-text').textContent = s.text;
     document.getElementById('tut-next').textContent = tutStep < TUTORIAL_STEPS.length - 1 ? 'Suivant' : 'Terminer';
-    document.querySelectorAll('#tut-dots span').forEach((el,i)=> el.classList.toggle('on', i === tutStep));
+    document.querySelectorAll('#tut-dots span').forEach((el,i)=>el.classList.toggle('on', i === tutStep));
 }
 function tutorialNext(){
     if(tutStep < TUTORIAL_STEPS.length - 1){ tutStep++; renderTutorialStep(); }
     else closeTutorial(true);
 }
-document.getElementById('tutorial-overlay').addEventListener('click', (e) => {
+document.getElementById('tutorial-overlay').addEventListener('click', (e) =>{
     if (e.target.id === 'tutorial-overlay') closeTutorial(true);
 });
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', (e) =>{
     if (e.key === 'Escape' && document.getElementById('tutorial-overlay').classList.contains('open')) {
         closeTutorial(true);
     }
@@ -1229,7 +1229,7 @@ try {
         el.innerHTML = list.map(x =>
             `<div style="margin:.4rem 0">
                 <a href="${x.dossier_url}" style="color:var(--accent)">${x.dossier_type} : ${x.dossier_value}</a>
-                <span style="color:var(--text-dim)"> (${x.role} · ${x.owner_username})</span>
+                <span style="color:var(--text-dim)">(${x.role} · ${x.owner_username})</span>
             </div>`
         ).join('');
     } catch(e) {
@@ -1241,13 +1241,13 @@ try {
         const r = await fetch('/notifications/count');
         const d = await r.json();
         const b = document.getElementById('notif-badge');
-        if (b && d.unread > 0) { b.textContent = d.unread > 99 ? '99+' : d.unread; b.style.display = 'inline'; }
+        if (b && d.unread >0) { b.textContent = d.unread >99 ? '99+' : d.unread; b.style.display = 'inline'; }
     } catch(e) {}
 })();
 try {
     const nSocket = io({ transports: ['websocket', 'polling'] });
-    nSocket.on('connect', () => { nSocket.emit('join_graph', {}); nSocket.emit('join_map', {}); });
-    nSocket.on('alert_notification', (p) => {
+    nSocket.on('connect', () =>{ nSocket.emit('join_graph', {}); nSocket.emit('join_map', {}); });
+    nSocket.on('alert_notification', (p) =>{
         const b = document.getElementById('notif-badge');
         if (b) {
             const n = parseInt(b.textContent, 10) || 0;

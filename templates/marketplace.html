@@ -28,10 +28,10 @@
 <body class="has-fx">
 <canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
-<h1>🔌 Marketplace connecteurs</h1>
+<h1>Marketplace connecteurs</h1>
 <p class="intro">
-    Catalogue des sources OSINT intégrées. Les connecteurs <strong>installés</strong> sont disponibles dans Expert et les recettes.
-    Contribuer : voir <code>CONTRIBUTING.md</code> et <code>connectors/base.py</code>.
+    Catalogue des sources OSINT intégrées. Les connecteurs <strong>installés</strong>sont disponibles dans Expert et les recettes.
+    Contribuer : voir <code>CONTRIBUTING.md</code>et <code>connectors/base.py</code>.
 </p>
 <div class="filters" id="filters">
     <button class="active" data-cat="all">Tous</button>
@@ -60,12 +60,12 @@
 {% endfor %}
 </div>
 <script>
-document.querySelectorAll('#filters button').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('#filters button').forEach(b => b.classList.remove('active'));
+document.querySelectorAll('#filters button').forEach(btn =>{
+    btn.addEventListener('click', () =>{
+        document.querySelectorAll('#filters button').forEach(b =>b.classList.remove('active'));
         btn.classList.add('active');
         const cat = btn.dataset.cat;
-        document.querySelectorAll('#grid .card').forEach(card => {
+        document.querySelectorAll('#grid .card').forEach(card =>{
             card.style.display = (cat === 'all' || card.dataset.category === cat) ? '' : 'none';
         });
     });

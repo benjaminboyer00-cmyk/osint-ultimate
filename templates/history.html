@@ -79,7 +79,7 @@
         <a href="{{ url_for('views.express') }}">Express</a>
         <a href="{{ url_for('auth.logout') }}">Déconnexion</a>
     </div>
-    <h1>📋 Historique des scans</h1>
+    <h1>Historique des scans</h1>
     <form method="get" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
         <select name="module" style="padding:.5rem;background:#14171c;color:#e7ddc9;border:1px solid var(--border);border-radius:8px">
             <option value="">Tous modules</option>
@@ -105,7 +105,7 @@
             <tr>
                 <td data-label="Date">{{ scan.timestamp.strftime('%d/%m/%Y %H:%M') if scan.timestamp else '—' }}</td>
                 <td data-label="Module"><span class="badge">{{ scan.module }}</span></td>
-                <td data-label="Cible">{{ scan.target[:60] }}{% if scan.target|length > 60 %}…{% endif %}</td>
+                <td data-label="Cible">{{ scan.target[:60] }}{% if scan.target|length >60 %}…{% endif %}</td>
                 <td data-label="Statut">{{ scan.status }}</td>
                 <td data-label="Actions" class="actions">
                     <a href="{{ url_for('scan_view', scan_id=scan.id) }}">Voir</a>

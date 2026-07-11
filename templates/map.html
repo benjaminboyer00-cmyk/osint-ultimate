@@ -41,7 +41,7 @@
 <body>
 <header>
     <a href="{{ url_for('views.expert') }}">← Expert</a>
-    <strong>🗺️ Carte</strong>
+    <strong>Carte</strong>
     <div class="toolbar">
         <select id="entity-select" onchange="loadMap(this.value)">
             <option value="">— Entité racine —</option>
@@ -51,9 +51,9 @@
             </option>
             {% endfor %}
         </select>
-        <a id="graph-link" href="{{ url_for('views.graph_view', entity_id=entity_id) if entity_id else url_for('views.graph_view') }}" style="font-size:.85rem">🕸️ Graphe</a>
-        <a id="dossier-link" href="#" style="font-size:.85rem;display:none">📁 Dossier</a>
-        <a id="timeline-link" href="{{ url_for('views.timeline_view', entity_id=entity_id) if entity_id else url_for('views.timeline_view') }}" style="font-size:.85rem">⏳ Timeline</a>
+        <a id="graph-link" href="{{ url_for('views.graph_view', entity_id=entity_id) if entity_id else url_for('views.graph_view') }}" style="font-size:.85rem">Graphe</a>
+        <a id="dossier-link" href="#" style="font-size:.85rem;display:none">Dossier</a>
+        <a id="timeline-link" href="{{ url_for('views.timeline_view', entity_id=entity_id) if entity_id else url_for('views.timeline_view') }}" style="font-size:.85rem">Timeline</a>
     </div>
 </header>
 <div class="main">
@@ -63,7 +63,7 @@
         <p id="status">Sélectionnez une entité racine — téléphone, domaine, IP et hébergement s’affichent après scan.</p>
         <p style="font-size:.75rem;color:var(--dim)">
             Clic sur un marqueur → détails · lien vers le graphe.
-            Sources : scans (téléphone, site/WHOIS), puis <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a> pour les IP.
+            Sources : scans (téléphone, site/WHOIS), puis <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a>pour les IP.
         </p>
         <ul id="marker-list" style="list-style:none;padding:0;margin:1rem 0 0 0"></ul>
     </aside>
@@ -79,7 +79,7 @@ let rootEntityId = {{ entity_id or 'null' }};
 const markerByEntity = {};
 
 const mapSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
-if (mapSocket) mapSocket.on('connect', () => mapSocket.emit('join_map', {}));
+if (mapSocket) mapSocket.on('connect', () =>mapSocket.emit('join_map', {}));
 
 function initMap(center) {
     const c = center || { lat: 48.8566, lng: 2.3522 };
@@ -93,14 +93,14 @@ function initMap(center) {
     } else {
         map.setView([c.lat, c.lng], map.getZoom());
     }
-    setTimeout(() => map.invalidateSize(), 200);
+    setTimeout(() =>map.invalidateSize(), 200);
 }
 
 function precisionLabel(p) {
     if (!p) return '';
-    if (p.includes('country') || p.includes('pays') || p.includes('phone')) return '📍 Pays (approx.)';
-    if (p.includes('city') || p.includes('ip-api') || p.includes('site')) return '📍 Ville / hébergement';
-    return '📍 ' + p;
+    if (p.includes('country') || p.includes('pays') || p.includes('phone')) return ' Pays (approx.)';
+    if (p.includes('city') || p.includes('ip-api') || p.includes('site')) return ' Ville / hébergement';
+    return ' ' + p;
 }
 
 function popupHtml(m) {
@@ -109,8 +109,8 @@ function popupHtml(m) {
         <strong>${m.type}</strong><br><code>${m.value}</code><br>
         <small>${m.label || ''}</small><br>
         <small style="color:#888">${precisionLabel(m.precision || m.source)}</small><br>
-        <a href="${graphUrl}">🕸️ Graphe</a> ·
-        <a href="/expert/dossier/${m.entity_id}">📁 Dossier</a>
+        <a href="${graphUrl}">Graphe</a>·
+        <a href="/expert/dossier/${m.entity_id}">Dossier</a>
     </div>`;
 }
 
@@ -126,7 +126,7 @@ function ensureCluster() {
 function clearMapMarkers() {
     ensureCluster();
     if (cluster) cluster.clearLayers();
-    Object.keys(markerByEntity).forEach(k => delete markerByEntity[k]);
+    Object.keys(markerByEntity).forEach(k =>delete markerByEntity[k]);
 }
 
 function addMarker(m, fly) {
@@ -140,7 +140,7 @@ function addMarker(m, fly) {
     });
     const mk = L.marker([m.lat, m.lng], { icon });
     mk.bindPopup(popupHtml(m));
-    mk.on('click', () => {
+    mk.on('click', () =>{
         document.getElementById('status').textContent = `${m.type} : ${m.value}`;
         window.open(`/graph?entity_id=${rootEntityId || m.entity_id}&highlight=${m.entity_id}`, '_blank');
     });
@@ -153,12 +153,12 @@ function renderList(markers) {
     const ul = document.getElementById('marker-list');
     ul.innerHTML = markers.map(m =>
         `<li style="margin:.35rem 0;cursor:pointer" data-eid="${m.entity_id}">
-            <span style="color:${TYPE_COLORS[m.type]||'#888'}">●</span> ${m.type} — ${m.value.slice(0,28)} <small style="color:#666">${(m.label||'').slice(0,24)}</small>
+            <span style="color:${TYPE_COLORS[m.type]||'#888'}">●</span>${m.type} — ${m.value.slice(0,28)} <small style="color:#666">${(m.label||'').slice(0,24)}</small>
         </li>`
     ).join('');
-    ul.querySelectorAll('li').forEach(li => {
-        li.onclick = () => {
-            const m = markers.find(x => x.entity_id === parseInt(li.dataset.eid, 10));
+    ul.querySelectorAll('li').forEach(li =>{
+        li.onclick = () =>{
+            const m = markers.find(x =>x.entity_id === parseInt(li.dataset.eid, 10));
             if (m && markerByEntity[m.entity_id]) {
                 map.flyTo([m.lat, m.lng], 10);
                 markerByEntity[m.entity_id].openPopup();
@@ -173,19 +173,19 @@ async function loadMap(entityId) {
     document.getElementById('graph-link').href = `/graph?entity_id=${rootEntityId}`;
     document.getElementById('dossier-link').style.display = 'inline';
     document.getElementById('dossier-link').href = `/expert/dossier/${rootEntityId}`;
-        document.getElementById('status').textContent = '⏳ Chargement (coordonnées en cache)…';
+        document.getElementById('status').textContent = ' Chargement (coordonnées en cache)…';
     clearMapMarkers();
     try {
         const r = await fetch(`/map/data/${rootEntityId}`);
         const d = await r.json();
         if (!r.ok) {
-            document.getElementById('status').textContent = '❌ ' + (d.error || 'Erreur');
+            document.getElementById('status').textContent = ' ' + (d.error || 'Erreur');
             return;
         }
         initMap(d.center);
-        (d.markers || []).forEach(m => addMarker(m, false));
+        (d.markers || []).forEach(m =>addMarker(m, false));
         if (d.markers && d.markers.length && map) {
-            const bounds = L.latLngBounds(d.markers.map(m => [m.lat, m.lng]));
+            const bounds = L.latLngBounds(d.markers.map(m =>[m.lat, m.lng]));
             map.fitBounds(bounds.pad(0.2));
             document.getElementById('status').textContent =
                 `${d.count} point(s) — racine : ${d.root_value || ''}`;
@@ -195,17 +195,17 @@ async function loadMap(entityId) {
         }
         renderList(d.markers || []);
     } catch (e) {
-        document.getElementById('status').textContent = '❌ ' + e.message;
+        document.getElementById('status').textContent = ' ' + e.message;
     }
 }
 
-if (mapSocket) mapSocket.on('map_update', payload => {
+if (mapSocket) mapSocket.on('map_update', payload =>{
     if (rootEntityId && payload.root_entity_id && payload.root_entity_id !== rootEntityId) return;
     if (payload.root_entity_id) rootEntityId = payload.root_entity_id;
-    (payload.markers || []).forEach(m => addMarker(m, true));
+    (payload.markers || []).forEach(m =>addMarker(m, true));
     if (payload.count != null) {
         document.getElementById('status').textContent =
-            `🔄 Mise à jour — ${payload.count} point(s) sur la carte`;
+            ` Mise à jour — ${payload.count} point(s) sur la carte`;
     }
 });
 

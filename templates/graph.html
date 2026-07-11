@@ -75,7 +75,7 @@
 <header>
     <a href="{{ url_for('views.expert') }}">← Expert</a>
     <strong>Graphe OSINT</strong>
-    {% if graph_hint %}<span style="font-size:.75rem;color:var(--dim)"> — corrélation surveillance</span>{% endif %}
+    {% if graph_hint %}<span style="font-size:.75rem;color:var(--dim)">— corrélation surveillance</span>{% endif %}
     <div class="toolbar">
         <select id="entity-select" onchange="loadGraph(this.value)">
             <option value="">— Entité —</option>
@@ -85,7 +85,7 @@
             </option>
             {% endfor %}
         </select>
-        {% if entities_page and entities_page.pages > 1 %}
+        {% if entities_page and entities_page.pages >1 %}
         <span style="font-size:.75rem;color:var(--dim)">
             {% if entities_page.has_prev %}<a href="?entity_id={{ entity_id or '' }}&page={{ entities_page.page - 1 }}">←</a>{% endif %}
             {{ entities_page.page }}/{{ entities_page.pages }} ({{ entities_page.total }})
@@ -129,25 +129,25 @@
         <button type="button" id="btn-dossier" style="display:none;margin-top:.4rem;width:100%;padding:.5rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:3px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:.74rem;cursor:pointer">Voir le dossier</button>
         <div class="legend">
             <strong style="font-size:.72rem;color:var(--dim);font-family:var(--mono);letter-spacing:.14em">LÉGENDE — PIÈCES</strong>
-            <div class="legend-item"><span class="dot" style="background:#4d6d80"></span> email</div>
-            <div class="legend-item"><span class="dot" style="background:#46705f"></span> phone</div>
-            <div class="legend-item"><span class="dot" style="background:#b8802f"></span> username</div>
-            <div class="legend-item"><span class="dot" style="background:#9c6b3f"></span> domain</div>
-            <div class="legend-item"><span class="dot" style="background:#6d5b7a"></span> platform / ip</div>
-            <div class="legend-item"><span class="dot" style="background:#a5342a"></span> personne</div>
+            <div class="legend-item"><span class="dot" style="background:#4d6d80"></span>email</div>
+            <div class="legend-item"><span class="dot" style="background:#46705f"></span>phone</div>
+            <div class="legend-item"><span class="dot" style="background:#b8802f"></span>username</div>
+            <div class="legend-item"><span class="dot" style="background:#9c6b3f"></span>domain</div>
+            <div class="legend-item"><span class="dot" style="background:#6d5b7a"></span>platform / ip</div>
+            <div class="legend-item"><span class="dot" style="background:#a5342a"></span>personne</div>
             <strong style="font-size:.72rem;color:var(--dim);display:block;margin-top:.6rem;font-family:var(--mono);letter-spacing:.14em">LIENS</strong>
-            <div class="legend-item"><span class="edge-sample"></span> épaisseur = confiance</div>
-            <div class="legend-item"><span class="dot" style="background:transparent;border:2px solid #b8802f"></span> priorité (mode enquête)</div>
+            <div class="legend-item"><span class="edge-sample"></span>épaisseur = confiance</div>
+            <div class="legend-item"><span class="dot" style="background:transparent;border:2px solid #b8802f"></span>priorité (mode enquête)</div>
         </div>
         <p id="enquiry-tip" style="display:none;margin-top:.5rem;font-size:.75rem;color:#b8802f"></p>
         <div id="merge-block" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
-            <strong style="font-size:.75rem;color:var(--dim)">🔗 Même personne</strong>
+            <strong style="font-size:.75rem;color:var(--dim)">Même personne</strong>
             <div id="cluster-members" style="margin:.35rem 0;font-size:.78rem"></div>
             <div id="merge-suggestions" style="font-size:.78rem"></div>
         </div>
         <div id="links-list" style="margin-top:.75rem"></div>
         <div id="comments-block" style="margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
-            <strong style="font-size:.75rem;color:var(--dim)">💬 Commentaires</strong>
+            <strong style="font-size:.75rem;color:var(--dim)">Commentaires</strong>
             <ul id="comments-list" style="list-style:none;padding:0;margin:.4rem 0;max-height:100px;overflow:auto;font-size:.78rem"></ul>
             <textarea id="comment-input" rows="2" placeholder="Note sur cette entité…" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:.8rem;font-family:var(--mono)"></textarea>
             <button type="button" id="btn-comment" style="margin-top:.35rem;width:100%;padding:.4rem;background:var(--accent2);color:#f3ecdd;border:none;border-radius:3px;cursor:pointer;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:.72rem">Publier</button>
@@ -182,13 +182,13 @@ const graphSocket = typeof createOsintSocket === 'function' ? createOsintSocket(
 let dossierRootId = null;
 const scanStatusEl = document.getElementById('scan-status');
 if (graphSocket) {
-    graphSocket.on('connect', () => graphSocket.emit('join_graph', {}));
-    graphSocket.on('comment_added', p => {
+    graphSocket.on('connect', () =>graphSocket.emit('join_graph', {}));
+    graphSocket.on('comment_added', p =>{
         if (selectedNode && String(p.entity_id) === String(selectedNode.id)) {
             loadComments(parseInt(selectedNode.id, 10));
         }
     });
-    graphSocket.on('scan_completed', p => {
+    graphSocket.on('scan_completed', p =>{
         if (scanStatusEl) scanStatusEl.textContent = `✓ Scan #${p.scan_id} terminé (${p.module})`;
     });
 }
@@ -267,7 +267,7 @@ const ctxMenu = document.getElementById('ctx-menu');
 
 function hideCtxMenu(){ ctxMenu.style.display = 'none'; }
 
-cy.on('tap', evt => {
+cy.on('tap', evt =>{
     if (evt.target === cy) hideCtxMenu();
 });
 
@@ -277,17 +277,17 @@ async function showNodeIntel(entityId) {
         const r = await fetch(`/graph/entity/${entityId}/intel`);
         const d = await r.json();
         if (!r.ok) { desc.textContent = d.error || 'Erreur'; return; }
-        let html = `<strong>${escapeHtml(d.entity_type)}</strong> : ${escapeHtml(d.value)}<br><small>ID ${escapeHtml(d.entity_id)}</small>`;
+        let html = `<strong>${escapeHtml(d.entity_type)}</strong>: ${escapeHtml(d.value)}<br><small>ID ${escapeHtml(d.entity_id)}</small>`;
         if (d.highlights?.length) {
             html += '<ul style="margin:.5rem 0;padding-left:1.1rem;font-size:.78rem">';
-            d.highlights.forEach(h => { html += `<li>${escapeHtml(h)}</li>`; });
+            d.highlights.forEach(h =>{ html += `<li>${escapeHtml(h)}</li>`; });
             html += '</ul>';
         } else if (d.hint) {
             html += `<p style="color:var(--dim);font-size:.78rem">${escapeHtml(d.hint)}</p>`;
         }
         if (d.scans?.length) {
             html += '<p style="font-size:.75rem;color:var(--dim)">Scans : ';
-            html += d.scans.map(s => `#${escapeHtml(s.scan_id)} ${escapeHtml(s.module)}`).join(', ');
+            html += d.scans.map(s =>`#${escapeHtml(s.scan_id)} ${escapeHtml(s.module)}`).join(', ');
             html += '</p>';
         }
         desc.innerHTML = html;
@@ -296,7 +296,7 @@ async function showNodeIntel(entityId) {
     }
 }
 
-cy.on('tap', 'node', evt => {
+cy.on('tap', 'node', evt =>{
     const n = evt.target.data();
     if (mergeSourceId && String(n.id) !== String(mergeSourceId)) {
         doMerge(mergeSourceId, n.id);
@@ -311,9 +311,9 @@ cy.on('tap', 'node', evt => {
         const members = (n._members || (n.value || '').split(' / '));
         document.getElementById('panel-desc').innerHTML =
             '<strong>Identifiants regroupés :</strong><ul style="margin:.4rem 0;padding-left:1.1rem">'
-            + members.map(m => `<li>${escapeHtml(m)}</li>`).join('')
+            + members.map(m =>`<li>${escapeHtml(m)}</li>`).join('')
             + '</ul><p style="color:var(--dim);font-size:.78rem">Cliquez « Personnes » pour déplier.</p>';
-        ['btn-scan', 'btn-dossier'].forEach(id => document.getElementById(id).style.display = 'none');
+        ['btn-scan', 'btn-dossier'].forEach(id =>document.getElementById(id).style.display = 'none');
         return;
     }
     selectedNode = n;
@@ -341,7 +341,7 @@ cy.on('tap', 'node', evt => {
     hideCtxMenu();
 });
 
-cy.on('cxttap', 'node', evt => {
+cy.on('cxttap', 'node', evt =>{
     const n = evt.target.data();
     selectedNode = n;
     cy.$('node:selected').unselect();
@@ -352,21 +352,21 @@ cy.on('cxttap', 'node', evt => {
     ctxMenu.style.display = 'block';
 });
 
-document.getElementById('ctx-pivot').onclick = () => { hideCtxMenu(); runPivot(); };
-document.getElementById('ctx-scan').onclick = () => { hideCtxMenu(); document.getElementById('btn-scan').click(); };
-document.getElementById('ctx-dossier').onclick = () => { hideCtxMenu(); document.getElementById('btn-dossier').click(); };
-document.getElementById('ctx-copy').onclick = () => {
+document.getElementById('ctx-pivot').onclick = () =>{ hideCtxMenu(); runPivot(); };
+document.getElementById('ctx-scan').onclick = () =>{ hideCtxMenu(); document.getElementById('btn-scan').click(); };
+document.getElementById('ctx-dossier').onclick = () =>{ hideCtxMenu(); document.getElementById('btn-dossier').click(); };
+document.getElementById('ctx-copy').onclick = () =>{
     hideCtxMenu();
     if (selectedNode?.value) navigator.clipboard.writeText(selectedNode.value);
 };
 
 let mergeSourceId = null;
-document.getElementById('ctx-merge').onclick = () => {
+document.getElementById('ctx-merge').onclick = () =>{
     hideCtxMenu();
     if (!selectedNode) return;
     mergeSourceId = selectedNode.id;
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = `🔗 Cliquez un 2ᵉ nœud à lier à « ${selectedNode.value || selectedNode.label} » (même personne). Échap pour annuler.`;
+    scanStatusEl.textContent = ` Cliquez un 2ᵉ nœud à lier à « ${selectedNode.value || selectedNode.label} » (même personne). Échap pour annuler.`;
 };
 
 function cancelMergeMode(){
@@ -375,20 +375,20 @@ function cancelMergeMode(){
     scanStatusEl.textContent = '';
     scanStatusEl.style.display = 'none';
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') cancelMergeMode(); });
+document.addEventListener('keydown', e =>{ if (e.key === 'Escape') cancelMergeMode(); });
 
 async function doMerge(aId, bId){
     const wasSource = mergeSourceId;
     mergeSourceId = null;
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = '🔗 Fusion en cours…';
+    scanStatusEl.textContent = ' Fusion en cours…';
     const { ok, data: d } = await parseJsonResponse(await fetch('/graph/merge', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ entity_id_a: parseInt(aId, 10), entity_id_b: parseInt(bId, 10) }),
     }));
     if (!ok) {
-        scanStatusEl.textContent = '❌ ' + (d.error || 'Échec de la fusion');
+        scanStatusEl.textContent = ' ' + (d.error || 'Échec de la fusion');
         mergeSourceId = wasSource;
         return;
     }
@@ -425,7 +425,7 @@ async function runAnalysis(){
     block.innerHTML = 'Analyse du graphe en cours…';
     const { ok, data: d } = await parseJsonResponse(
         await fetch(`/graph/entity/${root}/analysis`));
-    if (!ok) { block.innerHTML = '❌ ' + escapeHtml(d.error || 'Erreur analyse'); return; }
+    if (!ok) { block.innerHTML = ' ' + escapeHtml(d.error || 'Erreur analyse'); return; }
     renderAnalysis(d);
 }
 
@@ -441,24 +441,24 @@ function renderAnalysis(d){
     const GRAV = { elevee:'#a5342a', moyenne:'#b8802f', faible:'#a99d86' };
     if (d.incoherences?.length) {
         h += '<strong style="font-size:.74rem;color:#a5342a">Incohérences</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
-        d.incoherences.forEach(i => {
-            h += `<li><span style="color:${GRAV[i.gravite] || '#a99d86'}">[${escapeHtml(i.gravite || '?')}]</span> ${escapeHtml(i.observation)}</li>`;
+        d.incoherences.forEach(i =>{
+            h += `<li><span style="color:${GRAV[i.gravite] || '#a99d86'}">[${escapeHtml(i.gravite || '?')}]</span>${escapeHtml(i.observation)}</li>`;
         });
         h += '</ul>';
     }
     if (d.liens_hypothetiques?.length) {
-        h += '<strong style="font-size:.74rem;color:var(--accent2)">🔗 Hypothèses de liens</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
-        d.liens_hypothetiques.forEach(l => {
+        h += '<strong style="font-size:.74rem;color:var(--accent2)">Hypothèses de liens</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
+        d.liens_hypothetiques.forEach(l =>{
             const c = l.confiance != null ? ` (${Math.round(l.confiance * 100)}%)` : '';
             h += `<li>${escapeHtml(l.de)} → ${escapeHtml(l.vers)} : ${escapeHtml(l.hypothese)}${c}</li>`;
         });
         h += '</ul>';
     }
     if (d.pistes?.length) {
-        const pistes = [...d.pistes].sort((a, b) => (a.priorite || 9) - (b.priorite || 9));
+        const pistes = [...d.pistes].sort((a, b) =>(a.priorite || 9) - (b.priorite || 9));
         h += '<strong style="font-size:.74rem;color:#b8802f">Pistes d’investigation</strong><ol style="padding-left:1.1rem;font-size:.78rem;margin:.25rem 0">';
-        pistes.forEach(p => {
-            h += `<li><strong>${escapeHtml(p.action)}</strong> — <span style="color:var(--dim)">${escapeHtml(p.raison || '')}</span></li>`;
+        pistes.forEach(p =>{
+            h += `<li><strong>${escapeHtml(p.action)}</strong>— <span style="color:var(--dim)">${escapeHtml(p.raison || '')}</span></li>`;
         });
         h += '</ol>';
     }
@@ -472,13 +472,13 @@ async function runCompare(otherId){
     if (String(root) === String(otherId)) { alert('Choisissez un autre graphe.'); return; }
     const block = document.getElementById('analysis-block');
     block.style.display = 'block';
-    block.innerHTML = '⇄ Comparaison des deux graphes…';
+    block.innerHTML = ' Comparaison des deux graphes…';
     const { ok, data: d } = await parseJsonResponse(await fetch('/graph/compare', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ entity_id_a: parseInt(root, 10), entity_id_b: parseInt(otherId, 10) }),
     }));
-    if (!ok) { block.innerHTML = '❌ ' + escapeHtml(d.error || 'Erreur comparaison'); return; }
+    if (!ok) { block.innerHTML = ' ' + escapeHtml(d.error || 'Erreur comparaison'); return; }
     renderCompare(d);
 }
 
@@ -486,21 +486,21 @@ function renderCompare(d){
     const block = document.getElementById('analysis-block');
     const v = d.analyse_ia || {};
     const VLABEL = {
-        meme_personne: '🟢 Même personne', lies: '🟡 Personnes liées',
-        distincts: '⚪ Distincts', incertain: '🟠 Incertain',
+        meme_personne: ' Même personne', lies: ' Personnes liées',
+        distincts: ' Distincts', incertain: ' Incertain',
     };
     let h = `<div style="display:flex;justify-content:space-between;align-items:center">
-        <strong style="font-size:.8rem">⇄ Comparaison (${d.source === 'ia' ? 'IA' : 'hors-ligne'})</strong>
+        <strong style="font-size:.8rem">Comparaison (${d.source === 'ia' ? 'IA' : 'hors-ligne'})</strong>
         <button type="button" onclick="document.getElementById('analysis-block').style.display='none'"
             style="background:none;border:none;color:var(--dim);cursor:pointer">✕</button></div>`;
-    h += `<p style="font-size:.8rem;margin:.35rem 0">${escapeHtml(d.cible_a)} <span style="color:var(--dim)">vs</span> ${escapeHtml(d.cible_b)}</p>`;
+    h += `<p style="font-size:.8rem;margin:.35rem 0">${escapeHtml(d.cible_a)} <span style="color:var(--dim)">vs</span>${escapeHtml(d.cible_b)}</p>`;
     h += `<p style="font-size:.82rem"><strong>${escapeHtml(VLABEL[v.verdict] || v.verdict || '?')}</strong>`;
     if (v.confiance != null) h += ` <span style="color:var(--dim)">(${Math.round(v.confiance * 100)}%)</span>`;
     h += `</p>`;
     if (v.explication) h += `<p style="font-size:.78rem;color:var(--dim)">${escapeHtml(v.explication)}</p>`;
     if (d.identifiants_partages?.length) {
         h += '<strong style="font-size:.74rem">Identifiants communs</strong><ul style="padding-left:1rem;font-size:.78rem">';
-        d.identifiants_partages.forEach(s => { h += `<li>${escapeHtml(s)}</li>`; });
+        d.identifiants_partages.forEach(s =>{ h += `<li>${escapeHtml(s)}</li>`; });
         h += '</ul>';
     }
     block.innerHTML = h;
@@ -516,7 +516,7 @@ async function loadMergeSuggestions(entityId){
     if (!ok) { block.style.display = 'none'; return; }
     block.style.display = 'block';
 
-    const members = (d.cluster?.members || []).filter(m => String(m.id) !== String(entityId));
+    const members = (d.cluster?.members || []).filter(m =>String(m.id) !== String(entityId));
     membersEl.innerHTML = members.length
         ? '<div style="color:var(--dim);margin-bottom:.2rem">Regroupés :</div>' + members.map(m =>
             `<div style="display:flex;justify-content:space-between;gap:.4rem;margin:.15rem 0">
@@ -531,7 +531,7 @@ async function loadMergeSuggestions(entityId){
         ? '<div style="color:var(--dim);margin:.3rem 0 .2rem">Suggestions :</div>' + sugs.map(s =>
             `<div style="display:flex;justify-content:space-between;gap:.4rem;align-items:center;margin:.2rem 0">
                 <span title="${escapeHtml(s.reason)}">${escapeHtml(s.entity.entity_type)} : ${escapeHtml((s.entity.value || '').slice(0, 22))}
-                    <small style="color:var(--dim)"> ${Math.round(s.score * 100)}%</small></span>
+                    <small style="color:var(--dim)">${Math.round(s.score * 100)}%</small></span>
                 <button type="button" onclick="doMerge(${entityId},${parseInt(s.entity.id, 10)})"
                     style="background:var(--accent2);color:#f3ecdd;border:none;border-radius:3px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">Lier</button>
              </div>`).join('')
@@ -541,7 +541,7 @@ async function loadMergeSuggestions(entityId){
 async function runPivot(){
     if (!selectedNode) return;
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = '⏳ Pivot multi-modules en cours…';
+    scanStatusEl.textContent = ' Pivot multi-modules en cours…';
     try {
         const r = await fetch('/graph/pivot', {
             method: 'POST',
@@ -555,23 +555,23 @@ async function runPivot(){
         });
         const d = await r.json();
         if (!r.ok) {
-            scanStatusEl.textContent = '❌ ' + (d.error || 'Erreur pivot');
+            scanStatusEl.textContent = ' ' + (d.error || 'Erreur pivot');
             return;
         }
         activePivotScanId = d.scan_id;
         activeGraphScanId = d.scan_id;
-        scanStatusEl.textContent = `⏳ Pivot #${d.scan_id} — ${(d.modules || []).join(', ')}…`;
+        scanStatusEl.textContent = ` Pivot #${d.scan_id} — ${(d.modules || []).join(', ')}…`;
         pollGraphScan(d.scan_id, d.poll_token);
     } catch (e) {
-        scanStatusEl.textContent = '❌ ' + e.message;
+        scanStatusEl.textContent = ' ' + e.message;
     }
 }
 
 function mergeGraphUpdate(payload){
     if (!payload?.nodes?.length) return;
-    const existingIds = new Set(cy.nodes().map(n => n.id()));
+    const existingIds = new Set(cy.nodes().map(n =>n.id()));
     const toAdd = [];
-    payload.nodes.forEach(n => {
+    payload.nodes.forEach(n =>{
         const id = String(n.id);
         if (existingIds.has(id)) return;
         toAdd.push({
@@ -584,12 +584,12 @@ function mergeGraphUpdate(payload){
             classes: 'pivot-new',
         });
     });
-    (payload.edges || []).forEach(e => {
+    (payload.edges || []).forEach(e =>{
         if (cy.getElementById(e.id).length) return;
         const srcStr = String(e.source);
         const tgtStr = String(e.target);
-        const hasSource = cy.getElementById(srcStr).length || toAdd.some(n => n.data?.id === srcStr);
-        const hasTarget = cy.getElementById(tgtStr).length || toAdd.some(n => n.data?.id === tgtStr);
+        const hasSource = cy.getElementById(srcStr).length || toAdd.some(n =>n.data?.id === srcStr);
+        const hasTarget = cy.getElementById(tgtStr).length || toAdd.some(n =>n.data?.id === tgtStr);
         if (!hasSource || !hasTarget) return;
         const conf = e.confidence != null ? e.confidence : 0.5;
         toAdd.push({
@@ -604,17 +604,17 @@ function mergeGraphUpdate(payload){
     if (toAdd.length) {
         cy.add(toAdd);
         applyGraphLayout();
-        scanStatusEl.textContent = `✓ +${toAdd.filter(x => x.group === 'nodes').length} nœud(s) ajouté(s)`;
+        scanStatusEl.textContent = `✓ +${toAdd.filter(x =>x.group === 'nodes').length} nœud(s) ajouté(s)`;
     }
 }
 
-if (graphSocket) graphSocket.on('graph_error', p => {
+if (graphSocket) graphSocket.on('graph_error', p =>{
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = '❌ ' + (p.message || 'Erreur pivot');
+    scanStatusEl.textContent = ' ' + (p.message || 'Erreur pivot');
     activePivotScanId = null;
 });
 
-if (graphSocket) graphSocket.on('graph_update', payload => {
+if (graphSocket) graphSocket.on('graph_update', payload =>{
     if (activePivotScanId && payload.scan_id !== activePivotScanId) return;
     mergeGraphUpdate(payload);
     const rootId = payload.root_entity_id || graphData?.root_id;
@@ -624,12 +624,12 @@ if (graphSocket) graphSocket.on('graph_update', payload => {
     }
 });
 
-document.getElementById('btn-scan').onclick = async () => {
+document.getElementById('btn-scan').onclick = async () =>{
     if (!selectedNode) return;
     const btn = document.getElementById('btn-scan');
     btn.disabled = true;
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = '⏳ Lancement du scan…';
+    scanStatusEl.textContent = ' Lancement du scan…';
     try {
         const r = await fetch('/graph/scan-node', {
             method: 'POST',
@@ -645,15 +645,15 @@ document.getElementById('btn-scan').onclick = async () => {
         });
         const d = await r.json();
         if (!r.ok || !d.scan_id) {
-            scanStatusEl.textContent = '❌ ' + (d.error || 'Erreur');
+            scanStatusEl.textContent = ' ' + (d.error || 'Erreur');
             btn.disabled = false;
             return;
         }
         activeGraphScanId = d.scan_id;
-        scanStatusEl.textContent = `⏳ Scan #${d.scan_id} (${d.module}) en cours…`;
+        scanStatusEl.textContent = ` Scan #${d.scan_id} (${d.module}) en cours…`;
         pollGraphScan(d.scan_id, d.poll_token);
     } catch (e) {
-        scanStatusEl.textContent = '❌ ' + e.message;
+        scanStatusEl.textContent = ' ' + e.message;
         btn.disabled = false;
     }
 };
@@ -662,10 +662,10 @@ function pollGraphScan(scanId, pollToken){
     if (typeof OsintScanPoll === 'undefined') return;
     OsintScanPoll.startPoll(scanId, pollToken || null, {
         maxMs: 180000,
-        isActive: (id) => activeGraphScanId === id || activePivotScanId === id,
-        onDone: (d) => {
+        isActive: (id) =>activeGraphScanId === id || activePivotScanId === id,
+        onDone: (d) =>{
             if (d.error) {
-                scanStatusEl.textContent = '❌ ' + d.error;
+                scanStatusEl.textContent = ' ' + d.error;
             } else {
                 scanStatusEl.textContent = `✓ Scan #${scanId} terminé — graphe mis à jour`;
                 const rootId = graphData?.root_id || document.getElementById('entity-select').value;
@@ -673,14 +673,14 @@ function pollGraphScan(scanId, pollToken){
             }
             document.getElementById('btn-scan').disabled = false;
         },
-        onTimeout: () => {
+        onTimeout: () =>{
             scanStatusEl.textContent = 'Délai dépassé — vérifiez l\'historique';
             document.getElementById('btn-scan').disabled = false;
         },
     });
 }
 
-if (graphSocket) graphSocket.on('scan_done', ({ scan_id }) => {
+if (graphSocket) graphSocket.on('scan_done', ({ scan_id }) =>{
     if (activeGraphScanId !== scan_id && activePivotScanId !== scan_id) return;
     scanStatusEl.style.display = 'block';
     scanStatusEl.textContent = `✓ Scan #${scan_id} terminé — actualisation du graphe…`;
@@ -692,19 +692,19 @@ if (graphSocket) graphSocket.on('scan_done', ({ scan_id }) => {
     if (activePivotScanId === scan_id) activePivotScanId = null;
 });
 
-if (graphSocket) graphSocket.on('scan_error', ({ scan_id, error }) => {
+if (graphSocket) graphSocket.on('scan_error', ({ scan_id, error }) =>{
     if (activeGraphScanId !== scan_id) return;
-    scanStatusEl.textContent = '❌ ' + (error || 'Erreur scan');
+    scanStatusEl.textContent = ' ' + (error || 'Erreur scan');
     document.getElementById('btn-scan').disabled = false;
     activeGraphScanId = null;
 });
 
-if (graphSocket) graphSocket.on('scan_progress', ({ scan_id, module, target }) => {
+if (graphSocket) graphSocket.on('scan_progress', ({ scan_id, module, target }) =>{
     if (activeGraphScanId !== scan_id) return;
-    scanStatusEl.textContent = `⏳ Scan #${scan_id} : ${module} sur ${target}…`;
+    scanStatusEl.textContent = ` Scan #${scan_id} : ${module} sur ${target}…`;
 });
 
-document.getElementById('btn-dossier').onclick = () => {
+document.getElementById('btn-dossier').onclick = () =>{
     if (selectedNode) window.location = '/expert/dossier/' + selectedNode.id;
 };
 
@@ -723,7 +723,7 @@ async function loadGraph(entityId){
     dossierRootId = entityId;
     try { graphSocket?.emit('join_dossier', { root_entity_id: entityId }); } catch (e) {}
     const desc = document.getElementById('panel-desc');
-    if (desc) desc.textContent = '⏳ Chargement du graphe…';
+    if (desc) desc.textContent = ' Chargement du graphe…';
     try {
         const r = await fetch(`/graph/data/${entityId}`);
         const { ok, data } = await parseJsonResponse(r);
@@ -735,7 +735,7 @@ async function loadGraph(entityId){
         render(graphData);
         if (desc) desc.textContent = `${(graphData.nodes || []).length} entité(s) — cliquez un nœud pour analyser.`;
         const hi = new URLSearchParams(location.search).get('highlight');
-        if (hi) setTimeout(() => highlightEntity(hi), 500);
+        if (hi) setTimeout(() =>highlightEntity(hi), 500);
     } catch (e) {
         if (desc) desc.textContent = 'Erreur réseau au chargement du graphe.';
         console.error('loadGraph', e);
@@ -748,11 +748,11 @@ async function loadComments(entityId) {
     const { ok, data: d } = await parseJsonResponse(await fetch(`/entity/${entityId}/comments`));
     if (!ok) { ul.innerHTML = '<li style="color:var(--dim)">' + escapeHtml(d.error || '—') + '</li>'; return; }
     ul.innerHTML = (d.comments || []).map(c =>
-        `<li style="margin:.25rem 0"><strong>${escapeHtml(c.author)}</strong> : ${escapeHtml((c.content || '').slice(0,120))}<br><small style="color:var(--dim)">${escapeHtml(c.created_at || '')}</small></li>`
+        `<li style="margin:.25rem 0"><strong>${escapeHtml(c.author)}</strong>: ${escapeHtml((c.content || '').slice(0,120))}<br><small style="color:var(--dim)">${escapeHtml(c.created_at || '')}</small></li>`
     ).join('') || '<li style="color:var(--dim)">Aucun commentaire</li>';
 }
 
-document.getElementById('btn-comment')?.addEventListener('click', async () => {
+document.getElementById('btn-comment')?.addEventListener('click', async () =>{
     if (!selectedNode?.id) {
         alert('Sélectionnez un nœud sur le graphe avant de publier.');
         return;
@@ -775,7 +775,7 @@ document.getElementById('btn-comment')?.addEventListener('click', async () => {
 
 function applyGraphLayout(){
     const n = cy.nodes().length;
-    const bilkent = (n > 20 && window.__coseBilkent) ? {
+    const bilkent = (n >20 && window.__coseBilkent) ? {
         name: 'cose-bilkent',
         animate: false,
         randomize: true,
@@ -806,7 +806,7 @@ function render(data){
     hiddenNodesData = null;
     let rawNodes = data.nodes || [];
     const btnAll = document.getElementById('btn-show-all');
-    if (rawNodes.length > MAX_NODES_INIT) {
+    if (rawNodes.length >MAX_NODES_INIT) {
         hiddenNodesData = rawNodes.slice(MAX_NODES_INIT);
         rawNodes = rawNodes.slice(0, MAX_NODES_INIT);
         btnAll.style.display = 'inline-block';
@@ -814,8 +814,8 @@ function render(data){
     } else {
         btnAll.style.display = 'none';
     }
-    const nodeIds = new Set(rawNodes.map(n => String(n.id)));
-    const nodes = rawNodes.map(n => ({
+    const nodeIds = new Set(rawNodes.map(n =>String(n.id)));
+    const nodes = rawNodes.map(n =>({
         data: {
             id: n.id,
             label: n.type === 'person'
@@ -830,7 +830,7 @@ function render(data){
     }));
     const edges = (data.edges || []).filter(e =>
         nodeIds.has(String(e.source)) && nodeIds.has(String(e.target))
-    ).map(e => {
+    ).map(e =>{
         const conf = e.confidence != null ? e.confidence : 0.5;
         const pct = Math.round(conf * 100);
         return {
@@ -861,29 +861,29 @@ function togglePersons(){
 function collapsedGraph(data){
     // union-find sur les arêtes MEME_PERSONNE
     const parent = {};
-    const find = x => { parent[x] = parent[x] ?? x; return parent[x] === x ? x : (parent[x] = find(parent[x])); };
-    const uni = (a, b) => { parent[find(a)] = find(b); };
-    (data.edges || []).forEach(e => { if (e.label === 'MEME_PERSONNE') uni(String(e.source), String(e.target)); });
+    const find = x =>{ parent[x] = parent[x] ?? x; return parent[x] === x ? x : (parent[x] = find(parent[x])); };
+    const uni = (a, b) =>{ parent[find(a)] = find(b); };
+    (data.edges || []).forEach(e =>{ if (e.label === 'MEME_PERSONNE') uni(String(e.source), String(e.target)); });
 
     const clusters = {};
-    (data.nodes || []).forEach(n => { const r = find(String(n.id)); (clusters[r] = clusters[r] || []).push(n); });
+    (data.nodes || []).forEach(n =>{ const r = find(String(n.id)); (clusters[r] = clusters[r] || []).push(n); });
 
     const nodeMap = {}; const newNodes = [];
-    Object.entries(clusters).forEach(([r, members]) => {
-        if (members.length > 1) {
+    Object.entries(clusters).forEach(([r, members]) =>{
+        if (members.length >1) {
             const pid = 'person_' + r;
-            const label = members.map(m => m.value).filter(Boolean).slice(0, 3).join(' / ');
+            const label = members.map(m =>m.value).filter(Boolean).slice(0, 3).join(' / ');
             newNodes.push({ id: pid, type: 'person', value: label, _count: members.length,
-                            _members: members.map(m => m.value) });
-            members.forEach(m => { nodeMap[String(m.id)] = pid; });
+                            _members: members.map(m =>m.value) });
+            members.forEach(m =>{ nodeMap[String(m.id)] = pid; });
         } else {
             newNodes.push(members[0]); nodeMap[String(members[0].id)] = String(members[0].id);
         }
     });
 
     const seen = new Set(); const newEdges = [];
-    (data.edges || []).forEach(e => {
-        if (e.label === 'MEME_PERSONNE') return;      // devient interne au super-nœud
+    (data.edges || []).forEach(e =>{
+        if (e.label === 'MEME_PERSONNE') return; // devient interne au super-nœud
         const s = nodeMap[String(e.source)] || String(e.source);
         const t = nodeMap[String(e.target)] || String(e.target);
         if (s === t) return;
@@ -932,7 +932,7 @@ async function runEnquiryMode(){
         node.addClass('suggested');
         cy.animate({ center: { eles: node }, zoom: 1.5 }, { duration: 400 });
         document.getElementById('enquiry-tip').style.display = 'block';
-        document.getElementById('enquiry-tip').textContent = '⭐ ' + d.reason;
+        document.getElementById('enquiry-tip').textContent = ' ' + d.reason;
         selectedNode = node.data();
         document.getElementById('btn-scan').style.display = 'block';
     }

@@ -26,12 +26,12 @@
 
     <h2>Données collectées</h2>
     <ul>
-        <li><strong>Compte</strong> : nom d'utilisateur, email, mot de passe (hashé bcrypt).</li>
-        <li><strong>Scans</strong> : cibles, résultats JSON, horodatage, résumé IA optionnel.</li>
-        <li><strong>Clés API tierces</strong> : stockées chiffrées (Fernet) dans Paramètres.</li>
-        <li><strong>Graphe</strong> : entités, liens, scores de confiance pour vos investigations.</li>
-        <li><strong>Cache API</strong> : réponses mises en cache (clé + TTL), sans données personnelles supplémentaires.</li>
-        <li><strong>Rapports PDF</strong> : empreintes SHA-256 calculées à la volée ; le PDF n'est pas stocké par défaut.</li>
+        <li><strong>Compte</strong>: nom d'utilisateur, email, mot de passe (hashé bcrypt).</li>
+        <li><strong>Scans</strong>: cibles, résultats JSON, horodatage, résumé IA optionnel.</li>
+        <li><strong>Clés API tierces</strong>: stockées chiffrées (Fernet) dans Paramètres.</li>
+        <li><strong>Graphe</strong>: entités, liens, scores de confiance pour vos investigations.</li>
+        <li><strong>Cache API</strong>: réponses mises en cache (clé + TTL), sans données personnelles supplémentaires.</li>
+        <li><strong>Rapports PDF</strong>: empreintes SHA-256 calculées à la volée ; le PDF n'est pas stocké par défaut.</li>
     </ul>
 
     <h2>Journal des traitements (synthèse)</h2>
@@ -76,14 +76,14 @@
 
     <h2>Vos droits (RGPD art. 15–22)</h2>
     <ul>
-        <li><strong>Accès</strong> : export JSON de vos scans via l'API ou l'historique.</li>
-        <li><strong>Rectification</strong> : mise à jour du profil (email, mot de passe).</li>
-        <li><strong>Effacement</strong> : suppression du compte et des scans associés — demande à l'administrateur.</li>
-        <li><strong>Limitation / opposition</strong> : suspension des scans programmés ou du compte.</li>
-        <li><strong>Portabilité</strong> : export CSV/JSON/PDF depuis Expert ou <code>/api/v1/export</code>.</li>
+        <li><strong>Accès</strong>: export JSON de vos scans via l'API ou l'historique.</li>
+        <li><strong>Rectification</strong>: mise à jour du profil (email, mot de passe).</li>
+        <li><strong>Effacement</strong>: suppression du compte et des scans associés — demande à l'administrateur.</li>
+        <li><strong>Limitation / opposition</strong>: suspension des scans programmés ou du compte.</li>
+        <li><strong>Portabilité</strong>: export CSV/JSON/PDF depuis Expert ou <code>/api/v1/export</code>.</li>
     </ul>
     <p>
-        Délai de réponse maximal : <strong>30 jours</strong> (prolongation possible si demande complexe).
+        Délai de réponse maximal : <strong>30 jours</strong>(prolongation possible si demande complexe).
     </p>
 
     <h2>Suppression des données</h2>
@@ -97,8 +97,8 @@
     <p>
         Chaque export PDF inclut des empreintes SHA-256 (en-têtes HTTP <code>X-Document-Hash</code>,
         <code>X-Content-Hash</code>). Vous pouvez vérifier un hash via
-        <code>GET /report/{id}/verify?hash=…</code> (session connectée).<br>
-        <strong>Vérification PDF :</strong> <code>GET /verify/{id}</code> — uploadez le PDF reçu ;
+        <code>GET /report/{id}/verify?hash=…</code>(session connectée).<br>
+        <strong>Vérification PDF :</strong><code>GET /verify/{id}</code>— uploadez le PDF reçu ;
         l'empreinte SHA-256 est comparée à celle enregistrée lors de la génération officielle.
     </p>
 

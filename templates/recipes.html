@@ -31,10 +31,10 @@
 <body class="has-fx">
 <canvas class="fx-network" data-network aria-hidden="true"></canvas>
 {% include 'partials/nav.html' %}
-<h1>📋 Recettes d'investigation</h1>
+<h1>Recettes d'investigation</h1>
 <p class="intro">
     Enchaînements de modules prêts à l'emploi. Lancez une recette avec une cible — un scan multi s'exécute automatiquement.
-    {% if authenticated %}Créez les vôtres et partagez-les à la communauté.{% else %}<a href="{{ url_for('auth.login') }}">Connectez-vous</a> pour sauvegarder vos recettes.{% endif %}
+    {% if authenticated %}Créez les vôtres et partagez-les à la communauté.{% else %}<a href="{{ url_for('auth.login') }}">Connectez-vous</a>pour sauvegarder vos recettes.{% endif %}
 </p>
 
 <div class="grid" id="recipe-grid">
@@ -80,7 +80,7 @@
         <input name="modules" required placeholder="site, whois, wayback, hunter">
         <label>Types de cible (virgule)</label>
         <input name="target_types" placeholder="domain, site">
-        <label><input type="checkbox" name="is_public"> Partager avec la communauté</label>
+        <label><input type="checkbox" name="is_public">Partager avec la communauté</label>
         <button type="submit" style="margin-top:1rem">Enregistrer</button>
     </form>
     <p id="create-msg" class="ok" style="display:none"></p>
@@ -88,8 +88,8 @@
 {% endif %}
 
 <script>
-document.querySelectorAll('.run-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
+document.querySelectorAll('.run-btn').forEach(btn =>{
+    btn.addEventListener('click', async () =>{
         const card = btn.closest('.card');
         const id = card.dataset.id;
         const target = card.querySelector('.target-in').value.trim();
@@ -111,11 +111,11 @@ document.querySelectorAll('.run-btn').forEach(btn => {
     });
 });
 {% if authenticated %}
-document.getElementById('create-form')?.addEventListener('submit', async e => {
+document.getElementById('create-form')?.addEventListener('submit', async e =>{
     e.preventDefault();
     const f = e.target;
-    const modules = f.modules.value.split(',').map(s => s.trim()).filter(Boolean);
-    const target_types = f.target_types.value.split(',').map(s => s.trim()).filter(Boolean);
+    const modules = f.modules.value.split(',').map(s =>s.trim()).filter(Boolean);
+    const target_types = f.target_types.value.split(',').map(s =>s.trim()).filter(Boolean);
     const r = await fetch('/recipes/new', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

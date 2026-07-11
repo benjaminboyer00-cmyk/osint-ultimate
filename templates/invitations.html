@@ -15,16 +15,16 @@
 <body>
     <p>
         <a href="{{ url_for('views.expert') }}">← Expert</a>
-        <a href="{{ url_for('collab.invitations_page') }}" style="margin-left:1rem">🔄 Actualiser</a>
+        <a href="{{ url_for('collab.invitations_page') }}" style="margin-left:1rem">Actualiser</a>
     </p>
-    <h1>📬 Collaboration</h1>
+    <h1>Collaboration</h1>
 
-    <h2>📁 Mes dossiers partagés</h2>
+    <h2>Mes dossiers partagés</h2>
     <p style="font-size:.85rem;color:#5a6180">Dossiers auxquels vous avez accès (invitation déjà acceptée).</p>
     {% if shared_dossiers %}
     {% for d in shared_dossiers %}
     <div class="card">
-        <strong>{{ d.dossier_type }}</strong> : {{ d.dossier_value }}<br>
+        <strong>{{ d.dossier_type }}</strong>: {{ d.dossier_value }}<br>
         <span class="role">Rôle : {{ d.role }} — propriétaire {{ d.owner_username }} — invité par {{ d.invited_by }}</span><br>
         <small>Accepté : {{ (d.accepted_at or '')[:16] }}</small><br>
         <a href="{{ d.dossier_url }}" class="btn-link">Ouvrir le dossier</a>
@@ -35,11 +35,11 @@
     <p style="color:#5a6180">Aucun dossier partagé pour le moment.</p>
     {% endif %}
 
-    <h2>✉️ Invitations en attente</h2>
+    <h2>Invitations en attente</h2>
     {% if invitations %}
     {% for inv in invitations %}
     <div class="card" id="inv-{{ inv.id }}">
-        <strong>{{ inv.dossier_type }}</strong> : {{ inv.dossier_value }}<br>
+        <strong>{{ inv.dossier_type }}</strong>: {{ inv.dossier_value }}<br>
         <span class="role">Rôle proposé : {{ inv.role }} — par {{ inv.invited_by }}</span><br>
         <small>{{ inv.invited_at or '' }}</small><br>
         <button type="button" onclick="acceptInv({{ inv.id }})">Accepter</button>
@@ -59,7 +59,7 @@
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
         const shared = {{ shared_dossiers|tojson }};
-        const hit = shared.find(d => String(d.collaboration_id) === m[1]);
+        const hit = shared.find(d =>String(d.collaboration_id) === m[1]);
         if (hit?.dossier_url) {
             window.location = hit.dossier_url;
         }

@@ -15,7 +15,7 @@
 <body>
     <div class="auth-container">
         <h2>Vérification 2FA</h2>
-        <p>Compte <strong>{{ username }}</strong> — saisissez le code à 6 chiffres.</p>
+        <p>Compte <strong>{{ username }}</strong>— saisissez le code à 6 chiffres.</p>
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
         <p class="flash {{ category }}">{{ message }}</p>

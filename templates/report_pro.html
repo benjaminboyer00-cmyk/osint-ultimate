@@ -164,15 +164,15 @@
         <div class="classif">{{ classification }}</div>
         <h1>Rapport d'investigation OSINT</h1>
         <p class="sub">Plateforme de preuve &amp; conformité</p>
-        <p class="meta-line"><strong>Cible :</strong> {{ scan.target }}</p>
-        <p class="meta-line"><strong>Enquêteur :</strong> {{ investigator }}</p>
-        <p class="meta-line"><strong>Date du rapport :</strong> {{ generated_at }}</p>
-        <p class="meta-line"><strong>Référence :</strong> OSINT-RPT-{{ scan.id }}</p>
+        <p class="meta-line"><strong>Cible :</strong>{{ scan.target }}</p>
+        <p class="meta-line"><strong>Enquêteur :</strong>{{ investigator }}</p>
+        <p class="meta-line"><strong>Date du rapport :</strong>{{ generated_at }}</p>
+        <p class="meta-line"><strong>Référence :</strong>OSINT-RPT-{{ scan.id }}</p>
 
         <div class="seal-box">
             <img class="qr" src="{{ qr_data_uri }}" alt="QR vérification">
             <p style="font-size:11px;color:#006644;font-weight:bold;margin:0 0 .5em 0">
-                🔐 Empreinte numérique &amp; vérification
+                 Empreinte numérique &amp; vérification
             </p>
             <p style="font-size:8.5px;margin:.3em 0"><strong>Contenu (SHA-256)</strong></p>
             <p class="hash">{{ content_hash }}</p>
@@ -204,13 +204,13 @@
 
     <h2>Méthodologie</h2>
     <div class="meta-box">
-        <strong>Plateforme :</strong> {{ methodology.platform }}<br>
-        <strong>Module principal :</strong> {{ methodology.module }} &nbsp;|&nbsp;
-        <strong>Mode :</strong> {{ methodology.mode }}<br>
-        <strong>Collecte :</strong> {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
+        <strong>Plateforme :</strong>{{ methodology.platform }}<br>
+        <strong>Module principal :</strong>{{ methodology.module }} &nbsp;|&nbsp;
+        <strong>Mode :</strong>{{ methodology.mode }}<br>
+        <strong>Collecte :</strong>{{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
         {% if scan.completed_at %} → {{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}<br>
-        <strong>Sources documentées :</strong> {{ methodology.sources_count }}<br>
-        <strong>Principe :</strong> agrégation de données publiquement accessibles ; aucune intrusion système.
+        <strong>Sources documentées :</strong>{{ methodology.sources_count }}<br>
+        <strong>Principe :</strong>agrégation de données publiquement accessibles ; aucune intrusion système.
     </div>
 
     <h2>Chaîne de traçabilité</h2>
@@ -281,15 +281,15 @@
         Données dédupliquées : une section par type (WHOIS, DNS, IP…), version la plus complète retenue.
     </p>
     {% if data.get('_note_pdf') %}
-    <p style="font-size:9px;color:#a60"><strong>Note :</strong> {{ data._note_pdf }}</p>
+    <p style="font-size:9px;color:#a60"><strong>Note :</strong>{{ data._note_pdf }}</p>
     {% endif %}
     {% for section, content in data.items() %}
     {% if not section.startswith('_') %}
     <h3>{{ section }}</h3>
     {% if content is mapping and content.get('executed') == false %}
-    <p style="font-size:9.5px;color:#a60"><strong>Non exécuté</strong> — {{ content.get('Raison', 'Module non lancé ou clé API absente') }}</p>
+    <p style="font-size:9.5px;color:#a60"><strong>Non exécuté</strong>— {{ content.get('Raison', 'Module non lancé ou clé API absente') }}</p>
     {% elif content is mapping and content.get('resultat') == 'Aucun résultat exploitable' %}
-    <p style="font-size:9.5px;color:#666"><strong>Module exécuté</strong> — aucun résultat public pour cette cible.</p>
+    <p style="font-size:9.5px;color:#666"><strong>Module exécuté</strong>— aucun résultat public pour cette cible.</p>
     <pre>{{ content | tojson(indent=2) }}</pre>
     {% else %}
     <pre>{{ content | tojson(indent=2) }}</pre>
@@ -307,7 +307,7 @@
         <p class="hash">{{ content_hash }}</p>
         <p><strong>Signature du document (SHA-256)</strong></p>
         <p class="hash">{{ signature_hash }}</p>
-        <p><strong>Référence rapport</strong> OSINT-RPT-{{ scan.id }} · {{ report_hash }}</p>
+        <p><strong>Référence rapport</strong>OSINT-RPT-{{ scan.id }} · {{ report_hash }}</p>
         {% if stored_pdf_hash %}
         <p><strong>Empreinte PDF scellée (SHA-256)</strong></p>
         <p class="hash">{{ stored_pdf_hash }}</p>
@@ -324,12 +324,12 @@
             et limiter la conservation aux finalités documentées.
         </p>
         <p>
-            <strong>Droits des personnes concernées :</strong> accès, rectification, effacement — contactez l'administrateur
-            de la plateforme via la page <em>Politique de confidentialité</em> (/privacy).
+            <strong>Droits des personnes concernées :</strong>accès, rectification, effacement — contactez l'administrateur
+            de la plateforme via la page <em>Politique de confidentialité</em>(/privacy).
         </p>
         <p>
-            <strong>Vérification :</strong> uploadez ce PDF sur
-            <em>{{ verify_url }}</em> pour confirmer l'authenticité, ou comparez l'empreinte contenu
+            <strong>Vérification :</strong>uploadez ce PDF sur
+            <em>{{ verify_url }}</em>pour confirmer l'authenticité, ou comparez l'empreinte contenu
             avec l'export JSON <code>/scan/{{ scan.id }}</code>.
         </p>
     </div>

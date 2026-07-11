@@ -56,13 +56,13 @@
     </div>
 
     <div class="meta">
-        <strong>Identifiant scan :</strong> #{{ scan.id }} &nbsp;|&nbsp;
-        <strong>Module :</strong> {{ scan.module }} &nbsp;|&nbsp;
-        <strong>Cible :</strong> {{ scan.target }}<br>
-        <strong>Mode :</strong> {{ scan.mode or 'expert' }} &nbsp;|&nbsp;
-        <strong>Début :</strong> {{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
-        {% if scan.completed_at %} &nbsp;|&nbsp; <strong>Fin :</strong> {{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}
-        <br><strong>Généré le :</strong> {{ generated_at }}
+        <strong>Identifiant scan :</strong>#{{ scan.id }} &nbsp;|&nbsp;
+        <strong>Module :</strong>{{ scan.module }} &nbsp;|&nbsp;
+        <strong>Cible :</strong>{{ scan.target }}<br>
+        <strong>Mode :</strong>{{ scan.mode or 'expert' }} &nbsp;|&nbsp;
+        <strong>Début :</strong>{{ scan.timestamp.strftime('%d/%m/%Y %H:%M UTC') if scan.timestamp else '—' }}
+        {% if scan.completed_at %} &nbsp;|&nbsp; <strong>Fin :</strong>{{ scan.completed_at.strftime('%d/%m/%Y %H:%M UTC') }}{% endif %}
+        <br><strong>Généré le :</strong>{{ generated_at }}
     </div>
 
     <h2>Méthodologie</h2>
@@ -89,7 +89,7 @@
     <h2>Données collectées</h2>
     <p class="sources">Sources publiques interrogées — réponses brutes ci-dessous.</p>
     {% if data.get('_note_pdf') %}
-    <p class="sources" style="color:#a60"><strong>Note :</strong> {{ data._note_pdf }}</p>
+    <p class="sources" style="color:#a60"><strong>Note :</strong>{{ data._note_pdf }}</p>
     {% endif %}
 
     {% for section, content in data.items() %}
@@ -100,7 +100,7 @@
     {% endfor %}
 
     <div class="signature">
-        <h3>🔐 Signature numérique d'intégrité</h3>
+        <h3>Signature numérique d'intégrité</h3>
         <p style="font-size:9px;margin-bottom:8px">
             Ce bloc atteste que le contenu du rapport n'a pas été altéré depuis sa génération.
             L'empreinte des données et la signature du document sont calculées en SHA-256.

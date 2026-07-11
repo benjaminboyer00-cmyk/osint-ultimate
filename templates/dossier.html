@@ -17,20 +17,20 @@
 </head>
 <body>
     <p><a href="{{ url_for('views.expert') }}">← Expert</a>
-       <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">🕸️ Graphe</a>
-       <a href="{{ url_for('views.map_view', entity_id=dossier.entity.id) }}">🗺️ Carte</a>
-       <a href="{{ url_for('views.timeline_view', entity_id=dossier.entity.id) }}">⏳ Timeline</a></p>
-    <h1>📁 {{ dossier.title }}</h1>
+       <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">Graphe</a>
+       <a href="{{ url_for('views.map_view', entity_id=dossier.entity.id) }}">Carte</a>
+       <a href="{{ url_for('views.timeline_view', entity_id=dossier.entity.id) }}">Timeline</a></p>
+    <h1>{{ dossier.title }}</h1>
     <div class="card">
-        <strong>{{ dossier.entity.type }}</strong> : {{ dossier.entity.value }}<br>
+        <strong>{{ dossier.entity.type }}</strong>: {{ dossier.entity.value }}<br>
         <small>{{ dossier.scans_count }} scans · {{ dossier.links_count }} liens</small>
         {% if dossier.access %}
         <br><small style="color:#4d6d80">Accès : {{ dossier.access.role }}{% if dossier.access.is_owner %} (propriétaire){% endif %}</small>
         {% endif %}
         {% if dossier.access and dossier.access.can_admin %}
-        <button type="button" id="btn-share" style="margin-top:.6rem">👥 Partager</button>
+        <button type="button" id="btn-share" style="margin-top:.6rem">Partager</button>
         {% endif %}
-        <a href="{{ url_for('collab.invitations_page') }}" style="margin-left:.8rem;font-size:.85rem">📬 Mes invitations</a>
+        <a href="{{ url_for('collab.invitations_page') }}" style="margin-left:.8rem;font-size:.85rem">Mes invitations</a>
     </div>
 
     <div id="share-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
@@ -53,14 +53,14 @@
                 <label style="font-size:.85rem">Lien à partager<br>
                     <input type="text" id="invite-link" readonly style="width:100%;margin:.4rem 0;font-size:.8rem">
                 </label>
-                <button type="button" id="btn-copy-invite" style="background:#4d6d80;color:#fff">📋 Copier le lien</button>
+                <button type="button" id="btn-copy-invite" style="background:#4d6d80;color:#fff">Copier le lien</button>
                 <p id="invite-hint" style="font-size:.78rem;color:#5a6180;margin:.4rem 0 0"></p>
             </div>
             <ul id="collab-list" style="margin-top:1rem;padding-left:1.2rem;font-size:.85rem"></ul>
         </div>
     </div>
 
-    <h2>📜 Rapport narratif IA</h2>
+    <h2>Rapport narratif IA</h2>
     <div class="card" id="narrative-panel">
         <p style="font-size:.88rem;color:#8a92b0;margin-top:0">
             Rédaction automatique (Groq) : introduction, chronologie, corrélations, hypothèses et recommandations.
@@ -81,16 +81,16 @@
         </label>
         <div style="margin-top:.8rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button type="button" id="btn-narrative">Générer le texte</button>
-            <button type="button" id="btn-narrative-pdf" style="background:#4d6d80;color:#fff">📄 PDF narratif</button>
+            <button type="button" id="btn-narrative-pdf" style="background:#4d6d80;color:#fff">PDF narratif</button>
         </div>
         <pre id="narrative-out" style="display:none;margin-top:1rem;max-height:320px;overflow:auto;font-size:.78rem;white-space:pre-wrap;background:#0d1018;padding:1rem;border-radius:8px"></pre>
         <p id="narrative-status" style="font-size:.85rem;color:#5a6180;margin-top:.6rem"></p>
     </div>
 
-    <h2>🔗 Corrélations suggérées</h2>
+    <h2>Corrélations suggérées</h2>
     {% for s in dossier.rebound_suggestions %}
     <div class="sug">
-        <span>{{ s.reason }} → <code>{{ s.module }}</code> « {{ s.target }} »</span>
+        <span>{{ s.reason }} → <code>{{ s.module }}</code>« {{ s.target }} »</span>
         <form method="post" action="{{ url_for('scan_start') }}" style="display:none" class="rebound-form">
             <input type="hidden" name="json" value='{"module":"{{ s.module }}","target":"{{ s.target }}"}'>
         </form>
@@ -101,7 +101,7 @@
     {% endfor %}
 
     {% if dossier.access and dossier.access.can_edit %}
-    <h2>➕ Ajouter une entité</h2>
+    <h2>Ajouter une entité</h2>
     <form class="card" method="post" action="{{ url_for('views.dossier_add_entity', entity_id=dossier.entity.id) }}">
         <input type="text" name="target" placeholder="email, téléphone, pseudo…" required style="width:60%">
         <select name="module">
@@ -118,17 +118,17 @@
     <p style="color:#5a6180;font-size:.88rem">Mode lecture seule — les scans nécessitent le rôle éditeur.</p>
     {% endif %}
 
-    <h2>📋 Journal d'activité</h2>
+    <h2>Journal d'activité</h2>
     <p id="scan-status" style="display:none;font-size:.88rem;color:#4d6d80;margin:.5rem 0"></p>
     <div class="card" id="activity-log">
         {% for a in dossier.activity %}
         <div style="font-size:.85rem;margin:.35rem 0" data-action="{{ a.action }}">
-            <small>{{ (a.timestamp or '')[:16]|replace('T', ' ') }}</small> —
+            <small>{{ (a.timestamp or '')[:16]|replace('T', ' ') }}</small>—
             <strong>{{ a.username }}</strong>
             {% if a.action == 'scan_started' %}
-            a lancé <em>{{ a.details.module if a.details else '?' }}</em> sur « {{ a.details.target if a.details else '' }} »
+            a lancé <em>{{ a.details.module if a.details else '?' }}</em>sur « {{ a.details.target if a.details else '' }} »
             {% elif a.action == 'scan_completed' %}
-            : scan <em>{{ a.details.module if a.details else '?' }}</em> terminé (#{{ a.details.scan_id if a.details else '?' }})
+            : scan <em>{{ a.details.module if a.details else '?' }}</em>terminé (#{{ a.details.scan_id if a.details else '?' }})
             {% elif a.action == 'comment_added' %}
             : commentaire ajouté
             {% else %}
@@ -141,25 +141,25 @@
     </div>
 
     {% if dossier.web_history %}
-    <h2>🕰️ Historique Web (Wayback)</h2>
+    <h2>Historique Web (Wayback)</h2>
     <div class="card">
         {% for snap in dossier.web_history %}
         <div style="margin:.5rem 0;font-size:.85rem">
             <strong>{{ snap.date or '—' }}</strong>
             {% if snap.archive %}<a href="{{ snap.archive }}" target="_blank" rel="noopener">Archive</a>{% endif %}
-            <span style="color:#5a6180"> — {{ snap.url or '' }}</span>
+            <span style="color:#5a6180">— {{ snap.url or '' }}</span>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <h2>📅 Timeline</h2>
+    <h2>Timeline</h2>
     <div class="timeline">
         {% for ev in dossier.timeline %}
         <div>
-            <small>{{ ev.at or '—' }}</small> —
-            {% if ev.type == 'scan' %}Scan <strong>{{ ev.module }}</strong> {{ ev.target }} ({{ ev.status }})
-            {% else %}Lien <em>{{ ev.link_type }}</em> {{ ev.proof or '' }}
+            <small>{{ ev.at or '—' }}</small>—
+            {% if ev.type == 'scan' %}Scan <strong>{{ ev.module }}</strong>{{ ev.target }} ({{ ev.status }})
+            {% else %}Lien <em>{{ ev.link_type }}</em>{{ ev.proof or '' }}
             {% endif %}
         </div>
         {% endfor %}
@@ -188,15 +188,15 @@ function formatActivityLine(a) {
     const t = a.timestamp ? a.timestamp.slice(0, 16).replace('T', ' ') : '';
     const d = a.details || {};
     if (a.action === 'scan_started') {
-        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> a lancé <em>${d.module || '?'}</em> sur « ${d.target || ''} » (#${d.scan_id || '?'})</div>`;
+        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small>— <strong>${who}</strong>a lancé <em>${d.module || '?'}</em>sur « ${d.target || ''} » (#${d.scan_id || '?'})</div>`;
     }
     if (a.action === 'scan_completed') {
-        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> : scan <em>${d.module || '?'}</em> terminé (#${d.scan_id || '?'})</div>`;
+        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small>— <strong>${who}</strong>: scan <em>${d.module || '?'}</em>terminé (#${d.scan_id || '?'})</div>`;
     }
     if (a.action === 'comment_added') {
-        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> : commentaire</div>`;
+        return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small>— <strong>${who}</strong>: commentaire</div>`;
     }
-    return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small> — <strong>${who}</strong> : ${a.action}</div>`;
+    return `<div style="font-size:.85rem;margin:.35rem 0"><small>${t}</small>— <strong>${who}</strong>: ${a.action}</div>`;
 }
 
 async function refreshActivity() {
@@ -213,36 +213,36 @@ async function refreshActivity() {
 const dossierSocket = io({ transports: ['websocket', 'polling'] });
 dossierSocket.emit('join_dossier', { root_entity_id: ENTITY_ID });
 
-dossierSocket.on('scan_started', p => {
+dossierSocket.on('scan_started', p =>{
     if (scanStatusEl) {
         scanStatusEl.style.display = 'block';
-        scanStatusEl.textContent = `⏳ ${p.username || 'Quelqu\'un'} lance ${p.module} sur ${p.target}…`;
+        scanStatusEl.textContent = ` ${p.username || 'Quelqu\'un'} lance ${p.module} sur ${p.target}…`;
     }
     refreshActivity();
 });
 
-dossierSocket.on('scan_completed', p => {
+dossierSocket.on('scan_completed', p =>{
     if (scanStatusEl) {
         scanStatusEl.style.display = 'block';
-        scanStatusEl.textContent = `✅ Scan #${p.scan_id} ${p.module} terminé (${p.username || ''})`;
+        scanStatusEl.textContent = ` Scan #${p.scan_id} ${p.module} terminé (${p.username || ''})`;
     }
     refreshActivity();
 });
 
-dossierSocket.on('comment_added', () => refreshActivity());
-dossierSocket.on('invite_sent', () => loadCollabs());
+dossierSocket.on('comment_added', () =>refreshActivity());
+dossierSocket.on('invite_sent', () =>loadCollabs());
 
 const shareModal = document.getElementById('share-modal');
 if (document.getElementById('btn-share')) {
-    document.getElementById('btn-share').onclick = () => {
+    document.getElementById('btn-share').onclick = () =>{
         shareModal.style.display = 'flex';
         loadCollabs();
     };
 }
-document.getElementById('btn-share-close')?.addEventListener('click', () => {
+document.getElementById('btn-share-close')?.addEventListener('click', () =>{
     shareModal.style.display = 'none';
 });
-document.getElementById('btn-invite-send')?.addEventListener('click', async () => {
+document.getElementById('btn-invite-send')?.addEventListener('click', async () =>{
     const email = document.getElementById('invite-email').value;
     const role = document.getElementById('invite-role').value;
     const r = await fetch(`/dossier/${ENTITY_ID}/invite`, {
@@ -265,7 +265,7 @@ document.getElementById('btn-invite-send')?.addEventListener('click', async () =
     }
     loadCollabs();
 });
-document.getElementById('btn-copy-invite')?.addEventListener('click', async () => {
+document.getElementById('btn-copy-invite')?.addEventListener('click', async () =>{
     const inp = document.getElementById('invite-link');
     if (!inp?.value) return;
     try {
@@ -290,13 +290,13 @@ async function loadCollabs() {
 async function pollNarrativeTask(pollUrl, statusEl, outEl, maxMs = 120000) {
     const t0 = Date.now();
     while (Date.now() - t0 < maxMs) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r =>setTimeout(r, 1500));
         const { ok, data: d } = await parseJsonResponse(await fetch(pollUrl, {
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json' },
         }));
         if (d.status === 'pending' || d.status === 'running') {
-            statusEl.textContent = '⏳ Génération Groq en cours…';
+            statusEl.textContent = ' Génération Groq en cours…';
             continue;
         }
         if (d.markdown) {
@@ -304,23 +304,23 @@ async function pollNarrativeTask(pollUrl, statusEl, outEl, maxMs = 120000) {
             outEl.style.display = 'block';
         }
         if (d.status === 'failed' || (!ok && !d.markdown)) {
-            statusEl.textContent = '❌ ' + (d.error || 'Échec');
+            statusEl.textContent = ' ' + (d.error || 'Échec');
             return;
         }
         if (d.groq_error || d.partial) {
-            statusEl.textContent = '⚠️ ' + (d.groq_error || d.error || 'Rapport partiel');
+            statusEl.textContent = ' ' + (d.groq_error || d.error || 'Rapport partiel');
         } else {
-            statusEl.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
+            statusEl.textContent = d.cached ? ' Rapport (cache)' : ' Rapport généré';
         }
         return;
     }
-    statusEl.textContent = '❌ Délai dépassé — réessayez';
+    statusEl.textContent = ' Délai dépassé — réessayez';
 }
 
-document.getElementById('btn-narrative').onclick = async () => {
+document.getElementById('btn-narrative').onclick = async () =>{
     const status = document.getElementById('narrative-status');
     const out = document.getElementById('narrative-out');
-    status.textContent = '⏳ Lancement…';
+    status.textContent = ' Lancement…';
     out.style.display = 'none';
     const body = {
         style: document.getElementById('narr-style').value,
@@ -342,17 +342,17 @@ document.getElementById('btn-narrative').onclick = async () => {
         out.style.display = 'block';
     }
     if (!ok && !d.markdown) {
-        status.textContent = '❌ ' + (d.error || 'Erreur');
+        status.textContent = ' ' + (d.error || 'Erreur');
         return;
     }
     if (d.groq_error || d.partial) {
-        status.textContent = '⚠️ ' + (d.groq_error || d.error || 'Rapport partiel (fallback)');
+        status.textContent = ' ' + (d.groq_error || d.error || 'Rapport partiel (fallback)');
     } else {
-        status.textContent = d.cached ? '✅ Rapport (cache)' : '✅ Rapport généré';
+        status.textContent = d.cached ? ' Rapport (cache)' : ' Rapport généré';
     }
 };
 
-document.getElementById('btn-narrative-pdf').onclick = () => {
+document.getElementById('btn-narrative-pdf').onclick = () =>{
     const style = document.getElementById('narr-style').value;
     const length = document.getElementById('narr-length').value;
     window.open(`/expert/dossier/${ENTITY_ID}/narrative/pdf?style=${style}&length=${length}`, '_blank');
@@ -361,20 +361,20 @@ document.getElementById('btn-narrative-pdf').onclick = () => {
 async function pollDossierScan(scanId, module, target, pollToken) {
     if (!scanStatusEl || typeof OsintScanPoll === 'undefined') return;
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = `⏳ Scan #${scanId} ${module} sur ${target}…`;
+    scanStatusEl.textContent = ` Scan #${scanId} ${module} sur ${target}…`;
     OsintScanPoll.startPoll(scanId, pollToken || null, {
         maxMs: 180000,
-        onDone: (data) => {
+        onDone: (data) =>{
             const st = data.status || data._meta?.status;
             if (st === 'failed' || (data.error && st !== 'completed')) {
-                scanStatusEl.textContent = '❌ ' + (data.error || 'Scan échoué');
+                scanStatusEl.textContent = ' ' + (data.error || 'Scan échoué');
             } else {
-                scanStatusEl.textContent = `✅ Scan #${scanId} terminé`;
+                scanStatusEl.textContent = ` Scan #${scanId} terminé`;
                 refreshActivity();
             }
         },
-        onTimeout: () => {
-            scanStatusEl.textContent = '⚠️ Délai dépassé — vérifiez l\'historique';
+        onTimeout: () =>{
+            scanStatusEl.textContent = ' Délai dépassé — vérifiez l\'historique';
         },
     });
 }

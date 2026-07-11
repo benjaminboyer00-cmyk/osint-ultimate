@@ -17,8 +17,8 @@
     </style>
 </head>
 <body>
-    <p><a href="{{ url_for('views.expert') }}">Expert</a> <a href="{{ url_for('views.settings') }}">Paramètres</a></p>
-    <h1>⏱️ Scans programmés</h1>
+    <p><a href="{{ url_for('views.expert') }}">Expert</a><a href="{{ url_for('views.settings') }}">Paramètres</a></p>
+    <h1>Scans programmés</h1>
     <p style="color:#5a6180;font-size:.9rem">Surveillez une cible automatiquement (toutes les X heures). Nécessite une session connectée.</p>
 
     <form class="box" method="post">
@@ -67,7 +67,7 @@
     {% endif %}
 
     <p style="margin-top:2rem;font-size:.85rem;color:#5a6180">
-        API : <code>POST /api/v1/scheduled</code> avec header <code>X-API-Key</code>
+        API : <code>POST /api/v1/scheduled</code>avec header <code>X-API-Key</code>
     </p>
 </body>
 </html>

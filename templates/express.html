@@ -176,7 +176,7 @@
     </div>
     <div class="graph-bar-actions">
         <select id="graph-bar-select" onchange="activateGraph(this.value)" aria-label="Choisir un graphe"></select>
-        <button type="button" class="gb-btn gb-primary" onclick="createGraph()">＋ Créer un graphe</button>
+        <button type="button" class="gb-btn gb-primary" onclick="createGraph()">Créer un graphe</button>
         <a id="graph-bar-open" href="#" class="gb-btn" style="display:none">Ouvrir</a>
         <button type="button" id="graph-bar-clear" class="gb-btn" onclick="clearActiveGraph()" style="display:none">Détacher</button>
     </div>
@@ -214,7 +214,7 @@
     <div id="card" class="card"></div>
     <div id="ai-panel" class="ai-panel" style="display:none">
         <div class="ai-head">
-            <strong>🧠 Première analyse</strong>
+            <strong>Première analyse</strong>
             <a id="ai-open-graph" class="btn btn-primary" href="#" style="display:none">Ouvrir le graphe complet →</a>
         </div>
         <div id="ai-analysis"></div>
@@ -284,21 +284,21 @@ async function clearActiveGraph(){
 document.addEventListener('DOMContentLoaded', loadActiveGraph);
 
 const TYPE_LABELS = {
-    email:'📧 Email', phone:'📞 Téléphone', ip:'🖥️ Adresse IP',
-    site:'🌐 Site web', sherlock:'🔍 Pseudo', pseudo:'🔍 Pseudo', whois:'📋 Domaine'
+    email:' Email', phone:' Téléphone', ip:' Adresse IP',
+    site:' Site web', sherlock:' Pseudo', pseudo:' Pseudo', whois:' Domaine'
 };
 let activeScanId = null, lastResult = null, lastCard = null, detectedModule = 'pseudo';
 const targetEl = document.getElementById('target');
 const badgeEl = document.getElementById('type-badge');
 
-document.querySelectorAll('.chip').forEach(c => {
-    c.addEventListener('click', () => { targetEl.value = c.dataset.ex; updateBadge(); });
+document.querySelectorAll('.chip').forEach(c =>{
+    c.addEventListener('click', () =>{ targetEl.value = c.dataset.ex; updateBadge(); });
 });
 targetEl.addEventListener('input', debounce(updateBadge, 400));
-targetEl.addEventListener('keydown', e => { if (e.key === 'Enter') runExpress(); });
+targetEl.addEventListener('keydown', e =>{ if (e.key === 'Enter') runExpress(); });
 
 function debounce(fn, ms){
-    let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+    let t; return (...a) =>{ clearTimeout(t); t = setTimeout(() =>fn(...a), ms); };
 }
 
 async function updateBadge(){
@@ -307,17 +307,17 @@ async function updateBadge(){
     const d = await fetch('/express/detect', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ target: v })
-    }).then(r => r.json());
+    }).then(r =>r.json());
     detectedModule = d.module || 'pseudo';
     badgeEl.textContent = 'Type détecté : ' + (TYPE_LABELS[detectedModule] || detectedModule);
     badgeEl.classList.add('show');
 }
 
-socket.on('scan_done', ({ scan_id, result }) => {
+socket.on('scan_done', ({ scan_id, result }) =>{
     if (scan_id !== activeScanId) return;
     finishProgress(); lastResult = result; showCard(result);
 });
-socket.on('scan_error', ({ error }) => {
+socket.on('scan_error', ({ error }) =>{
     finishProgress();
     showError(error);
 });
@@ -351,15 +351,15 @@ async function runExpress(){
 function startExpressPoll(id, pollToken){
     if (typeof OsintScanPoll === 'undefined') return;
     OsintScanPoll.startPoll(id, pollToken, {
-        isActive: (sid) => sid === activeScanId,
-        on401: () => { finishProgress(); showError('Session expirée — reconnectez-vous.'); },
-        onDone: (d) => {
+        isActive: (sid) =>sid === activeScanId,
+        on401: () =>{ finishProgress(); showError('Session expirée — reconnectez-vous.'); },
+        onDone: (d) =>{
             if (activeScanId !== id) return;
             finishProgress();
             lastResult = d;
             showCard(d);
         },
-        onTimeout: () => {
+        onTimeout: () =>{
             if (activeScanId === id) {
                 finishProgress();
                 showError('Délai dépassé — réessayez ou passez en mode Expert.');
@@ -370,7 +370,7 @@ function startExpressPoll(id, pollToken){
 
 function showError(msg){
     const el = document.getElementById('card');
-    el.innerHTML = `<p style="color:var(--err)">❌ ${msg}</p>`;
+    el.innerHTML = `<p style="color:var(--err)">${msg}</p>`;
     el.classList.add('show');
 }
 
@@ -382,33 +382,33 @@ async function showCard(result){
             target: targetEl.value.trim(),
             result
         })
-    }).then(r => r.json());
+    }).then(r =>r.json());
     lastCard = card;
     let html = `<h2>${card.title || 'Résultat'}</h2>`;
     html += `<p style="color:var(--dim);font-size:.85rem;margin-bottom:1rem">${card.type} · ${card.target}</p>`;
-    (card.highlights || []).forEach(h => {
+    (card.highlights || []).forEach(h =>{
         html += `<div class="hl"><span class="k">${h.label}</span><span class="v">${h.value}</span></div>`;
     });
-    (card.risks || []).forEach(r => { html += `<div class="risk">⚠️ ${r}</div>`; });
+    (card.risks || []).forEach(r =>{ html += `<div class="risk">${r}</div>`; });
     if (card.degraded?.length) {
         html += `<p class="risk" style="border-color:rgba(255,160,50,.5);color:#ffb347">`
-            + `⚠ Quota API (${card.degraded.join(', ')}) — données complétées par scraping public. Non certifiées API.</p>`;
+            + ` Quota API (${card.degraded.join(', ')}) — données complétées par scraping public. Non certifiées API.</p>`;
     }
     if (card.timeouts?.length) {
-        html += `<p class="risk">⏱ Certains services sont lents (${card.timeouts.join(', ')}). `
+        html += `<p class="risk">Certains services sont lents (${card.timeouts.join(', ')}). `
             + `Réessayez ou consultez l'analyse détaillée en mode Expert.</p>`;
     }
     if (card.next_steps?.length) {
-        html += '<ul class="steps">' + card.next_steps.map(s => `<li>${s}</li>`).join('') + '</ul>';
+        html += '<ul class="steps">' + card.next_steps.map(s =>`<li>${s}</li>`).join('') + '</ul>';
     }
     const expertUrl = card.expert_url || `/expert?multi=1&target=${encodeURIComponent(targetEl.value.trim())}`;
     html += `<div class="actions">
-        <a class="btn btn-primary" href="${expertUrl}">🔬 Voir résultats détaillés (Expert)</a>
-        <button type="button" class="btn" onclick="askAssistant()">🧠 Comprendre</button>`;
+        <a class="btn btn-primary" href="${expertUrl}">Voir résultats détaillés (Expert)</a>
+        <button type="button" class="btn" onclick="askAssistant()">Comprendre</button>`;
     const authed = {{ 'true' if authenticated else 'false' }};
     if (authed && activeScanId) {
-        html += `<a class="btn btn-primary" href="/report/${activeScanId}">📄 PDF</a>`;
-        html += `<a class="btn" href="/export/${activeScanId}/csv">📊 CSV</a>`;
+        html += `<a class="btn btn-primary" href="/report/${activeScanId}">PDF</a>`;
+        html += `<a class="btn" href="/export/${activeScanId}/csv">CSV</a>`;
     }
     html += `<a class="btn" href="/expert">Mode Expert</a></div>
         <div class="assistant" id="assistant" style="display:none"></div>`;
@@ -436,7 +436,7 @@ async function enrichWithGraph(){
         document.getElementById('ai-open-graph').style.display = 'none';
         document.getElementById('mini-graph').style.display = 'none';
         document.getElementById('ai-analysis').innerHTML =
-            '<p class="synth" style="color:var(--dim)">💡 Astuce : créez un graphe (barre du haut) '
+            '<p class="synth" style="color:var(--dim)">Astuce : créez un graphe (barre du haut) '
             + 'pour que vos recherches se corrèlent et obtenir une analyse IA + un graphe visuel ici même.</p>';
         return;
     }
@@ -445,7 +445,7 @@ async function enrichWithGraph(){
     const openBtn = document.getElementById('ai-open-graph');
     openBtn.style.display = 'inline-block';
     openBtn.href = '/graph?entity_id=' + root;
-    document.getElementById('ai-analysis').innerHTML = '<p class="synth" style="color:var(--dim)">⏳ Analyse en cours…</p>';
+    document.getElementById('ai-analysis').innerHTML = '<p class="synth" style="color:var(--dim)">Analyse en cours…</p>';
     renderMiniGraph(root);
     renderFirstAnalysis(root);
 }
@@ -459,14 +459,14 @@ async function renderFirstAnalysis(root){
     let h = '';
     if (d.synthese) h += `<p class="synth">${escapeHtml(d.synthese)}</p>`;
     if (d.incoherences?.length) {
-        h += '<h4>⚠️ Incohérences</h4><ul>';
-        d.incoherences.forEach(i => { h += `<li class="inco">${escapeHtml(i.observation)}</li>`; });
+        h += '<h4>Incohérences</h4><ul>';
+        d.incoherences.forEach(i =>{ h += `<li class="inco">${escapeHtml(i.observation)}</li>`; });
         h += '</ul>';
     }
     if (d.pistes?.length) {
-        h += '<h4>🎯 Pistes suggérées</h4><ul>';
-        [...d.pistes].sort((a,b)=>(a.priorite||9)-(b.priorite||9)).forEach(p => {
-            h += `<li class="piste"><b>${escapeHtml(p.action)}</b> — <span style="color:var(--dim)">${escapeHtml(p.raison||'')}</span></li>`;
+        h += '<h4>Pistes suggérées</h4><ul>';
+        [...d.pistes].sort((a,b)=>(a.priorite||9)-(b.priorite||9)).forEach(p =>{
+            h += `<li class="piste"><b>${escapeHtml(p.action)}</b>— <span style="color:var(--dim)">${escapeHtml(p.raison||'')}</span></li>`;
         });
         h += '</ul>';
     }
@@ -482,7 +482,7 @@ const CYTOSCAPE_SRC = "{{ url_for('static', filename='js/vendor/cytoscape.min.js
 const _scriptCache = {};
 function loadScriptOnce(src){
     if (_scriptCache[src]) return _scriptCache[src];
-    _scriptCache[src] = new Promise((resolve, reject) => {
+    _scriptCache[src] = new Promise((resolve, reject) =>{
         const s = document.createElement('script');
         s.src = src; s.onload = resolve; s.onerror = reject;
         document.head.appendChild(s);
@@ -499,11 +499,11 @@ async function renderMiniGraph(root){
     if (!g.nodes?.length) { wrap.style.display = 'none'; return; }
     wrap.style.display = 'block';
     const els = [
-        ...g.nodes.slice(0, 40).map(n => ({ data: {
+        ...g.nodes.slice(0, 40).map(n =>({ data: {
             id: String(n.id), label: (n.value||'').slice(0,18), color: MINI_COLORS[n.type]||MINI_COLORS.unknown } })),
     ];
-    const ids = new Set(els.map(e => e.data.id));
-    (g.edges||[]).forEach(e => {
+    const ids = new Set(els.map(e =>e.data.id));
+    (g.edges||[]).forEach(e =>{
         if (ids.has(String(e.source)) && ids.has(String(e.target)))
             els.push({ data: { id: e.id, source: String(e.source), target: String(e.target) } });
     });
@@ -517,34 +517,34 @@ async function renderMiniGraph(root){
         ],
         layout: { name: 'cose', animate: false, padding: 20 },
     });
-    miniCy.on('tap', 'node', () => { window.location = '/graph?entity_id=' + root; });
+    miniCy.on('tap', 'node', () =>{ window.location = '/graph?entity_id=' + root; });
 }
 
 async function askAssistant(){
     const box = document.getElementById('assistant');
     box.style.display = 'block';
-    box.textContent = '⏳ Analyse…';
+    box.textContent = ' Analyse…';
     const d = await fetch('/express/assist', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
             card: lastCard, result: lastResult,
             module: detectedModule, target: targetEl.value.trim()
         })
-    }).then(r => r.json());
+    }).then(r =>r.json());
     box.innerHTML = '';
     if (d.assistant) {
         const p = document.createElement('div');
         p.textContent = d.assistant;
         p.style.whiteSpace = 'pre-wrap';
         box.appendChild(p);
-        const links = d.action_links || (d.actions || []).map(a => ({ label: a, launch: false }));
-        links.forEach(act => {
+        const links = d.action_links || (d.actions || []).map(a =>({ label: a, launch: false }));
+        links.forEach(act =>{
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'btn btn-primary';
             btn.style.marginTop = '.4rem';
             btn.textContent = act.label || act;
-            btn.onclick = () => {
+            btn.onclick = () =>{
                 if (act.url) {
                     window.location.href = act.url;
                 } else if (act.target) {
@@ -565,7 +565,7 @@ function startProgress(){
 }
 function finishProgress(){
     document.getElementById('prog-bar').style.width = '100%';
-    setTimeout(() => {
+    setTimeout(() =>{
         document.getElementById('prog').style.display = 'none';
         document.getElementById('prog-bar').style.width = '0';
     }, 500);

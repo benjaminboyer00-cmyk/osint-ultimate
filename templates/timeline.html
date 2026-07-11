@@ -36,7 +36,7 @@
 <body>
 <header>
     <a href="{{ url_for('views.expert') }}">← Expert</a>
-    <strong>⏳ Timeline</strong>
+    <strong>Timeline</strong>
     <div class="toolbar">
         <select id="entity-select" onchange="loadTimeline(this.value)">
             <option value="">— Entité racine —</option>
@@ -46,8 +46,8 @@
             </option>
             {% endfor %}
         </select>
-        <a href="{{ url_for('views.graph_view', entity_id=entity_id) if entity_id else url_for('views.graph_view') }}" id="graph-link" style="font-size:.85rem">🕸️ Graphe</a>
-        <a href="{{ url_for('views.map_view', entity_id=entity_id) if entity_id else url_for('views.map_view') }}" style="font-size:.85rem">🗺️ Carte</a>
+        <a href="{{ url_for('views.graph_view', entity_id=entity_id) if entity_id else url_for('views.graph_view') }}" id="graph-link" style="font-size:.85rem">Graphe</a>
+        <a href="{{ url_for('views.map_view', entity_id=entity_id) if entity_id else url_for('views.map_view') }}" style="font-size:.85rem">Carte</a>
     </div>
 </header>
 <div id="timeline-wrap"><div id="timeline"></div></div>
@@ -62,7 +62,7 @@ let groupsDs = null;
 let rootEntityId = {{ entity_id or 'null' }};
 
 const tlSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
-if (tlSocket) tlSocket.on('connect', () => tlSocket.emit('join_timeline', {}));
+if (tlSocket) tlSocket.on('connect', () =>tlSocket.emit('join_timeline', {}));
 
 function showDetail(item) {
     const el = document.getElementById('detail');
@@ -70,8 +70,8 @@ function showDetail(item) {
     let html = `<strong>${item.content}</strong><br><small>${item.start || ''}</small>`;
     if (item.title) html += `<br>${item.title}`;
     if (item.entity_id) {
-        html += `<br><a href="/graph?entity_id=${rootEntityId || item.entity_id}&highlight=${item.entity_id}">🕸️ Voir dans le graphe</a>`;
-        html += ` · <a href="/expert/dossier/${item.entity_id}">📁 Dossier</a>`;
+        html += `<br><a href="/graph?entity_id=${rootEntityId || item.entity_id}&highlight=${item.entity_id}">Voir dans le graphe</a>`;
+        html += ` · <a href="/expert/dossier/${item.entity_id}">Dossier</a>`;
     }
     if (item.scan_id) html += `<br><a href="/expert?scan_id=${item.scan_id}">Scan #${item.scan_id}</a>`;
     if (item.archive) html += `<br><a href="${item.archive}" target="_blank" rel="noopener">Archive Wayback</a>`;
@@ -96,7 +96,7 @@ function renderTimeline(data) {
         visTimeline.setItems(itemsDs);
     } else {
         visTimeline = new vis.Timeline(container, itemsDs, groupsDs, opts);
-        visTimeline.on('select', props => {
+        visTimeline.on('select', props =>{
             if (!props.items.length) return showDetail(null);
             const item = itemsDs.get(props.items[0]);
             showDetail(item);
@@ -114,28 +114,28 @@ async function loadTimeline(entityId) {
     if (!entityId) return;
     rootEntityId = parseInt(entityId, 10);
     document.getElementById('graph-link').href = `/graph?entity_id=${rootEntityId}`;
-    document.getElementById('status').textContent = '⏳ Chargement…';
+    document.getElementById('status').textContent = ' Chargement…';
     try {
         const r = await fetch(`/timeline/data/${rootEntityId}`);
         const d = await r.json();
         if (!r.ok) {
-            document.getElementById('status').textContent = '❌ ' + (d.error || 'Erreur');
+            document.getElementById('status').textContent = ' ' + (d.error || 'Erreur');
             return;
         }
         renderTimeline(d);
         document.getElementById('status').textContent =
             `${d.count} événement(s) — ${d.root_value || ''}`;
     } catch (e) {
-        document.getElementById('status').textContent = '❌ ' + e.message;
+        document.getElementById('status').textContent = ' ' + e.message;
     }
 }
 
-tlSocket.on('timeline_update', payload => {
+tlSocket.on('timeline_update', payload =>{
     if (rootEntityId && payload.root_entity_id && payload.root_entity_id !== rootEntityId) return;
     if (payload.root_entity_id) rootEntityId = payload.root_entity_id;
     renderTimeline(payload);
     document.getElementById('status').textContent =
-        `🔄 Timeline mise à jour — ${payload.count || 0} événement(s)`;
+        ` Timeline mise à jour — ${payload.count || 0} événement(s)`;
 });
 
 {% if entity_id %}

@@ -52,7 +52,7 @@
     <a href="{{ url_for('views.express') }}">Express</a>
     <a href="{{ url_for('views.expert') }}">Expert</a>
     <a href="{{ url_for('views.graph_view') }}">Graphe</a>
-    <strong>🧠 Enquête guidée</strong> — {{ username }}
+    <strong>Enquête guidée</strong>— {{ username }}
 </header>
 <div id="progress-bar">
     <span class="spinner" id="live-spinner"></span>
@@ -72,7 +72,7 @@
             </div>
         </div>
         <label id="deep-label" title="Ajoute les fuites de données (Dehashed) — plus précis mais plus lent">
-            <input type="checkbox" id="deep-mode"> 🔎 Enquête approfondie
+            <input type="checkbox" id="deep-mode">Enquête approfondie
         </label>
         <footer>
             <input id="query" placeholder="Ex : Qui se cache derrière darkdev42 ?" onkeydown="if(event.key==='Enter')startInvestigation()">
@@ -83,7 +83,7 @@
         <strong style="color:var(--dim)">Enquêtes récentes</strong>
         {% for inv in recent_investigations %}
         <div class="recent" onclick="loadInvestigation({{ inv.id }})">
-            {{ inv.title[:35] }}{% if inv.title|length > 35 %}…{% endif %}<br>
+            {{ inv.title[:35] }}{% if inv.title|length >35 %}…{% endif %}<br>
             <span style="color:var(--dim)">{{ inv.status }} · {{ inv.created_at.strftime('%d/%m') if inv.created_at else '' }}</span>
         </div>
         {% endfor %}
@@ -91,7 +91,7 @@
 </div>
 <script>
 const socket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
-if (socket) socket.on('connect', () => socket.emit('join_investigation', {}));
+if (socket) socket.on('connect', () =>socket.emit('join_investigation', {}));
 let activeInvId = null;
 let pollTimer = null;
 let investigationFinished = false;
@@ -105,26 +105,26 @@ function startPolling(id){
     renderedSteps = 0;
     if (pollTimer) clearInterval(pollTimer);
     let ticks = 0;
-    const tick = async () => {
+    const tick = async () =>{
         ticks++;
-        if (investigationFinished || ticks > 150) { clearInterval(pollTimer); return; }
+        if (investigationFinished || ticks >150) { clearInterval(pollTimer); return; }
         try {
-            const st = await fetch('/investigate/' + id + '/status').then(r => r.json());
+            const st = await fetch('/investigate/' + id + '/status').then(r =>r.json());
             const steps = (st && st.steps) || [];
             // Affiche chaque nouvelle étape terminée (sur HF il n'y a pas de socket)
             for (let i = renderedSteps; i < steps.length; i++) {
                 const s = steps[i];
-                addBubble(`✅ Étape ${s.step} — <strong>${String(s.action || '').replace(/</g,'&lt;')}</strong> : ${String(s.summary || '').replace(/</g,'&lt;')}`, 'step-ok');
+                addBubble(` Étape ${s.step} — <strong>${String(s.action || '').replace(/</g,'&lt;')}</strong>: ${String(s.summary || '').replace(/</g,'&lt;')}`, 'step-ok');
             }
             renderedSteps = steps.length;
             if (st && (st.status === 'completed' || st.status === 'failed')) {
                 finalizeInvestigation(st);
             } else {
-                setProgress(steps.length ? `🔍 Enquête en cours — ${steps.length} étape(s)…` : '🧠 Planification…', true);
+                setProgress(steps.length ? ` Enquête en cours — ${steps.length} étape(s)…` : ' Planification…', true);
             }
         } catch (e) { /* on réessaie au prochain tick */ }
     };
-    tick();                       // premier appel immédiat
+    tick(); // premier appel immédiat
     pollTimer = setInterval(tick, 2500);
 }
 
@@ -134,11 +134,11 @@ function finalizeInvestigation(st){
     if (pollTimer) clearInterval(pollTimer);
     setProgress('', false);
     document.getElementById('go').disabled = false;
-    if (st.summary) addBubble('📋 ' + String(st.summary).replace(/</g,'&lt;'), 'done');
+    if (st.summary) addBubble(' ' + String(st.summary).replace(/</g,'&lt;'), 'done');
     if (st.graph_url){
         const box = document.createElement('div');
         box.className = 'bubble agent';
-        box.innerHTML = '<a href="' + st.graph_url + '" style="color:var(--accent2)">🕸️ Ouvrir le graphe de l\'enquête</a>';
+        box.innerHTML = '<a href="' + st.graph_url + '" style="color:var(--accent2)">Ouvrir le graphe de l\'enquête</a>';
         document.getElementById('timeline').appendChild(box);
     }
 }
@@ -171,7 +171,7 @@ async function startInvestigation(){
     const go = document.getElementById('go');
     go.disabled = true;
     addBubble(q.replace(/</g,'&lt;'), 'user');
-    setProgress('🧠 L\'IA planifie l\'enquête…', true);
+    setProgress(' L\'IA planifie l\'enquête…', true);
     addBubble('Connexion à l\'agent…', 'step-planning', true);
     const deep = !!document.getElementById('deep-mode')?.checked;
     const r = await fetch('/investigate/start', {
@@ -182,40 +182,40 @@ async function startInvestigation(){
     go.disabled = false;
     if(d.investigation_id){
         activeInvId = d.investigation_id;
-        addBubble('Enquête <strong>#' + d.investigation_id + '</strong> démarrée.', 'agent');
+        addBubble('Enquête <strong>#' + d.investigation_id + '</strong>démarrée.', 'agent');
         startPolling(d.investigation_id);
     } else {
         setProgress('', false);
-        addBubble('❌ ' + (d.error || 'Erreur'), 'step-err');
+        addBubble(' ' + (d.error || 'Erreur'), 'step-err');
     }
 }
 
 // Socket (si présent) : mise à jour temps réel du texte de progression
 // uniquement. Le rendu des bulles + la finalisation sont gérés par le polling
-// (source unique -> fonctionne aussi sur HF où Socket.IO est désactivé, et
+// (source unique ->fonctionne aussi sur HF où Socket.IO est désactivé, et
 // évite les doublons quand le socket est présent).
-if (socket) socket.on('investigation_started', p => {
+if (socket) socket.on('investigation_started', p =>{
     if(activeInvId && p.investigation_id !== activeInvId) return;
     activeInvId = p.investigation_id;
     setProgress(p.message || 'Enquête en cours…', true);
 });
 
-if (socket) socket.on('investigation_step', p => {
+if (socket) socket.on('investigation_step', p =>{
     if(activeInvId && p.investigation_id !== activeInvId) return;
     if(p.message) setProgress(p.message, true);
 });
 
-if (socket) socket.on('investigation_done', p => {
+if (socket) socket.on('investigation_done', p =>{
     if(activeInvId && p.investigation_id !== activeInvId) return;
     if(investigationFinished) return;
     fetch('/investigate/' + p.investigation_id + '/status')
         .then(r=>r.json())
-        .then(st => finalizeInvestigation({
+        .then(st =>finalizeInvestigation({
             summary: st.summary || p.summary || 'Terminé',
             graph_url: st.graph_url,
             status: 'completed',
         }))
-        .catch(() => finalizeInvestigation({ summary: p.summary || 'Terminé', status: 'completed' }));
+        .catch(() =>finalizeInvestigation({ summary: p.summary || 'Terminé', status: 'completed' }));
 });
 
 async function loadInvestigation(id){
@@ -224,7 +224,7 @@ async function loadInvestigation(id){
     setProgress('', false);
     const st = await fetch('/investigate/' + id + '/status').then(r=>r.json());
     addBubble((st.objective || 'Enquête').replace(/</g,'&lt;'), 'user');
-    (st.steps || []).forEach(s => {
+    (st.steps || []).forEach(s =>{
         addBubble(`Étape ${s.step} — ${s.action} : ${s.summary}`.replace(/</g,'&lt;'), 'step-ok');
     });
     if(st.summary) addBubble(st.summary.replace(/</g,'&lt;'), 'done');
