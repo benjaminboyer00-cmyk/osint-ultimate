@@ -38,3 +38,32 @@ def test_allow_private_escape_hatch(monkeypatch):
     monkeypatch.setenv('ALLOW_PRIVATE_SCAN_TARGETS', '1')
     assert ip_is_internal('10.0.0.5') is False
     assert host_is_public('127.0.0.1') is True
+
+
+class _Resp:
+    def __init__(self, code, loc=None, body=''):
+        self.status_code = code
+        self.headers = {'Location': loc} if loc else {}
+        self.text = body
+
+
+def test_guarded_get_blocks_redirect_to_internal():
+    from services.ssrf_guard import guarded_get
+
+    def getter(u, **kw):
+        return _Resp(302, 'http://169.254.169.254/latest/') if 'evil' in u else _Resp(200, body='SECRET')
+    assert guarded_get(getter, 'http://evil.com/') is None
+
+
+def test_guarded_get_follows_public_redirect():
+    from services.ssrf_guard import guarded_get
+
+    def getter(u, **kw):
+        return _Resp(302, 'https://example.com/final') if 'start' in u else _Resp(200, body='OK')
+    r = guarded_get(getter, 'http://start.com/')
+    assert r.status_code == 200 and r.text == 'OK'
+
+
+def test_guarded_get_blocks_dangerous_scheme():
+    from services.ssrf_guard import guarded_get
+    assert guarded_get(lambda u, **k: _Resp(302, 'file:///etc/passwd'), 'http://x.com/') is None

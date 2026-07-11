@@ -56,7 +56,11 @@ def safe_get(url, timeout=15, options=None, **kwargs):
         if proxies:
             p = random.choice(proxies)
             s.proxies = {'http': p, 'https': p}
-        return s.get(safe_url, timeout=timeout, verify=SSL_VERIFY, **kwargs)
+        from services.ssrf_guard import guarded_get
+        return guarded_get(
+            lambda u, **kw: s.get(u, timeout=timeout, verify=SSL_VERIFY, **kw),
+            safe_url, **kwargs,
+        )
     except requests.Timeout:
         return None
     except Exception:

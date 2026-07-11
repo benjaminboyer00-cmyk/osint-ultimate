@@ -83,8 +83,10 @@ class SessionManager:
         if self.options.get('_stealth_mode'):
             time.sleep(random.uniform(0.2, 1.2))
         try:
-            return self.session.get(
-                url, timeout=timeout, verify=SSL_VERIFY, **kwargs,
+            from services.ssrf_guard import guarded_get
+            return guarded_get(
+                lambda u, **kw: self.session.get(u, timeout=timeout, verify=SSL_VERIFY, **kw),
+                url, **kwargs,
             )
         except requests.RequestException as e:
             if proxy_used:
