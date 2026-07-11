@@ -1245,19 +1245,58 @@ try {
     } catch(e) {}
 })();
 try {
-    const nSocket = io({ transports: ['websocket', 'polling'] });
-    nSocket.on('connect', () =>{ nSocket.emit('join_graph', {}); nSocket.emit('join_map', {}); });
-    nSocket.on('alert_notification', (p) =>{
-        const b = document.getElementById('notif-badge');
-        if (b) {
-            const n = parseInt(b.textContent, 10) || 0;
-            b.textContent = n + 1;
-            b.style.display = 'inline';
-        }
-        if (p.message) console.info('[Alerte]', p.message);
-    });
+    // Socket.IO désactivé sur HF (createOsintSocket → null) : pas de wss en boucle.
+    const nSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
+    if (nSocket) {
+        nSocket.on('connect', () =>{ nSocket.emit('join_graph', {}); nSocket.emit('join_map', {}); });
+        nSocket.on('alert_notification', (p) =>{
+            const b = document.getElementById('notif-badge');
+            if (b) {
+                const n = parseInt(b.textContent, 10) || 0;
+                b.textContent = n + 1;
+                b.style.display = 'inline';
+            }
+            if (p.message) console.info('[Alerte]', p.message);
+        });
+    }
 } catch(e) {}
 {% endif %}
+
+// ── Charger un scan existant depuis l'URL (?scan_id= / ?scan=) ──
+// Permet aux liens « suivre / voir » (recettes, notifications, historique)
+// d'afficher DIRECTEMENT le résultat au lieu d'une page Expert vide.
+async function loadScanFromUrl(){
+    const p = new URLSearchParams(location.search);
+    const sid = parseInt(p.get('scan_id') || p.get('scan') || '', 10);
+    if(!sid) return;
+    activeScanId = sid;
+    resultEl.innerHTML = `<div class="skeleton" style="width:65%"></div><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:45%"></div>`;
+    resultEl.scrollIntoView({behavior:'smooth', block:'center'});
+    try {
+        const r = await fetch(`/scan/${sid}`, { credentials:'include' });
+        if(r.status === 401){ resultEl.innerHTML = '<p style="color:var(--error)">Connexion requise pour voir ce scan.</p>'; resultEl.classList.add('has-error'); return; }
+        const d = await r.json();
+        const meta = d._meta || {};
+        const mod = meta.module;
+        if(mod){ const chip = document.querySelector(`.mod[data-m="${mod}"]`); if(chip){ chip.click(); } }
+        if((meta.target || d.target) && targetEl) targetEl.value = meta.target || d.target;
+        const status = d.status || meta.status;
+        if(status && status !== 'completed'){
+            scanRunning = true;
+            progWrap.style.display = 'block';
+            resultEl.innerHTML = `<div class="skeleton" style="width:70%"></div><div class="skeleton" style="width:55%"></div>`;
+            pollFallback(sid, null);
+            return;
+        }
+        lastResult = d;
+        renderResult(d);
+        exportBar.style.display = 'flex';
+        aiBox.style.display = 'block';
+        const pdfBtn = document.getElementById('pdf-btn');
+        if(pdfBtn){ pdfBtn.style.display='inline-block'; const cb=document.getElementById('csv-btn'); if(cb) cb.style.display='inline-block'; }
+    } catch(e){ /* silencieux : lien invalide */ }
+}
+loadScanFromUrl();
 
 // ── PWA ────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

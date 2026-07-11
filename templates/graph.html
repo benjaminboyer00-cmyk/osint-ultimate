@@ -135,6 +135,7 @@
             <div class="legend-item"><span class="dot" style="background:#9c6b3f"></span>domain</div>
             <div class="legend-item"><span class="dot" style="background:#6d5b7a"></span>platform / ip</div>
             <div class="legend-item"><span class="dot" style="background:#a5342a"></span>personne</div>
+            <div class="legend-item"><span class="dot" style="background:#7f271f"></span>fuite / base compromise</div>
             <strong style="font-size:.72rem;color:var(--dim);display:block;margin-top:.6rem;font-family:var(--mono);letter-spacing:.14em">LIENS</strong>
             <div class="legend-item"><span class="edge-sample"></span>épaisseur = confiance</div>
             <div class="legend-item"><span class="dot" style="background:transparent;border:2px solid #b8802f"></span>priorité (mode enquête)</div>
@@ -157,7 +158,7 @@
 <script>
 const NODE_COLORS = {
     email:'#4d6d80', phone:'#46705f', username:'#b8802f',
-    domain:'#9c6b3f', platform:'#6d5b7a', ip:'#6d5b7a', person:'#a5342a', unknown:'#a99d86'
+    domain:'#9c6b3f', platform:'#6d5b7a', ip:'#6d5b7a', person:'#a5342a', leak:'#7f271f', unknown:'#a99d86'
 };
 const MODULE_FOR_TYPE = {
     email:'email', phone:'phone', username:'sherlock',

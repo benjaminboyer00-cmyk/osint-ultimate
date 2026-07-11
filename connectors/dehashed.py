@@ -48,18 +48,48 @@ def search(query: str, api_key: str, email: str = '', options=None) -> dict:
 
     data = r.json()
     entries = data.get('entries') or data.get('results') or []
+
+    def _first(e, *keys):
+        """Dehashed renvoie parfois des listes (['x']) ou des scalaires."""
+        for k in keys:
+            v = e.get(k)
+            if isinstance(v, list):
+                v = next((x for x in v if x), None)
+            if v:
+                return str(v)
+        return None
+
     leaks = []
+    bases = set()
     for e in entries[:20]:
-        if isinstance(e, dict):
-            leaks.append({
-                'Email': e.get('email'),
-                'Username': e.get('username'),
-                'Base': e.get('database_name') or e.get('name'),
-                'Date': e.get('obtained') or e.get('breach_date'),
-            })
+        if not isinstance(e, dict):
+            continue
+        pwd = _first(e, 'password')
+        h = _first(e, 'hashed_password', 'hash')
+        row = {
+            'Base': _first(e, 'database_name', 'name') or 'Fuite (base inconnue)',
+            'Date': _first(e, 'obtained', 'breach_date'),
+            'Email': _first(e, 'email'),
+            'Username': _first(e, 'username'),
+            'Nom': _first(e, 'name', 'full_name'),
+            'Téléphone': _first(e, 'phone'),
+            'IP': _first(e, 'ip_address', 'ip'),
+            'Adresse': _first(e, 'address'),
+            # Le mot de passe en clair est la donnée la plus sensible : on l'expose
+            # à l'utilisateur autorisé (c'est la fonction de l'outil) mais on signale
+            # aussi la simple présence d'un hash.
+            'Mot de passe': pwd,
+            'Hash': ('présent' if h else None),
+        }
+        # ne garder que les champs renseignés (affichage propre)
+        leaks.append({k: v for k, v in row.items() if v})
+        if row['Base']:
+            bases.add(row['Base'])
+
     out = {
         'Requête': q,
         'Fuites trouvées': len(leaks),
+        'Bases concernées': sorted(bases) if bases else [],
         'Entrées': leaks or ['Aucune entrée'],
     }
     set_cached('dehashed', q, out, ttl_hours=get_ttl_hours('dehashed'))

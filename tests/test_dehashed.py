@@ -67,6 +67,38 @@ def test_parses_entries_and_basic_auth_with_email():
     assert captured['headers']['Authorization'].startswith('Basic ')  # email -> Basic
 
 
+def test_captures_leaked_fields():
+    """La fuite doit exposer CE qui a leaké (mot de passe, tel, base) — pas juste un compteur."""
+    payload = {'entries': [{
+        'email': 'v@x.com', 'username': 'vicky', 'password': 'hunter2',
+        'phone': '+33612345678', 'database_name': 'BreachDB', 'breach_date': '2021',
+        'hashed_password': 'deadbeef',
+    }]}
+    with patch('connectors.dehashed.get_cached', return_value=None), \
+         patch('connectors.dehashed.set_cached'), \
+         patch('connectors.dehashed.get_ttl_hours', return_value=0), \
+         patch('connectors.dehashed.safe_get', return_value=_resp(200, payload)):
+        out = dehashed.search('v@x.com', 'key')
+    e = out['Entrées'][0]
+    assert e['Base'] == 'BreachDB'
+    assert e['Mot de passe'] == 'hunter2'
+    assert e['Téléphone'] == '+33612345678'
+    assert e['Hash'] == 'présent'
+    assert 'BreachDB' in out['Bases concernées']
+
+
+def test_handles_list_valued_fields():
+    """Dehashed renvoie parfois des listes (['x']) — on prend la 1re valeur."""
+    payload = {'entries': [{'email': ['a@b.com'], 'database_name': ['SomeDB']}]}
+    with patch('connectors.dehashed.get_cached', return_value=None), \
+         patch('connectors.dehashed.set_cached'), \
+         patch('connectors.dehashed.get_ttl_hours', return_value=0), \
+         patch('connectors.dehashed.safe_get', return_value=_resp(200, payload)):
+        out = dehashed.search('a@b.com', 'key')
+    assert out['Entrées'][0]['Email'] == 'a@b.com'
+    assert out['Entrées'][0]['Base'] == 'SomeDB'
+
+
 def test_bearer_auth_without_email():
     captured = {}
 

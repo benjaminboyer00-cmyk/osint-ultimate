@@ -106,6 +106,55 @@ def _is_concrete_target(target: str) -> bool:
     return True
 
 
+def _grounded_values(objective: str, root_entity_id, user_id) -> set:
+    """Ensemble des valeurs réellement connues : identifiants de l'objectif +
+    domaines de ses emails + entités déjà découvertes dans le graphe."""
+    known: set[str] = set()
+    ids = _extract_identifiers(objective or '')
+    for lst in ids.values():
+        for v in lst:
+            known.add(v.lower())
+    for e in ids['email']:
+        if '@' in e:
+            known.add(e.split('@', 1)[1].lower())     # domaine de l'email
+    try:
+        from services.correlation import build_graph_json
+        if root_entity_id:
+            g = build_graph_json(int(root_entity_id), int(user_id))
+            for n in g.get('nodes', []):
+                v = (n.get('value') or '').strip().lower()
+                if v:
+                    known.add(v)
+    except Exception:  # noqa: BLE001
+        pass
+    return known
+
+
+def _is_grounded_target(target: str, objective: str, known: set) -> bool:
+    """La cible doit exister dans l'objectif ou dans les données déjà découvertes.
+
+    Empêche le LLM d'inventer des valeurs plausibles (ex: « pourdehashed.fr »
+    fabriqué à partir de « pour dehashed », ou « dehashed.com » depuis le nom du
+    module) qui pollueraient le graphe avec des entités fantômes.
+    """
+    t = (target or '').strip().lower()
+    if not t:
+        return False
+    if t in _STOPWORDS:                    # mot vide pris pour une cible
+        return False
+    if t in known:
+        return True
+    if t in (objective or '').lower():     # apparaît littéralement dans l'objectif
+        return True
+    # cible = sous-partie d'une valeur connue (ex: « victoria » dans un email connu).
+    # UNIQUEMENT ce sens : jamais « connu ⊂ cible » (sinon « dehashed » validerait
+    # « pourdehashed.fr » inventé par le LLM).
+    for k in known:
+        if len(t) >= 4 and t in k:
+            return True
+    return False
+
+
 def _extract_target_from_params(params: dict, fallback: str) -> str:
     if not params:
         return fallback
@@ -204,6 +253,14 @@ _STOPWORDS = {
     'se', 'ce', 'cette', 'que', 'quoi', 'comment', 'où', 'quand', 'nom',
     'prénom', 'prenom', 'this', 'that', 'with', 'from', 'who', 'what', 'his',
     'her', 'get', 'sais', 'connais', 'donne', 'moi', 'plus', 'possible',
+    'peux', 'peut', 'veux', 'veut', 'autre', 'autres', 'donc', 'juste',
+    'dis', 'refaire', 'besoin', 'coup', 'fais', 'fait', 'voir', 'sur',
+    'aussi', 'encore', 'déjà', 'deja', 'bien', 'vraiment', 'via', 'grace',
+    'grâce', 'obtenu', 'resultat', 'résultat', 'concernant', 'à', 'au', 'aux',
+    # Noms d'outils/modules OSINT : ne doivent jamais être scannés comme pseudos.
+    'dehashed', 'hunter', 'sherlock', 'epieos', 'wayback', 'whois', 'shodan',
+    'otx', 'typosquat', 'subdomains', 'holehe', 'maigret', 'pipl', 'hibp',
+    'dorking', 'reverse', 'github', 'gitlab',
 }
 
 
@@ -455,6 +512,25 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
                     'investigation_id': investigation_id, 'step': step_num,
                     'phase': 'done', 'status': 'done', 'action': module, 'target': target,
                     'message': f'⏭️ {module} ignoré (cible non concrète)',
+                }, user_id)
+                continue
+
+            # Anti-hallucination : la cible doit être FONDÉE sur des données réelles
+            # (objectif ou entités déjà trouvées). Bloque les valeurs inventées par
+            # le LLM (« pourdehashed.fr », « dehashed.com »…) et les mots courants.
+            if not _is_grounded_target(target, objective,
+                                       _grounded_values(objective, inv.root_entity_id, user_id)):
+                steps.append({
+                    'step': step_num, 'action': module, 'target': target,
+                    'reason': reason, 'status': 'skipped', 'scan_id': None,
+                    'summary': 'Cible non fondée (absente des données réelles) — étape ignorée',
+                })
+                inv.steps_json = json.dumps(steps, ensure_ascii=False)
+                db.session.commit()
+                _emit(socketio, 'investigation_step', {
+                    'investigation_id': investigation_id, 'step': step_num,
+                    'phase': 'done', 'status': 'done', 'action': module, 'target': target,
+                    'message': f'⏭️ {module} ignoré (cible non fondée)',
                 }, user_id)
                 continue
 

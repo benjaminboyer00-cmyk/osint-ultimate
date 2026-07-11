@@ -231,27 +231,31 @@ async function refreshActivity() {
         : '<span style="color:#6f6553">Aucune activité enregistrée.</span>';
 }
 
-const dossierSocket = io({ transports: ['websocket', 'polling'] });
-dossierSocket.emit('join_dossier', { root_entity_id: ENTITY_ID });
-
-dossierSocket.on('scan_started', p =>{
-    if (scanStatusEl) {
-        scanStatusEl.style.display = 'block';
-        scanStatusEl.textContent = ` ${p.username || 'Quelqu\'un'} lance ${p.module} sur ${p.target}…`;
-    }
-    refreshActivity();
-});
-
-dossierSocket.on('scan_completed', p =>{
-    if (scanStatusEl) {
-        scanStatusEl.style.display = 'block';
-        scanStatusEl.textContent = ` Scan #${p.scan_id} ${p.module} terminé (${p.username || ''})`;
-    }
-    refreshActivity();
-});
-
-dossierSocket.on('comment_added', () =>refreshActivity());
-dossierSocket.on('invite_sent', () =>loadCollabs());
+// Socket.IO désactivé sur Hugging Face (createOsintSocket renvoie null) → pas
+// de tentative wss qui échoue en boucle. Le rafraîchissement passe par le polling.
+const dossierSocket = typeof createOsintSocket === 'function' ? createOsintSocket() : null;
+if (dossierSocket) {
+    dossierSocket.emit('join_dossier', { root_entity_id: ENTITY_ID });
+    dossierSocket.on('scan_started', p =>{
+        if (scanStatusEl) {
+            scanStatusEl.style.display = 'block';
+            scanStatusEl.textContent = ` ${p.username || 'Quelqu\'un'} lance ${p.module} sur ${p.target}…`;
+        }
+        refreshActivity();
+    });
+    dossierSocket.on('scan_completed', p =>{
+        if (scanStatusEl) {
+            scanStatusEl.style.display = 'block';
+            scanStatusEl.textContent = ` Scan #${p.scan_id} ${p.module} terminé (${p.username || ''})`;
+        }
+        refreshActivity();
+    });
+    dossierSocket.on('comment_added', () =>refreshActivity());
+    dossierSocket.on('invite_sent', () =>loadCollabs());
+} else {
+    // HF : rafraîchit le journal périodiquement (pas de push temps réel).
+    setInterval(refreshActivity, 15000);
+}
 
 const shareModal = document.getElementById('share-modal');
 if (document.getElementById('btn-share')) {

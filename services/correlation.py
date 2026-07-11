@@ -84,8 +84,12 @@ def process_scan_correlations(
         'typosquat': 'domain', 'reverse_ip': 'ip',
         'sherlock': 'username', 'pseudo': 'username', 'dorking': 'unknown',
     }
+    root_type = etype_map.get(module, 'unknown')
+    if module in ('dehashed', 'epieos', 'hunter') and root_type == 'unknown':
+        # cible = email ou pseudo selon sa forme (dehashed accepte les deux)
+        root_type = 'email' if '@' in target else ('domain' if '.' in target else 'username')
     root = _get_or_create_entity(
-        etype_map.get(module, 'unknown'),
+        root_type,
         target,
         user_id,
         scan_id,
@@ -131,13 +135,29 @@ def process_scan_correlations(
 
     elif module == 'dehashed':
         for row in (result.get('Entrées') or []):
-            if isinstance(row, dict):
-                if row.get('Email'):
-                    em = _get_or_create_entity('email', row['Email'].lower(), user_id, scan_id)
-                    _link(root, em, 'FUITES', row.get('Base', ''), scan_id, user_id)
-                if row.get('Username'):
-                    un = _get_or_create_entity('username', row['Username'].lower(), user_id, scan_id)
-                    _link(root, un, 'FUITES_PSEUDO', row.get('Base', ''), scan_id, user_id)
+            if not isinstance(row, dict):
+                continue
+            base = (row.get('Base') or 'Fuite (base inconnue)').strip()
+            date = row.get('Date')
+            # Nœud « fuite » visible dans le graphe (la base concernée) — c'est
+            # CE que l'utilisateur veut voir. Dédupliqué par nom de base.
+            leak_label = f"{base} ({date})" if date else base
+            leak_node = _get_or_create_entity('leak', leak_label, user_id, scan_id)
+            if not _entities_equivalent(root, leak_node):
+                _link(root, leak_node, 'FUITE', base, scan_id, user_id)
+            # Identifiants exposés reliés à la fuite (et non un self-link à la cible).
+            if row.get('Username'):
+                un = _get_or_create_entity('username', row['Username'].lower(), user_id, scan_id)
+                if not _entities_equivalent(root, un):
+                    _link(root, un, 'FUITE_PSEUDO', base, scan_id, user_id)
+                _link(leak_node, un, 'EXPOSE', base, scan_id, user_id)
+            if row.get('Téléphone'):
+                ph = _get_or_create_entity('phone', str(row['Téléphone']), user_id, scan_id)
+                if not _entities_equivalent(root, ph):
+                    _link(root, ph, 'FUITE_TEL', base, scan_id, user_id)
+            if row.get('Email') and row['Email'].lower() != (root.value or '').lower():
+                em = _get_or_create_entity('email', row['Email'].lower(), user_id, scan_id)
+                _link(root, em, 'FUITE_EMAIL', base, scan_id, user_id)
 
     elif module in ('whois', 'site', 'wayback'):
         de = _get_or_create_entity('domain', _normalize_domain_value(target), user_id, scan_id)

@@ -103,7 +103,7 @@ document.querySelectorAll('.run-btn').forEach(btn =>{
         });
         const d = await r.json();
         if (d.scan_id) {
-            msg.innerHTML = `Scan #${d.scan_id} — <a href="/expert?scan=${d.scan_id}" style="color:var(--accent2)">suivre</a>`;
+            msg.innerHTML = `Scan #${d.scan_id} — <a href="/expert?scan_id=${d.scan_id}" style="color:var(--accent2)">voir le résultat</a>`;
         } else {
             msg.textContent = d.error || 'Erreur';
             msg.className = 'err';
