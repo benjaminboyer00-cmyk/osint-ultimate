@@ -99,8 +99,17 @@ _SYSTEM = (
     '  "liens_hypothetiques": [{"de": "valeur", "vers": "valeur", "hypothese": "...", "confiance": 0.0}],\n'
     '  "pistes": [{"action": "module + cible concrète", "raison": "...", "priorite": 1}]\n'
     '}\n'
-    "N'invente pas de données absentes du graphe. Si une section est vide, "
-    "renvoie une liste vide. Priorité : 1 = la plus urgente."
+    "RÈGLES ANTI-HALLUCINATION (impératives) :\n"
+    "- Utilise EXCLUSIVEMENT les valeurs présentes dans les faits fournis. "
+    "Ne cite jamais un identifiant, une personne, une plateforme ou un lieu "
+    "qui n'y figure pas.\n"
+    "- N'INVENTE aucune donnée (pas de nom réel deviné, pas de fait supposé). "
+    "En cas de doute, reste factuel ou laisse la section vide.\n"
+    "- Une « incohérence » ou une « hypothèse » doit s'appuyer sur des liens "
+    "réellement présents ; sinon ne la mentionne pas.\n"
+    "- Reste neutre et prudent (usage OSINT légal / RGPD). Pas d'accusation.\n"
+    "- Si les faits sont trop pauvres pour analyser, renvoie une synthèse "
+    "courte et des listes vides. Priorité : 1 = la plus urgente."
 )
 
 
@@ -163,6 +172,38 @@ def _pseudonymize_facts(payload: dict, pseudo) -> dict:
     }
 
 
+def _ground_analysis(out: dict, payload: dict) -> dict:
+    """Garde-fou anti-hallucination : ne garde que les affirmations
+    structurées qui référencent des valeurs RÉELLEMENT présentes dans le graphe.
+    """
+    real = {str(e.get('valeur')).lower() for e in payload.get('entites', []) if e.get('valeur')}
+    for grp in payload.get('personnes_regroupees', []):
+        real.update(str(v).lower() for v in grp)
+    if payload.get('cible'):
+        real.add(str(payload['cible']).lower())
+    if not real:
+        return out
+
+    def known(v):
+        return v and str(v).lower() in real
+
+    # liens hypothétiques : les deux extrémités doivent exister
+    out['liens_hypothetiques'] = [
+        l for l in (out.get('liens_hypothetiques') or [])
+        if isinstance(l, dict) and known(l.get('de')) and known(l.get('vers'))
+    ]
+    # personnes : ne garder que les identifiants réels
+    persons = []
+    for p in (out.get('personnes') or []):
+        if not isinstance(p, dict):
+            continue
+        ids = [i for i in (p.get('identifiants') or []) if known(i)]
+        if ids:
+            persons.append({**p, 'identifiants': ids})
+    out['personnes'] = persons
+    return out
+
+
 def analyze_graph(user_id: int, entity_id: int) -> dict:
     """Analyse IA structurée du graphe (avec repli déterministe).
 
@@ -193,6 +234,7 @@ def analyze_graph(user_id: int, entity_id: int) -> dict:
             out.setdefault('incoherences', [])
             out.setdefault('liens_hypothetiques', [])
             out.setdefault('pistes', [])
+            out = _ground_analysis(out, payload)  # supprime les affirmations hallucinées
             out['source'] = 'ia'
             return out
         logger.info('analyze_graph: réponse IA inexploitable, repli déterministe')
