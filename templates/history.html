@@ -20,7 +20,7 @@
             margin: 0 auto;
             background: var(--panel);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius:3px;
             padding: 2rem;
         }
         h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--accent); }
@@ -53,9 +53,9 @@
         .badge {
             display: inline-block;
             padding: .2em .5em;
-            border-radius: 12px;
+            border-radius:3px;
             font-size: .75rem;
-            background: rgba(0,229,160,.15);
+            background: rgba(77,109,128,.15);
             color: var(--accent);
         }
         @media(max-width:600px){
@@ -81,13 +81,13 @@
     </div>
     <h1>Historique des scans</h1>
     <form method="get" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
-        <select name="module" style="padding:.5rem;background:#14171c;color:#e7ddc9;border:1px solid var(--border);border-radius:8px">
+        <select name="module" style="padding:.5rem;background:#15120d;color:#e7ddc9;border:1px solid var(--border);border-radius:3px">
             <option value="">Tous modules</option>
             {% for m in ['email','phone','ip','sherlock','hunter','dehashed','site','whois','wayback'] %}
             <option value="{{ m }}" {% if module_filter==m %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
         </select>
-        <button type="submit" style="padding:.5rem 1rem;background:var(--accent);color:#000;border:none;border-radius:8px">Filtrer</button>
+        <button type="submit" style="padding:.5rem 1rem;background:var(--accent);color:#f3ecdd;border:none;border-radius:3px">Filtrer</button>
     </form>
     {% if scans %}
     <table>

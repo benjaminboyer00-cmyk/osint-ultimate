@@ -6,10 +6,10 @@
     <style>
         body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#15120d;color:#e7ddc9;padding:1.5rem;max-width:720px;margin:0 auto}
         a{color:#4d6d80} h1{color:#4d6d80} h2{color:#4d6d80;font-size:1.1rem;margin:1.5rem 0 .8rem}
-        .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1rem;margin:.8rem 0}
-        button,.btn-link{background:#4d6d80;color:#000;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block;font-size:.88rem;margin:.25rem .25rem 0 0}
+        .card{background:#1d1913;border:1px solid rgba(255,255,255,.08);border-radius:3px;padding:1rem;margin:.8rem 0}
+        button,.btn-link{background:#4d6d80;color:#f3ecdd;border:none;padding:.5rem 1rem;border-radius:3px;cursor:pointer;text-decoration:none;display:inline-block;font-size:.88rem;margin:.25rem .25rem 0 0}
         .btn-secondary{background:#4d6d80;color:#fff}
-        .role{color:#5a6180;font-size:.85rem}
+        .role{color:#a99d86;font-size:.85rem}
     </style>
 </head>
 <body>
@@ -20,7 +20,7 @@
     <h1>Collaboration</h1>
 
     <h2>Mes dossiers partagés</h2>
-    <p style="font-size:.85rem;color:#5a6180">Dossiers auxquels vous avez accès (invitation déjà acceptée).</p>
+    <p style="font-size:.85rem;color:#a99d86">Dossiers auxquels vous avez accès (invitation déjà acceptée).</p>
     {% if shared_dossiers %}
     {% for d in shared_dossiers %}
     <div class="card">
@@ -32,7 +32,7 @@
     </div>
     {% endfor %}
     {% else %}
-    <p style="color:#5a6180">Aucun dossier partagé pour le moment.</p>
+    <p style="color:#a99d86">Aucun dossier partagé pour le moment.</p>
     {% endif %}
 
     <h2>Invitations en attente</h2>
@@ -46,7 +46,7 @@
     </div>
     {% endfor %}
     {% else %}
-    <p style="color:#5a6180">Aucune invitation en attente.</p>
+    <p style="color:#a99d86">Aucune invitation en attente.</p>
     {% endif %}
 
 <script>

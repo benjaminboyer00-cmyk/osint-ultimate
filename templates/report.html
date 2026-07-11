@@ -10,49 +10,54 @@
             @top-center { content: element(header); }
             @bottom-center { content: element(footer); }
         }
-        body { font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif; font-size: 11px; color: #1a1a2e; line-height: 1.45; }
+        body { font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif; font-size: 11px; color: #211c15; line-height: 1.45; }
         #header {
             position: running(header);
             text-align: center;
-            font-size: 9px;
-            color: #666;
-            border-bottom: 1px solid #ddd;
+            font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+            font-family: 'DejaVu Sans Mono', monospace;
+            color: #5a5140;
+            border-bottom: 1px solid #cebfa0;
             padding-bottom: 6px;
         }
         #footer {
             position: running(footer);
             text-align: center;
-            font-size: 8px;
-            color: #888;
-            border-top: 1px solid #ddd;
+            font-size: 7.5px; letter-spacing: .06em;
+            font-family: 'DejaVu Sans Mono', monospace;
+            color: #7a6f57;
+            border-top: 1px solid #cebfa0;
             padding-top: 6px;
         }
-        .cover { text-align: center; margin-bottom: 2em; padding-bottom: 1.5em; border-bottom: 3px solid #006644; }
-        .cover h1 { font-size: 22px; color: #006644; margin: 0 0 .3em 0; }
-        .cover .sub { font-size: 12px; color: #555; }
-        .meta { background: #f4f6f8; padding: 12px 14px; border-radius: 6px; margin-bottom: 1.5em; font-size: 10px; }
-        .meta strong { color: #006644; }
-        h2 { font-size: 13px; color: #006644; margin-top: 1.4em; border-bottom: 1px solid #ccc; padding-bottom: 4px; page-break-after: avoid; }
-        .ai { background: #eef6ff; padding: 12px; border-left: 4px solid #0066cc; margin: 1em 0; white-space: pre-wrap; font-size: 10px; }
-        pre { background: #f5f5f5; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; font-size: 9px; border: 1px solid #e8e8e8; border-radius: 4px; }
-        .graph-img { max-width: 100%; margin: 1em 0; border: 1px solid #ddd; page-break-inside: avoid; }
-        .sources { font-size: 9px; color: #666; margin-top: 2em; }
+        .eyebrow { font-family: 'DejaVu Sans Mono', monospace; font-size: 8px; letter-spacing: .22em; text-transform: uppercase; color: #7f271f; }
+        .cover { text-align: center; margin-bottom: 2em; padding-bottom: 1.5em; border-bottom: 2px solid #a5342a; }
+        .cover h1 { font-family: 'DejaVu Serif', Georgia, serif; font-size: 24px; color: #211c15; margin: .3em 0 .3em 0; }
+        .cover .sub { font-size: 10px; color: #5a5140; font-family: 'DejaVu Sans Mono', monospace; letter-spacing: .04em; }
+        .meta { background: #efe7d5; padding: 12px 14px; border: 1px solid #d8caab; border-radius: 3px; margin-bottom: 1.5em; font-size: 10px; font-family: 'DejaVu Sans Mono', monospace; }
+        .meta strong { color: #3a5666; }
+        h2 { font-family: 'DejaVu Serif', Georgia, serif; font-size: 13px; color: #3a5666; margin-top: 1.4em; border-bottom: 1px solid #cebfa0; padding-bottom: 4px; page-break-after: avoid; }
+        .ai { background: #eef0ec; padding: 12px; border-left: 3px solid #4d6d80; margin: 1em 0; white-space: pre-wrap; font-size: 10px; }
+        pre { background: #f1ead9; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; font-size: 9px; border: 1px solid #dcceb0; border-radius: 3px; font-family: 'DejaVu Sans Mono', monospace; }
+        .graph-img { max-width: 100%; margin: 1em 0; border: 1px solid #cebfa0; page-break-inside: avoid; }
+        .sources { font-size: 9px; color: #5a5140; margin-top: 2em; }
         .signature {
-            margin-top: 2em; padding: 14px; border: 2px solid #006644;
-            border-radius: 8px; background: #f8fffc; page-break-inside: avoid;
+            margin-top: 2em; padding: 16px; border: 2px solid #a5342a;
+            border-radius: 3px; background: #f6ece2; page-break-inside: avoid;
+            box-shadow: inset 0 0 0 3px rgba(165,52,42,.12);
         }
-        .signature h3 { font-size: 12px; color: #006644; margin: 0 0 8px 0; }
-        .hash { font-family: 'DejaVu Sans Mono', monospace; font-size: 7.5px; color: #333; word-break: break-all; line-height: 1.5; margin: 4px 0; }
-        .hash-label { font-size: 8px; font-weight: bold; color: #006644; }
+        .signature h3 { font-family: 'DejaVu Serif', Georgia, serif; font-size: 12px; color: #7f271f; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: .08em; }
+        .hash { font-family: 'DejaVu Sans Mono', monospace; font-size: 7.5px; color: #211c15; word-break: break-all; line-height: 1.5; margin: 4px 0; }
+        .hash-label { font-family: 'DejaVu Sans Mono', monospace; font-size: 8px; font-weight: bold; color: #7f271f; text-transform: uppercase; letter-spacing: .08em; }
     </style>
 </head>
 <body>
-    <div id="header">OSINT Ultimate V5 — Rapport confidentiel — {{ generated_at }}</div>
-    <div id="footer">Signature {{ signature_hash[:16] if signature_hash else '—' }}… — Scan #{{ scan.id }} — Conformité RGPD</div>
+    <div id="header">OSINT Ultimate — Pièce versée au dossier — {{ generated_at }}</div>
+    <div id="footer">Scellé {{ signature_hash[:16] if signature_hash else '—' }}… — Scan #{{ scan.id }} — Conformité RGPD</div>
 
     <div class="cover">
+        <span class="eyebrow">Dossier d'enquête · scellé</span>
         <h1>Rapport d'investigation OSINT</h1>
-        <p class="sub">OSINT Ultimate · Version 5.0 · Document certifié par empreinte SHA-256</p>
+        <p class="sub">OSINT Ultimate · Document scellé par signature HMAC-SHA256</p>
     </div>
 
     <div class="meta">
@@ -89,7 +94,7 @@
     <h2>Données collectées</h2>
     <p class="sources">Sources publiques interrogées — réponses brutes ci-dessous.</p>
     {% if data.get('_note_pdf') %}
-    <p class="sources" style="color:#a60"><strong>Note :</strong>{{ data._note_pdf }}</p>
+    <p class="sources" style="color:#8a5a12"><strong>Note :</strong>{{ data._note_pdf }}</p>
     {% endif %}
 
     {% for section, content in data.items() %}
@@ -100,10 +105,11 @@
     {% endfor %}
 
     <div class="signature">
-        <h3>Signature numérique d'intégrité</h3>
+        <h3>● Scellé d'intégrité</h3>
         <p style="font-size:9px;margin-bottom:8px">
-            Ce bloc atteste que le contenu du rapport n'a pas été altéré depuis sa génération.
-            L'empreinte des données et la signature du document sont calculées en SHA-256.
+            Ce cachet atteste que le contenu du rapport n'a pas été altéré depuis sa génération.
+            L'empreinte des données et la signature du document sont calculées en SHA-256 (signature HMAC).
+            Vérifiable sur la page <strong>/verify/{{ scan.id }}</strong>.
         </p>
         <p class="hash-label">Empreinte du contenu (SHA-256)</p>
         <p class="hash">{{ content_hash or 'N/A' }}</p>

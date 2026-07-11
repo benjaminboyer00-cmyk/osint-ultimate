@@ -5,24 +5,45 @@
     <title>{{ dossier.title }} – OSINT Ultimate</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <style>
-        body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#15120d;color:#e7ddc9;padding:1.5rem;max-width:960px;margin:0 auto}
-        a{color:#4d6d80} h1{color:#4d6d80}
-        .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin:1rem 0}
+        :root{--stamp-deep:#3a5666;--seal:#a5342a;--verdigris:#46705f;--amber:#b8802f;
+              --paper-muted:#5a5140;--serif:'IBM Plex Serif',Georgia,serif;--mono:'IBM Plex Mono',monospace;}
+        body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#15120d;color:#e7ddc9;padding:1.5rem 1rem 4rem;max-width:900px;margin:0 auto;line-height:1.6}
+        a{color:#4d6d80;text-decoration:none} a:hover{color:#e7ddc9}
+        .topnav{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;display:flex;gap:1.1rem;flex-wrap:wrap;color:#6f6553;margin-bottom:1.4rem}
+        .topnav a{color:#a99d86}
+        .eyebrow{font-family:var(--mono);font-size:.72rem;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:#6f6553;display:block;margin-bottom:.35rem}
+        h1{font-family:var(--serif);font-weight:700;font-size:clamp(1.6rem,4vw,2.3rem);letter-spacing:-.01em;color:#e7ddc9;margin:.1rem 0}
+        h2{font-family:var(--mono);font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.16em;color:#a99d86;margin:2rem 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid rgba(230,215,185,.13)}
+        h3{font-family:var(--serif);font-weight:600}
+        .ref{font-family:var(--mono);color:#a99d86;letter-spacing:.06em;font-size:.85rem}
+        .card{background:#1d1913;border:1px solid rgba(230,215,185,.13);border-radius:3px;padding:1.2rem;margin:.8rem 0;box-shadow:0 1px 0 rgba(0,0,0,.3),0 10px 24px -14px rgba(0,0,0,.55)}
+        .card strong{font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;font-size:.8rem}
+        .card .val{font-family:var(--mono);color:#e7ddc9}
+        small{color:#a99d86}
         .timeline{border-left:2px solid #4d6d80;padding-left:1rem;margin:1rem 0}
-        .timeline div{margin:.5rem 0;font-size:.88rem}
-        .sug{background:rgba(0,229,160,.08);padding:.6rem;border-radius:8px;margin:.4rem 0;display:flex;justify-content:space-between;align-items:center}
-        button{background:#4d6d80;color:#000;border:none;padding:.4rem .8rem;border-radius:6px;cursor:pointer}
-        input,select{padding:.5rem;background:#14171c;border:1px solid rgba(255,255,255,.1);color:#e7ddc9;border-radius:6px}
+        .timeline div{margin:.5rem 0;font-size:.86rem;font-family:var(--mono)}
+        .timeline small{color:#6f6553}
+        .sug{background:#241f17;border:1px solid rgba(230,215,185,.1);border-left:3px solid #4d6d80;padding:.6rem .8rem;border-radius:2px;margin:.4rem 0;display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.86rem}
+        .sug code{font-family:var(--mono);color:#b8802f}
+        button{background:#4d6d80;color:#f3ecdd;border:1px solid var(--stamp-deep);padding:.42rem .9rem;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600;transition:background .16s}
+        button:hover{background:var(--stamp-deep)}
+        input,select{padding:.5rem .6rem;background:#15120d;border:1px solid rgba(230,215,185,.22);color:#e7ddc9;border-radius:3px;font-family:var(--mono);font-size:.85rem}
+        input:focus,select:focus{outline:none;border-color:#4d6d80}
+        pre{font-family:var(--mono)}
     </style>
 </head>
 <body>
-    <p><a href="{{ url_for('views.expert') }}">← Expert</a>
-       <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">Graphe</a>
-       <a href="{{ url_for('views.map_view', entity_id=dossier.entity.id) }}">Carte</a>
-       <a href="{{ url_for('views.timeline_view', entity_id=dossier.entity.id) }}">Timeline</a></p>
+    <nav class="topnav">
+        <a href="{{ url_for('views.expert') }}">← Expert</a>
+        <a href="{{ url_for('views.graph_view', entity_id=dossier.entity.id) }}">Graphe</a>
+        <a href="{{ url_for('views.map_view', entity_id=dossier.entity.id) }}">Carte</a>
+        <a href="{{ url_for('views.timeline_view', entity_id=dossier.entity.id) }}">Timeline</a>
+    </nav>
+    <span class="eyebrow">Dossier d'enquête</span>
     <h1>{{ dossier.title }}</h1>
-    <div class="card">
-        <strong>{{ dossier.entity.type }}</strong>: {{ dossier.entity.value }}<br>
+    <p class="ref">OSINT-{{ '%04d'|format(dossier.entity.id) }} · {{ dossier.scans_count }} pièces · {{ dossier.links_count }} corrélations</p>
+    <div class="card" style="margin-top:1rem">
+        <strong>{{ dossier.entity.type }}</strong> <span class="val">{{ dossier.entity.value }}</span><br>
         <small>{{ dossier.scans_count }} scans · {{ dossier.links_count }} liens</small>
         {% if dossier.access %}
         <br><small style="color:#4d6d80">Accès : {{ dossier.access.role }}{% if dossier.access.is_owner %} (propriétaire){% endif %}</small>
@@ -44,17 +65,17 @@
                     <option value="admin">Admin</option>
                 </select>
             </label>
-            <p style="font-size:.8rem;color:#8a92b0;margin:.5rem 0 0">
+            <p style="font-size:.8rem;color:#a99d86;margin:.5rem 0 0">
                 Pas d'email automatique — après invitation, copiez le lien ci-dessous pour l'envoyer manuellement (messagerie, Slack, etc.).
             </p>
             <button type="button" id="btn-invite-send">Créer l'invitation</button>
-            <button type="button" id="btn-share-close" style="background:#444;color:#fff;margin-left:.5rem">Fermer</button>
+            <button type="button" id="btn-share-close" style="background:transparent;color:#a99d86;border-color:rgba(230,215,185,.22);margin-left:.5rem">Fermer</button>
             <div id="invite-link-box" style="display:none;margin-top:1rem">
                 <label style="font-size:.85rem">Lien à partager<br>
                     <input type="text" id="invite-link" readonly style="width:100%;margin:.4rem 0;font-size:.8rem">
                 </label>
                 <button type="button" id="btn-copy-invite" style="background:#4d6d80;color:#fff">Copier le lien</button>
-                <p id="invite-hint" style="font-size:.78rem;color:#5a6180;margin:.4rem 0 0"></p>
+                <p id="invite-hint" style="font-size:.78rem;color:#6f6553;margin:.4rem 0 0"></p>
             </div>
             <ul id="collab-list" style="margin-top:1rem;padding-left:1.2rem;font-size:.85rem"></ul>
         </div>
@@ -62,7 +83,7 @@
 
     <h2>Rapport narratif IA</h2>
     <div class="card" id="narrative-panel">
-        <p style="font-size:.88rem;color:#8a92b0;margin-top:0">
+        <p style="font-size:.88rem;color:#a99d86;margin-top:0">
             Rédaction automatique (Groq) : introduction, chronologie, corrélations, hypothèses et recommandations.
         </p>
         <label style="font-size:.85rem">Style
@@ -83,8 +104,8 @@
             <button type="button" id="btn-narrative">Générer le texte</button>
             <button type="button" id="btn-narrative-pdf" style="background:#4d6d80;color:#fff">PDF narratif</button>
         </div>
-        <pre id="narrative-out" style="display:none;margin-top:1rem;max-height:320px;overflow:auto;font-size:.78rem;white-space:pre-wrap;background:#0d1018;padding:1rem;border-radius:8px"></pre>
-        <p id="narrative-status" style="font-size:.85rem;color:#5a6180;margin-top:.6rem"></p>
+        <pre id="narrative-out" style="display:none;margin-top:1rem;max-height:360px;overflow:auto;font-size:.8rem;line-height:1.55;white-space:pre-wrap;background:#e6dcc7;color:#211c15;padding:1.3rem;border-radius:3px;box-shadow:0 1px 0 rgba(0,0,0,.3),0 14px 30px -16px rgba(0,0,0,.6)"></pre>
+        <p id="narrative-status" style="font-size:.85rem;color:#6f6553;margin-top:.6rem"></p>
     </div>
 
     <h2>Corrélations suggérées</h2>
@@ -97,7 +118,7 @@
         <button onclick="launchRebound('{{ s.module }}','{{ s.target }}')">Lancer</button>
     </div>
     {% else %}
-    <p style="color:#5a6180">Aucune suggestion — lancez des scans pour enrichir le dossier.</p>
+    <p style="color:#6f6553">Aucune suggestion — lancez des scans pour enrichir le dossier.</p>
     {% endfor %}
 
     {% if dossier.access and dossier.access.can_edit %}
@@ -115,7 +136,7 @@
         <button type="submit">Analyser</button>
     </form>
     {% else %}
-    <p style="color:#5a6180;font-size:.88rem">Mode lecture seule — les scans nécessitent le rôle éditeur.</p>
+    <p style="color:#6f6553;font-size:.88rem">Mode lecture seule — les scans nécessitent le rôle éditeur.</p>
     {% endif %}
 
     <h2>Journal d'activité</h2>
@@ -136,7 +157,7 @@
             {% endif %}
         </div>
         {% else %}
-        <span style="color:#5a6180">Aucune activité enregistrée.</span>
+        <span style="color:#6f6553">Aucune activité enregistrée.</span>
         {% endfor %}
     </div>
 
@@ -147,7 +168,7 @@
         <div style="margin:.5rem 0;font-size:.85rem">
             <strong>{{ snap.date or '—' }}</strong>
             {% if snap.archive %}<a href="{{ snap.archive }}" target="_blank" rel="noopener">Archive</a>{% endif %}
-            <span style="color:#5a6180">— {{ snap.url or '' }}</span>
+            <span style="color:#6f6553">— {{ snap.url or '' }}</span>
         </div>
         {% endfor %}
     </div>
@@ -207,7 +228,7 @@ async function refreshActivity() {
     const rows = data.activity || [];
     el.innerHTML = rows.length
         ? rows.map(formatActivityLine).join('')
-        : '<span style="color:#5a6180">Aucune activité enregistrée.</span>';
+        : '<span style="color:#6f6553">Aucune activité enregistrée.</span>';
 }
 
 const dossierSocket = io({ transports: ['websocket', 'polling'] });

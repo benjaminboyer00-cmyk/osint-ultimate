@@ -43,7 +43,7 @@ def qr_code_data_uri(url: str, *, box_size: int = 4) -> str:
     qr = qrcode.QRCode(version=1, box_size=box_size, border=2)
     qr.add_data(url)
     qr.make(fit=True)
-    img = qr.make_image(fill_color='#006644', back_color='white')
+    img = qr.make_image(fill_color='#211c15', back_color='white')
     buf = io.BytesIO()
     img.save(buf, format='PNG')
     b64 = base64.b64encode(buf.getvalue()).decode('ascii')

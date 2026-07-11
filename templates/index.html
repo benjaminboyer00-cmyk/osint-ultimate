@@ -242,16 +242,16 @@
             display:inline-block; padding:.15em .55em; border-radius:20px;
             font-size:.72rem; font-weight:700; white-space:nowrap;
         }
-        .b-ok { background:rgba(0,229,160,.15); color:var(--accent); }
-        .b-err { background:rgba(255,71,87,.15); color:var(--error); }
+        .b-ok { background:rgba(77,109,128,.15); color:var(--accent); }
+        .b-err { background:rgba(165,52,42,.15); color:var(--error); }
         .b-warn{ background:rgba(255,165,2,.15); color:var(--warning); }
-        .b-info{ background:rgba(77,159,255,.15); color:var(--accent2); }
+        .b-info{ background:rgba(77,109,128,.15); color:var(--accent2); }
 
         /* ── AI box ── */
         .ai-box {
             display:none; margin-top:1.2rem;
-            background: rgba(77,159,255,.06);
-            border:1px solid rgba(77,159,255,.2);
+            background: rgba(77,109,128,.06);
+            border:1px solid rgba(77,109,128,.2);
             border-radius:var(--r); padding:1rem 1.2rem;
         }
         .ai-btn {
@@ -266,7 +266,7 @@
         /* ── Export bar ── */
         #monitor-panel {
             display: none; margin-top: 1rem; padding: 1rem 1.1rem;
-            background: rgba(77,159,255,.08); border: 1px solid rgba(77,159,255,.25);
+            background: rgba(77,109,128,.08); border: 1px solid rgba(77,109,128,.25);
             border-radius: var(--r); font-size: .85rem;
         }
         #monitor-panel label { cursor: pointer; color: var(--text); }
@@ -496,7 +496,7 @@
     </div>
 
     {% if authenticated %}
-    <div id="shared-dossiers-panel" style="margin:1rem 0;padding:1rem;background:rgba(77,159,255,.06);border:1px solid var(--border);border-radius:var(--r)">
+    <div id="shared-dossiers-panel" style="margin:1rem 0;padding:1rem;background:rgba(77,109,128,.06);border:1px solid var(--border);border-radius:var(--r)">
         <strong style="color:var(--accent2)">Dossiers partagés avec moi</strong>
         <p style="font-size:.8rem;color:var(--text-dim);margin:.35rem 0 .6rem">
             Investigations où vous êtes invité (lecteur / éditeur).
@@ -607,7 +607,7 @@ function animate(){
         const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.hypot(dx,dy);
         if(d<CDIST){
             ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
-            ctx.strokeStyle=`rgba(0,229,160,${.6*(1-d/CDIST)})`; ctx.lineWidth=.5; ctx.stroke();
+            ctx.strokeStyle=`rgba(77,109,128,${.6*(1-d/CDIST)})`; ctx.lineWidth=.5; ctx.stroke();
         }
     }
     requestAnimationFrame(animate);

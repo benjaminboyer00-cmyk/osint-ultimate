@@ -10,16 +10,16 @@
         a{color:#4d6d80;margin-right:1rem}
         table{width:100%;border-collapse:collapse;margin:1.5rem 0;font-size:.88rem}
         th,td{padding:.6rem;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
-        form.box{background:rgba(255,255,255,.04);padding:1.2rem;border-radius:12px;margin-bottom:2rem}
-        input,select{padding:.6rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#14171c;color:#e7ddc9;margin:.3rem 0}
-        button{padding:.5rem 1rem;background:#4d6d80;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+        form.box{background:rgba(230,215,185,.04);padding:1.2rem;border-radius:3px;margin-bottom:2rem}
+        input,select{padding:.6rem;border-radius:3px;border:1px solid rgba(255,255,255,.1);background:#15120d;color:#e7ddc9;margin:.3rem 0}
+        button{padding:.5rem 1rem;background:#4d6d80;color:#f3ecdd;border:none;border-radius:3px;cursor:pointer;font-weight:600}
         .off{opacity:.5}
     </style>
 </head>
 <body>
     <p><a href="{{ url_for('views.expert') }}">Expert</a><a href="{{ url_for('views.settings') }}">Paramètres</a></p>
     <h1>Scans programmés</h1>
-    <p style="color:#5a6180;font-size:.9rem">Surveillez une cible automatiquement (toutes les X heures). Nécessite une session connectée.</p>
+    <p style="color:#a99d86;font-size:.9rem">Surveillez une cible automatiquement (toutes les X heures). Nécessite une session connectée.</p>
 
     <form class="box" method="post">
         <label>Cible</label><br>
@@ -63,10 +63,10 @@
         </tbody>
     </table>
     {% else %}
-    <p style="color:#5a6180">Aucune surveillance active.</p>
+    <p style="color:#a99d86">Aucune surveillance active.</p>
     {% endif %}
 
-    <p style="margin-top:2rem;font-size:.85rem;color:#5a6180">
+    <p style="margin-top:2rem;font-size:.85rem;color:#a99d86">
         API : <code>POST /api/v1/scheduled</code>avec header <code>X-API-Key</code>
     </p>
 </body>

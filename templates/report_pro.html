@@ -12,17 +12,17 @@
         }
         body {
             font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif;
-            font-size: 10.5px; color: #1a1a2e; line-height: 1.5;
+            font-size: 10.5px; color: #211c15; line-height: 1.5;
         }
         #page-header {
             position: running(page-header);
-            font-size: 8px; color: #555; text-align: center;
-            border-bottom: 1px solid #ccc; padding-bottom: 5px;
+            font-size: 8px; color: #5a5140; text-align: center;
+            border-bottom: 1px solid #cebfa0; padding-bottom: 5px;
         }
         #page-footer {
             position: running(page-footer);
-            font-size: 7.5px; color: #777; text-align: center;
-            border-top: 1px solid #ccc; padding-top: 5px;
+            font-size: 7.5px; color: #7a6f57; text-align: center;
+            border-top: 1px solid #cebfa0; padding-top: 5px;
         }
         .cover {
             page-break-after: always;
@@ -31,35 +31,38 @@
         }
         .cover .classif {
             display: inline-block;
-            border: 2px solid #006644;
-            color: #006644;
+            border: 2px solid #a5342a;
+            color: #7f271f;
+            font-family: 'DejaVu Sans Mono', monospace;
             font-weight: bold;
             padding: 6px 20px;
             margin-bottom: 1.5em;
-            font-size: 11px;
-            letter-spacing: 2px;
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
         }
-        .cover h1 { font-size: 24px; color: #006644; margin: 0 0 .4em 0; }
-        .cover .sub { font-size: 13px; color: #444; margin-bottom: 2em; }
-        .cover .meta-line { font-size: 10px; color: #666; margin: .3em 0; }
+        .cover h1 { font-family: 'DejaVu Serif', Georgia, serif; font-size: 26px; color: #211c15; margin: 0 0 .4em 0; }
+        .cover .sub { font-family: 'DejaVu Sans Mono', monospace; font-size: 10px; color: #5a5140; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2em; }
+        .cover .meta-line { font-family: 'DejaVu Sans Mono', monospace; font-size: 10px; color: #5a5140; margin: .3em 0; }
         h2 {
-            font-size: 14px; color: #006644;
-            border-bottom: 2px solid #006644;
+            font-family: 'DejaVu Serif', Georgia, serif;
+            font-size: 14px; color: #3a5666;
+            border-bottom: 1px solid #cebfa0;
             padding-bottom: 4px;
             margin-top: 1.6em;
             page-break-after: avoid;
         }
-        h3 { font-size: 11px; color: #333; margin-top: 1em; }
+        h3 { font-family: 'DejaVu Serif', Georgia, serif; font-size: 11px; color: #3a352a; margin-top: 1em; }
         .exec {
-            background: #f0f7f4;
-            border-left: 4px solid #006644;
+            background: #eef0ec;
+            border-left: 4px solid #3a5666;
             padding: 14px 16px;
             margin: 1em 0;
             font-size: 10.5px;
             white-space: pre-wrap;
         }
         .meta-box {
-            background: #f4f6f8;
+            background: #efe7d5;
             padding: 12px 14px;
             border-radius: 4px;
             margin: 1em 0;
@@ -72,37 +75,38 @@
             margin: 1em 0;
         }
         table.trace th {
-            background: #006644;
+            background: #3a5666;
             color: #fff;
             padding: 6px 8px;
             text-align: left;
         }
         table.trace td {
-            border: 1px solid #ddd;
+            border: 1px solid #cebfa0;
             padding: 5px 8px;
             vertical-align: top;
         }
-        table.trace tr:nth-child(even) { background: #f9f9f9; }
+        table.trace tr:nth-child(even) { background: #f3eee0; }
         pre {
-            background: #f5f5f5;
+            background: #f1ead9;
             padding: 8px 10px;
             white-space: pre-wrap;
             word-break: break-word;
             font-size: 8.5px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #dcceb0;
             page-break-inside: avoid;
         }
         .graph-img {
             max-width: 100%;
-            border: 1px solid #ccc;
+            border: 1px solid #cebfa0;
             margin: 1em 0;
             page-break-inside: avoid;
         }
         .signature {
             margin-top: 2em;
             padding: 16px;
-            border: 2px solid #006644;
-            background: #f8fffc;
+            border: 2px solid #a5342a;
+            background: #f6ece2;
+            box-shadow: inset 0 0 0 3px rgba(165,52,42,.12);
             page-break-inside: avoid;
         }
         .hash {
@@ -114,31 +118,32 @@
         }
         .legal {
             font-size: 8.5px;
-            color: #555;
+            color: #5a5140;
             margin-top: 1.5em;
-            border-top: 1px solid #ddd;
+            border-top: 1px solid #cebfa0;
             padding-top: 10px;
         }
-        .ai { background: #eef6ff; padding: 12px; border-left: 4px solid #0066cc; white-space: pre-wrap; font-size: 10px; }
+        .ai { background: #eef0ec; padding: 12px; border-left: 4px solid #4d6d80; white-space: pre-wrap; font-size: 10px; }
         .narrative {
             font-size: 10px;
             line-height: 1.55;
             margin: 1em 0;
             page-break-inside: avoid;
         }
-        .narrative h2 { font-size: 13px; color: #006644; border-bottom: 1px solid #ccc; margin-top: 1.2em; }
-        .narrative h3 { font-size: 11px; color: #333; }
+        .narrative h2 { font-size: 13px; color: #3a5666; border-bottom: 1px solid #cebfa0; margin-top: 1.2em; }
+        .narrative h3 { font-size: 11px; color: #3a352a; }
         .narrative ul, .narrative ol { margin: .4em 0 .8em 1.2em; }
         .narrative table { width: 100%; border-collapse: collapse; font-size: 8.5px; margin: .8em 0; }
-        .narrative th, .narrative td { border: 1px solid #ddd; padding: 4px 6px; }
-        .narrative th { background: #f0f7f4; }
+        .narrative th, .narrative td { border: 1px solid #cebfa0; padding: 4px 6px; }
+        .narrative th { background: #eef0ec; }
         .seal-box {
             margin: 1.5em auto 0;
             max-width: 420px;
             text-align: left;
-            border: 2px solid #006644;
+            border: 2px solid #a5342a;
             padding: 14px 16px;
-            background: #f8fffc;
+            background: #f6ece2;
+            box-shadow: inset 0 0 0 3px rgba(165,52,42,.12);
             page-break-inside: avoid;
         }
         .seal-box img.qr {
@@ -147,9 +152,9 @@
             height: 88px;
             margin: 0 0 8px 12px;
         }
-        .stat-ok { color: #006644; font-weight: bold; }
-        .stat-warn { color: #a60; font-weight: bold; }
-        .stat-err { color: #b00; font-weight: bold; }
+        .stat-ok { color: #46705f; font-weight: bold; }
+        .stat-warn { color:#8a5a12; font-weight: bold; }
+        .stat-err { color:#a5342a; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -171,8 +176,8 @@
 
         <div class="seal-box">
             <img class="qr" src="{{ qr_data_uri }}" alt="QR vérification">
-            <p style="font-size:11px;color:#006644;font-weight:bold;margin:0 0 .5em 0">
-                 Empreinte numérique &amp; vérification
+            <p style="font-family:'DejaVu Serif',Georgia,serif;font-size:11px;color:#7f271f;font-weight:bold;margin:0 0 .5em 0;text-transform:uppercase;letter-spacing:.06em">
+                ● Scellé &amp; vérification
             </p>
             <p style="font-size:8.5px;margin:.3em 0"><strong>Contenu (SHA-256)</strong></p>
             <p class="hash">{{ content_hash }}</p>
@@ -180,11 +185,11 @@
             <p style="font-size:8.5px;margin:.5em 0 0 0"><strong>Fichier PDF enregistré (SHA-256)</strong></p>
             <p class="hash">{{ stored_pdf_hash }}</p>
             {% else %}
-            <p style="font-size:8px;color:#666;margin-top:.5em">
+            <p style="font-size:8px;color:#5a5140;margin-top:.5em">
                 L'empreinte PDF sera enregistrée à la génération de ce document.
             </p>
             {% endif %}
-            <p style="font-size:8px;color:#555;margin-top:.6em;clear:both">
+            <p style="font-size:8px;color:#5a5140;margin-top:.6em;clear:both">
                 Vérification en ligne : <span style="word-break:break-all">{{ verify_url }}</span>
             </p>
         </div>
@@ -195,7 +200,7 @@
 
     {% if has_narrative %}
     <h2>Rapport d'enquête narratif (IA)</h2>
-    <p style="font-size:9px;color:#666;margin-bottom:8px">
+    <p style="font-size:9px;color:#5a5140;margin-bottom:8px">
         Document généré automatiquement à partir des entités, liens et scans du dossier.
         Les faits cités proviennent des sources listées en annexe.
     </p>
@@ -214,7 +219,7 @@
     </div>
 
     <h2>Chaîne de traçabilité</h2>
-    <p style="font-size:9px;color:#666;margin-bottom:8px">
+    <p style="font-size:9px;color:#5a5140;margin-bottom:8px">
         Chaque ligne atteste d'une source interrogée et de l'horodatage de collecte associé au scan #{{ scan.id }}.
     </p>
     <table class="trace">
@@ -254,13 +259,13 @@
 
     {% if graph_image %}
     <h2>Graphe de corrélation</h2>
-    <p style="font-size:9px;color:#666">Figure 1 — Relations entre entités découvertes.</p>
+    <p style="font-size:9px;color:#5a5140">Figure 1 — Relations entre entités découvertes.</p>
     <img class="graph-img" src="{{ graph_image }}" alt="Graphe">
     {% endif %}
 
     {% if scan_history %}
     <h2>Historique des scans (annexe)</h2>
-    <p style="font-size:9px;color:#666">Référence des collectes agrégées — le détail technique consolidé suit.</p>
+    <p style="font-size:9px;color:#5a5140">Référence des collectes agrégées — le détail technique consolidé suit.</p>
     <table class="trace">
         <thead><tr><th>Scan</th><th>Module</th><th>Cible</th><th>Date</th></tr></thead>
         <tbody>
@@ -277,19 +282,19 @@
     {% endif %}
 
     <h2>Annexe — Dernier état connu par catégorie</h2>
-    <p style="font-size:9px;color:#666">
+    <p style="font-size:9px;color:#5a5140">
         Données dédupliquées : une section par type (WHOIS, DNS, IP…), version la plus complète retenue.
     </p>
     {% if data.get('_note_pdf') %}
-    <p style="font-size:9px;color:#a60"><strong>Note :</strong>{{ data._note_pdf }}</p>
+    <p style="font-size:9px;color:#8a5a12"><strong>Note :</strong>{{ data._note_pdf }}</p>
     {% endif %}
     {% for section, content in data.items() %}
     {% if not section.startswith('_') %}
     <h3>{{ section }}</h3>
     {% if content is mapping and content.get('executed') == false %}
-    <p style="font-size:9.5px;color:#a60"><strong>Non exécuté</strong>— {{ content.get('Raison', 'Module non lancé ou clé API absente') }}</p>
+    <p style="font-size:9.5px;color:#8a5a12"><strong>Non exécuté</strong>— {{ content.get('Raison', 'Module non lancé ou clé API absente') }}</p>
     {% elif content is mapping and content.get('resultat') == 'Aucun résultat exploitable' %}
-    <p style="font-size:9.5px;color:#666"><strong>Module exécuté</strong>— aucun résultat public pour cette cible.</p>
+    <p style="font-size:9.5px;color:#5a5140"><strong>Module exécuté</strong>— aucun résultat public pour cette cible.</p>
     <pre>{{ content | tojson(indent=2) }}</pre>
     {% else %}
     <pre>{{ content | tojson(indent=2) }}</pre>
