@@ -79,6 +79,33 @@ def _parse_action_json(text: str) -> dict | None:
     return None
 
 
+_PLACEHOLDER_RE = re.compile(
+    r'obtenu|r[ée]sultat|gr[âa]ce|[àa]_?partir|du_email|domaine_du|pseudo_de|'
+    r'pseudo_obtenu|nom_de|placeholder|exemple|inconnu|d[ée]terminer|valeur_de',
+    re.I,
+)
+
+
+def _is_concrete_target(target: str) -> bool:
+    """Rejette les cibles descriptives inventées par le LLM (placeholders).
+
+    Le planificateur invente parfois des cibles du type
+    « domaine_du_email_1_obtenu_grace_au_resultat_de_epieos » quand il n'a pas
+    de valeur réelle. Les scanner créait des entités bidons dans le graphe.
+    """
+    t = (target or '').strip()
+    if not t or len(t) > 80:
+        return False
+    if ' ' in t:                       # un identifiant concret n'a pas d'espace
+        return False
+    if _PLACEHOLDER_RE.search(t):
+        return False
+    # snake_case descriptif : ≥3 mots de 3+ lettres reliés par « _ »
+    if re.search(r'[a-zà-ÿ]{3,}_[a-zà-ÿ]{3,}_[a-zà-ÿ]{3,}', t.lower()):
+        return False
+    return True
+
+
 def _extract_target_from_params(params: dict, fallback: str) -> str:
     if not params:
         return fallback
@@ -349,6 +376,23 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
             params = plan.get('params') or {}
             target = _extract_target_from_params(params, objective[:200])
             reason = plan.get('reason', f'Lancement {module}')
+
+            if not _is_concrete_target(target):
+                # Cible descriptive inventée par le LLM -> on n'exécute pas
+                # (sinon on crée une entité bidon dans le graphe).
+                steps.append({
+                    'step': step_num, 'action': module, 'target': target,
+                    'reason': reason, 'status': 'skipped', 'scan_id': None,
+                    'summary': 'Cible non concrète — étape ignorée',
+                })
+                inv.steps_json = json.dumps(steps, ensure_ascii=False)
+                db.session.commit()
+                _emit(socketio, 'investigation_step', {
+                    'investigation_id': investigation_id, 'step': step_num,
+                    'phase': 'done', 'status': 'done', 'action': module, 'target': target,
+                    'message': f'⏭️ {module} ignoré (cible non concrète)',
+                }, user_id)
+                continue
 
             _emit(socketio, 'investigation_step', {
                 'investigation_id': investigation_id,
