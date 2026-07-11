@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <title>Invitations — OSINT Ultimate</title>
     <style>
-        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:720px;margin:0 auto}
-        a{color:#4d9fff} h1{color:#00e5a0} h2{color:#4d9fff;font-size:1.1rem;margin:1.5rem 0 .8rem}
+        body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#15120d;color:#e7ddc9;padding:1.5rem;max-width:720px;margin:0 auto}
+        a{color:#4d6d80} h1{color:#4d6d80} h2{color:#4d6d80;font-size:1.1rem;margin:1.5rem 0 .8rem}
         .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1rem;margin:.8rem 0}
-        button,.btn-link{background:#00e5a0;color:#000;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block;font-size:.88rem;margin:.25rem .25rem 0 0}
-        .btn-secondary{background:#4d9fff;color:#fff}
+        button,.btn-link{background:#4d6d80;color:#000;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block;font-size:.88rem;margin:.25rem .25rem 0 0}
+        .btn-secondary{background:#4d6d80;color:#fff}
         .role{color:#5a6180;font-size:.85rem}
     </style>
 </head>
@@ -55,7 +55,7 @@
     if (!m) return;
     const el = document.getElementById('inv-' + m[1]);
     if (el) {
-        el.style.borderColor = '#00e5a0';
+        el.style.borderColor = '#4d6d80';
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
         const shared = {{ shared_dossiers|tojson }};

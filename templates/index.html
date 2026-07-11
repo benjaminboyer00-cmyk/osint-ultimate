@@ -9,39 +9,39 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
     <style>
         :root {
-            --bg: #080a10;
-            --panel: rgba(20, 24, 36, 0.85);
-            --text: #e7ebf5;
-            --text-dim: #9aa4bd;
-            --accent: #00e5a0;
-            --accent2: #4d9fff;
-            --accent3: #ff6b9d;
-            --error: #ff4757;
-            --warning: #ffa502;
-            --success: #2ed573;
-            --border: rgba(255,255,255,0.07);
-            --border-lit: rgba(0,229,160,0.25);
-            --shadow: 0 24px 48px rgba(0,0,0,0.6);
-            --glass: blur(20px) saturate(160%);
-            --r: 14px;
-            --tr: 0.2s cubic-bezier(.4,0,.2,1);
+            --bg: #15120d;
+            --panel: #1d1913;
+            --text: #e7ddc9;
+            --text-dim: #a99d86;
+            --accent: #4d6d80;
+            --accent2: #4d6d80;
+            --accent3: #a5342a;
+            --error: #a5342a;
+            --warning: #b8802f;
+            --success: #46705f;
+            --border: rgba(230,215,185,0.13);
+            --border-lit: rgba(77,109,128,0.32);
+            --shadow: 0 2px 0 rgba(0,0,0,.3), 0 22px 48px -18px rgba(0,0,0,.7);
+            --glass: none;
+            --r: 3px;
+            --tr: 0.16s cubic-bezier(.4,0,.2,1);
         }
         body.light {
-            --bg: #eef2f9;
-            --panel: rgba(255,255,255,0.85);
-            --text: #1a2035;
-            --text-dim: #8090b0;
-            --accent: #00a878;
-            --accent2: #0066dd;
-            --border: rgba(0,0,0,0.07);
-            --shadow: 0 12px 40px rgba(0,0,0,0.12);
+            --bg: #e6dcc7;
+            --panel: #efe7d5;
+            --text: #211c15;
+            --text-dim: #5a5140;
+            --accent: #3a5666;
+            --accent2: #3a5666;
+            --border: rgba(30,25,18,0.16);
+            --shadow: 0 2px 0 rgba(0,0,0,.12), 0 20px 44px -20px rgba(0,0,0,.35);
         }
         * { margin:0; padding:0; box-sizing:border-box; }
         html { scroll-behavior: smooth; }
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: 'Inter', sans-serif;
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -50,13 +50,8 @@
             transition: background var(--tr), color var(--tr);
             overflow-x: hidden;
         }
-        /* ── Particle canvas ── */
-        canvas#bg {
-            position: fixed; top:0; left:0;
-            width:100%; height:100%;
-            z-index:0; pointer-events:none; opacity:.35;
-        }
-        body.light canvas#bg { opacity:.12; }
+        /* ── Particle canvas retiré (Le Dossier : bureau à l'encre pleine) ── */
+        canvas#bg { display: none !important; }
 
         /* ── Layout ── */
         .wrap {
@@ -64,11 +59,9 @@
             max-width: 960px; width:100%;
             background: var(--panel);
             border: 1px solid var(--border);
-            border-radius: 20px;
+            border-radius: var(--r);
             padding: 2rem 2.5rem;
             box-shadow: var(--shadow);
-            backdrop-filter: var(--glass);
-            -webkit-backdrop-filter: var(--glass);
         }
 
         /* ── Header ── */
@@ -78,38 +71,38 @@
             margin-bottom: 2rem; flex-wrap: wrap; gap: .8rem;
         }
         .logo {
-            font-family: 'Space Mono', monospace;
+            font-family: 'IBM Plex Serif', Georgia, serif;
             font-size: clamp(1.4rem, 4vw, 2rem);
             font-weight: 700;
-            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--accent3) 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; letter-spacing: -1px;
+            color: var(--text); letter-spacing: -.5px;
         }
         .hdr-right { display:flex; gap:.7rem; align-items:center; flex-wrap: wrap; }
         .auth-btn {
-            padding: .38rem 1.1rem; border-radius: 30px; font-size: .82rem;
-            font-weight:600; text-decoration:none; border:1.5px solid var(--accent);
-            color: var(--accent); background: transparent;
+            padding: .42rem 1rem; border-radius: 3px; font-size: .74rem;
+            font-weight:500; text-decoration:none; border:1px solid var(--accent);
+            color: var(--accent); background: transparent; font-family:'IBM Plex Mono',monospace;
+            text-transform:uppercase; letter-spacing:.06em;
             transition: all var(--tr); white-space: nowrap;
         }
-        .auth-btn:hover { background: var(--accent); color:#000; }
-        .user-badge { font-size:.82rem; color: var(--text-dim); }
+        .auth-btn:hover { background: var(--accent); color:#f3ecdd; }
+        .user-badge { font-size:.8rem; color: var(--text-dim); font-family:'IBM Plex Mono',monospace; }
         .history-link {
-            padding: .38rem 1.1rem; border-radius: 30px; font-size: .82rem;
-            font-weight:600; text-decoration:none; border:1.5px solid var(--accent2);
-            color: var(--accent2); background: transparent; transition: all var(--tr);
+            padding: .42rem 1rem; border-radius: 3px; font-size: .74rem;
+            font-weight:500; text-decoration:none; border:1px solid var(--border-lit);
+            color: var(--text); background: transparent; transition: all var(--tr);
+            font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:.06em;
         }
-        .history-link:hover { background: var(--accent2); color:#fff; }
+        .history-link:hover { border-color:var(--accent2); }
         .mode-switch{
-            display:inline-flex;border:1px solid var(--border);border-radius:999px;
-            overflow:hidden;font-size:.78rem;
+            display:inline-flex;border:1px solid var(--border);border-radius:3px;
+            overflow:hidden;font-size:.72rem;font-family:'IBM Plex Mono',monospace;
         }
         .mode-switch a{
-            padding:.35rem .85rem;text-decoration:none;color:var(--text-dim);
-            border:none;background:transparent;
+            padding:.4rem .85rem;text-decoration:none;color:var(--text-dim);
+            border:none;background:transparent;text-transform:uppercase;letter-spacing:.06em;
         }
         .mode-switch a.active{
-            background:var(--accent);color:#000;font-weight:700;
+            background:var(--accent);color:#f3ecdd;font-weight:600;
         }
         .mode-hint{
             font-size:.8rem;color:var(--text-dim);margin:-1rem 0 1.25rem;
@@ -137,18 +130,18 @@
             display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:1.5rem;
         }
         .mod {
-            padding: .42rem .95rem; border-radius:30px; cursor:pointer;
-            font-weight:600; font-size:.82rem; border:1.5px solid var(--border);
-            background: rgba(255,255,255,.04); color: var(--text);
+            padding: .42rem .9rem; border-radius:3px; cursor:pointer;
+            font-weight:500; font-size:.74rem; border:1px solid var(--border);
+            background: rgba(230,215,185,.04); color: var(--text);
+            font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:.05em;
             transition: all var(--tr); white-space:nowrap;
         }
         .mod.active {
-            background: var(--accent); color:#000;
+            background: var(--accent); color:#f3ecdd;
             border-color: var(--accent);
-            box-shadow: 0 0 18px rgba(0,229,160,.35);
         }
         .mod:hover:not(.active) {
-            border-color: var(--accent2); background: rgba(77,159,255,.1);
+            border-color: var(--accent2); background: rgba(77,109,128,.12);
         }
 
         /* ── Input area ── */
@@ -156,25 +149,26 @@
             display:flex; gap:.8rem; margin-bottom:1.2rem; flex-wrap:wrap;
         }
         #target {
-            flex:1 1 260px; padding:.85rem 1.3rem;
-            background: rgba(255,255,255,.04);
-            border:1.5px solid var(--border); border-radius:40px;
+            flex:1 1 260px; padding:.85rem 1.1rem;
+            background: rgba(230,215,185,.04);
+            border:1px solid var(--border-lit); border-radius:3px;
             color: var(--text); font-size:1rem;
-            font-family:'Inter',sans-serif;
+            font-family:'IBM Plex Mono',monospace;
             transition: all var(--tr);
         }
         #target::placeholder { color: var(--text-dim); }
-        #target:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,160,.15); }
+        #target:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(77,109,128,.25); }
         #scan-btn {
-            background: var(--accent); border:none; color:#000;
-            padding:.85rem 2.2rem; border-radius:40px;
-            font-weight:700; font-size:.95rem; cursor:pointer;
-            letter-spacing:.5px; text-transform:uppercase;
-            box-shadow: 0 0 20px rgba(0,229,160,.4);
+            background: var(--accent); border:1px solid var(--accent); color:#f3ecdd;
+            padding:.85rem 2rem; border-radius:3px;
+            font-weight:600; font-size:.82rem; cursor:pointer;
+            letter-spacing:.08em; text-transform:uppercase;
+            font-family:'IBM Plex Mono',monospace;
             transition: all var(--tr); flex-shrink:0;
         }
-        #scan-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 24px rgba(0,229,160,.5); }
-        #scan-btn:disabled { opacity:.45; box-shadow:none; cursor:not-allowed; }
+        #scan-btn:hover:not(:disabled) { background:#3a5666; }
+        #scan-btn:active:not(:disabled) { transform:translateY(1px); }
+        #scan-btn:disabled { opacity:.45; cursor:not-allowed; }
 
         /* ── Email options ── */
         .email-opts {
@@ -196,10 +190,9 @@
             margin-bottom:1.2rem; overflow:hidden;
         }
         .prog-bar {
-            height:100%; width:0%; border-radius:10px;
-            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            height:100%; width:0%; border-radius:2px;
+            background: var(--accent);
             transition: width .4s ease;
-            box-shadow: 0 0 10px var(--accent);
         }
 
         /* ── Result box ── */
@@ -303,7 +296,7 @@
         }
         .badge.b-scrape { background: rgba(255, 160, 50, .2); color: #ffb347; font-size: .7rem; margin-left: .4rem; }
         .badge.b-key { background: rgba(255, 200, 50, .15); color: #ffc832; font-size: .7rem; margin-left: .4rem; }
-        .badge.b-key a { color: #4d9fff; }
+        .badge.b-key a { color: #4d6d80; }
         .timeout-banner button {
             margin-top: .6rem; padding: .45rem 1rem; background: var(--accent2);
             color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
@@ -397,7 +390,7 @@
                 <a href="{{ url_for('views.timeline_view') }}" class="history-link">⏳ Timeline</a>
                 <a href="{{ url_for('views.monitoring_page') }}" class="history-link" title="Surveillance">📡</a>
                 <a href="{{ url_for('views.monitoring_page') }}#alert-history" class="history-link" id="notif-bell" title="Notifications" style="position:relative">
-                    🔔<span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-8px;background:#ff4757;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:8px;font-weight:700">0</span>
+                    🔔<span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-8px;background:#a5342a;color:#f3ecdd;font-size:.65rem;padding:1px 5px;border-radius:3px;font-weight:700">0</span>
                 </a>
                 <a href="{{ url_for('views.investigate_page') }}" class="history-link" title="Enquête guidée IA">🧠 Enquête</a>
                 <a href="{{ url_for('views.recipes_page') }}" class="history-link" title="Recettes">📋</a>
@@ -599,7 +592,7 @@ class Pt {
         }
     }
     draw(){
-        const c=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#00e5a0';
+        const c=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#4d6d80';
         ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
         ctx.fillStyle=c; ctx.fill();
     }
@@ -609,7 +602,7 @@ for(let i=0;i<NPTSMAX;i++) pts.push(new Pt());
 function animate(){
     ctx.clearRect(0,0,W,H);
     pts.forEach(p=>{p.tick();p.draw();});
-    const c=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#00e5a0';
+    const c=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#4d6d80';
     for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
         const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.hypot(dx,dy);
         if(d<CDIST){
@@ -898,9 +891,9 @@ function renderResult(data){
         pseudoChartInst = new Chart(document.getElementById('pseudo-chart').getContext('2d'),{
             type:'doughnut',
             data:{labels:['Trouvés','Non trouvés'],
-                  datasets:[{data:[ok,nope],backgroundColor:['#00e5a0','#ff4757'],
+                  datasets:[{data:[ok,nope],backgroundColor:['#46705f','#a5342a'],
                              borderWidth:0,hoverOffset:6}]},
-            options:{plugins:{legend:{labels:{color:'#c8cfe8',font:{size:13}}}}}
+            options:{plugins:{legend:{labels:{color:'#e7ddc9',font:{size:13}}}}}
         });
     } else {
         document.getElementById('chart-wrap').style.display = 'none';

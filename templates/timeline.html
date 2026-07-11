@@ -12,7 +12,7 @@
     <script src="{{ url_for('static', filename='vendor/vis/vis-timeline-graph2d.min.js') }}"></script>
     <style>
         *{box-sizing:border-box}
-        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
         header{padding:.75rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)}
         header a{color:var(--accent2);text-decoration:none;font-size:.85rem}
         .toolbar select, .toolbar button{
@@ -24,11 +24,11 @@
         aside{padding:.75rem 1rem;border-top:1px solid var(--border);font-size:.82rem;max-height:28vh;overflow-y:auto}
         #detail{color:var(--dim);margin-top:.4rem}
         .vis-timeline { border: none; font-family: inherit; }
-        .vis-item.evt-scan { background: #1a3d32; border-color: #00e5a0; color: #c8cfe8; }
-        .vis-item.evt-wayback { background: #2a2a4a; border-color: #4d9fff; color: #c8cfe8; }
-        .vis-item.evt-breach { background: #4a2020; border-color: #ff6b6b; color: #ffe0e0; }
-        .vis-item.evt-whois { background: #3d3520; border-color: #ffa502; color: #c8cfe8; }
-        .vis-item.evt-entity, .vis-item.evt-root { background: #1e2433; border-color: #a29bfe; }
+        .vis-item.evt-scan { background: #1a3d32; border-color: #4d6d80; color: #e7ddc9; }
+        .vis-item.evt-wayback { background: #2a2a4a; border-color: #4d6d80; color: #e7ddc9; }
+        .vis-item.evt-breach { background: #4a2020; border-color: #a5342a; color: #ffe0e0; }
+        .vis-item.evt-whois { background: #3d3520; border-color: #b8802f; color: #e7ddc9; }
+        .vis-item.evt-entity, .vis-item.evt-root { background: #1e2433; border-color: #6d5b7a; }
         .vis-item.evt-link { background: #1a2530; border-color: #5a6180; }
         .vis-item.vis-selected { box-shadow: 0 0 0 2px var(--accent); }
     </style>

@@ -5,14 +5,14 @@
     <title>{{ dossier.title }} – OSINT Ultimate</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <style>
-        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:960px;margin:0 auto}
-        a{color:#4d9fff} h1{color:#00e5a0}
+        body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#15120d;color:#e7ddc9;padding:1.5rem;max-width:960px;margin:0 auto}
+        a{color:#4d6d80} h1{color:#4d6d80}
         .card{background:rgba(14,17,28,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin:1rem 0}
-        .timeline{border-left:2px solid #4d9fff;padding-left:1rem;margin:1rem 0}
+        .timeline{border-left:2px solid #4d6d80;padding-left:1rem;margin:1rem 0}
         .timeline div{margin:.5rem 0;font-size:.88rem}
         .sug{background:rgba(0,229,160,.08);padding:.6rem;border-radius:8px;margin:.4rem 0;display:flex;justify-content:space-between;align-items:center}
-        button{background:#00e5a0;color:#000;border:none;padding:.4rem .8rem;border-radius:6px;cursor:pointer}
-        input,select{padding:.5rem;background:#14171c;border:1px solid rgba(255,255,255,.1);color:#c8cfe8;border-radius:6px}
+        button{background:#4d6d80;color:#000;border:none;padding:.4rem .8rem;border-radius:6px;cursor:pointer}
+        input,select{padding:.5rem;background:#14171c;border:1px solid rgba(255,255,255,.1);color:#e7ddc9;border-radius:6px}
     </style>
 </head>
 <body>
@@ -25,7 +25,7 @@
         <strong>{{ dossier.entity.type }}</strong> : {{ dossier.entity.value }}<br>
         <small>{{ dossier.scans_count }} scans · {{ dossier.links_count }} liens</small>
         {% if dossier.access %}
-        <br><small style="color:#4d9fff">Accès : {{ dossier.access.role }}{% if dossier.access.is_owner %} (propriétaire){% endif %}</small>
+        <br><small style="color:#4d6d80">Accès : {{ dossier.access.role }}{% if dossier.access.is_owner %} (propriétaire){% endif %}</small>
         {% endif %}
         {% if dossier.access and dossier.access.can_admin %}
         <button type="button" id="btn-share" style="margin-top:.6rem">👥 Partager</button>
@@ -35,7 +35,7 @@
 
     <div id="share-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
         <div class="card" style="max-width:420px;width:90%">
-            <h3 style="margin-top:0;color:#00e5a0">Partager le dossier</h3>
+            <h3 style="margin-top:0;color:#4d6d80">Partager le dossier</h3>
             <label>Email utilisateur<br><input type="email" id="invite-email" style="width:100%;margin:.4rem 0"></label>
             <label>Rôle<br>
                 <select id="invite-role" style="width:100%;margin:.4rem 0">
@@ -53,7 +53,7 @@
                 <label style="font-size:.85rem">Lien à partager<br>
                     <input type="text" id="invite-link" readonly style="width:100%;margin:.4rem 0;font-size:.8rem">
                 </label>
-                <button type="button" id="btn-copy-invite" style="background:#4d9fff;color:#fff">📋 Copier le lien</button>
+                <button type="button" id="btn-copy-invite" style="background:#4d6d80;color:#fff">📋 Copier le lien</button>
                 <p id="invite-hint" style="font-size:.78rem;color:#5a6180;margin:.4rem 0 0"></p>
             </div>
             <ul id="collab-list" style="margin-top:1rem;padding-left:1.2rem;font-size:.85rem"></ul>
@@ -81,7 +81,7 @@
         </label>
         <div style="margin-top:.8rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button type="button" id="btn-narrative">Générer le texte</button>
-            <button type="button" id="btn-narrative-pdf" style="background:#4d9fff;color:#fff">📄 PDF narratif</button>
+            <button type="button" id="btn-narrative-pdf" style="background:#4d6d80;color:#fff">📄 PDF narratif</button>
         </div>
         <pre id="narrative-out" style="display:none;margin-top:1rem;max-height:320px;overflow:auto;font-size:.78rem;white-space:pre-wrap;background:#0d1018;padding:1rem;border-radius:8px"></pre>
         <p id="narrative-status" style="font-size:.85rem;color:#5a6180;margin-top:.6rem"></p>
@@ -119,7 +119,7 @@
     {% endif %}
 
     <h2>📋 Journal d'activité</h2>
-    <p id="scan-status" style="display:none;font-size:.88rem;color:#4d9fff;margin:.5rem 0"></p>
+    <p id="scan-status" style="display:none;font-size:.88rem;color:#4d6d80;margin:.5rem 0"></p>
     <div class="card" id="activity-log">
         {% for a in dossier.activity %}
         <div style="font-size:.85rem;margin:.35rem 0" data-action="{{ a.action }}">

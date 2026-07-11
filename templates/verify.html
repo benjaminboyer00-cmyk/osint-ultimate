@@ -2,62 +2,151 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Vérification rapport #{{ scan_id }} — OSINT Ultimate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vérification du scellé — Dossier OSINT-RPT-{{ scan_id }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:1.5rem;max-width:640px;margin:0 auto}
-        a{color:#4d9fff} h1{color:#00e5a0;font-size:1.4rem}
-        .card{background:rgba(14,17,28,.92);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin:1rem 0}
-        .ok{color:#00e5a0;font-weight:bold}.ko{color:#ff6b6b;font-weight:bold}
-        input[type=file]{margin:.8rem 0;width:100%}
-        button{background:#00e5a0;color:#000;border:none;padding:.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600}
-        .hash{font-family:monospace;font-size:.72rem;word-break:break-all;color:#8a92b0;margin:.4rem 0}
-        .meta{font-size:.85rem;color:#8a92b0}
+        :root{
+            --ink:#15120d;--ink-raised:#1d1913;--ink-line:rgba(230,215,185,.22);
+            --ink-text:#e7ddc9;--ink-muted:#a99d86;--ink-dim:#6f6553;
+            --paper:#e6dcc7;--paper-text:#211c15;--paper-muted:#5a5140;--paper-line:rgba(30,25,18,.16);
+            --seal:#a5342a;--seal-deep:#7f271f;--stamp:#4d6d80;--stamp-deep:#3a5666;--verdigris:#46705f;
+            --serif:'IBM Plex Serif',Georgia,serif;--sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+        }
+        *{box-sizing:border-box;margin:0}
+        body{font-family:var(--sans);background:var(--ink);color:var(--ink-text);line-height:1.6;
+            min-height:100dvh;padding:clamp(1rem,4vw,2.5rem);-webkit-font-smoothing:antialiased}
+        .wrap{max-width:640px;margin:0 auto}
+        a{color:var(--stamp)}
+        .topnav{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;
+            color:var(--ink-dim);margin-bottom:1.5rem;display:flex;gap:1rem}
+        .topnav a{color:var(--ink-muted);text-decoration:none}
+        .topnav a:hover{color:var(--ink-text)}
+        .eyebrow{font-family:var(--mono);font-size:.72rem;font-weight:500;text-transform:uppercase;
+            letter-spacing:.18em;color:var(--ink-dim);display:block;margin-bottom:.4rem}
+        h1{font-family:var(--serif);font-weight:700;font-size:clamp(1.6rem,4vw,2.1rem);
+            letter-spacing:-.01em;color:var(--ink-text);margin-bottom:.3rem}
+        .ref{font-family:var(--mono);color:var(--ink-muted);letter-spacing:.06em;font-size:.9rem}
+
+        /* Surface papier posée sur le bureau */
+        .paper{position:relative;background:var(--paper);color:var(--paper-text);border-radius:3px;
+            padding:clamp(1.4rem,4vw,2.2rem);margin:1.6rem 0;border:1px solid rgba(30,25,18,.2);
+            box-shadow:0 2px 0 rgba(0,0,0,.3),0 22px 48px -18px rgba(0,0,0,.7)}
+        .crop{position:absolute;width:11px;height:11px;border:solid var(--paper-muted);opacity:.5}
+        .crop.tl{top:7px;left:7px;border-width:1px 0 0 1px}
+        .crop.tr{top:7px;right:7px;border-width:1px 1px 0 0}
+        .crop.bl{bottom:7px;left:7px;border-width:0 0 1px 1px}
+        .crop.br{bottom:7px;right:7px;border-width:0 1px 1px 0}
+        .paper .eyebrow{color:var(--paper-muted)}
+        .paper p{color:var(--paper-text)}
+
+        .seal-head{display:flex;align-items:center;gap:1.1rem;padding-bottom:1.1rem;
+            border-bottom:1px solid var(--paper-line);margin-bottom:1.1rem}
+        .seal{flex-shrink:0;display:grid;place-items:center;width:78px;height:78px;border-radius:50%;
+            border:2px solid var(--seal);color:var(--seal);font-family:var(--mono);font-size:.52rem;
+            font-weight:600;text-transform:uppercase;letter-spacing:.1em;text-align:center;line-height:1.35;
+            transform:rotate(-8deg);box-shadow:inset 0 0 0 3px rgba(165,52,42,.25)}
+        .seal b{display:block;font-size:.72rem;letter-spacing:.02em}
+        .seal-head h2{font-family:var(--serif);font-weight:600;font-size:1.15rem;color:var(--paper-text);margin-bottom:.15rem}
+        .seal-head .sub{font-family:var(--mono);font-size:.74rem;color:var(--paper-muted);letter-spacing:.03em}
+
+        label.file{display:block;margin:1.1rem 0}
+        input[type=file]{width:100%;padding:.7rem;background:#fff;border:1px dashed var(--paper-muted);
+            border-radius:3px;color:var(--paper-text);font-family:var(--mono);font-size:.82rem;cursor:pointer}
+        button{background:var(--seal);color:#f3ecdd;border:1px solid var(--seal-deep);padding:.7rem 1.3rem;
+            border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:.78rem;font-weight:600;
+            text-transform:uppercase;letter-spacing:.08em;transition:background .16s}
+        button:hover{background:var(--seal-deep)}
+
+        .result{border-top:1px solid var(--paper-line);margin-top:1.3rem;padding-top:1.1rem}
+        .verdict{font-family:var(--serif);font-weight:600;font-size:1.1rem;display:flex;align-items:center;gap:.5rem}
+        .verdict.ok{color:var(--verdigris)}
+        .verdict.ko{color:var(--seal)}
+        .verdict .mark{font-family:var(--mono);font-weight:600}
+        .kv{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.14em;
+            color:var(--paper-muted);margin:.9rem 0 .2rem}
+        .hash{font-family:var(--mono);font-size:.74rem;word-break:break-all;color:var(--paper-text);
+            background:rgba(30,25,18,.06);padding:.5rem .6rem;border-radius:2px;border-left:3px solid var(--stamp)}
+        .foot{font-family:var(--mono);font-size:.72rem;color:var(--ink-dim);letter-spacing:.04em;
+            text-align:center;margin-top:2rem}
+        @media(prefers-reduced-motion:no-preference){
+            @keyframes stamp{0%{transform:rotate(-8deg) scale(1.5);opacity:0}
+                60%{transform:rotate(-8deg) scale(.94);opacity:1}100%{transform:rotate(-8deg) scale(1)}}
+            .seal{animation:stamp .5s cubic-bezier(.34,1.56,.64,1) both}
+        }
     </style>
 </head>
 <body>
-    <p><a href="/">← Accueil</a> · <a href="/privacy">Confidentialité</a></p>
-    <h1>🔐 Vérification d'authenticité</h1>
-    <p class="meta">Référence <strong>OSINT-RPT-{{ scan_id }}</strong></p>
+<div class="wrap">
+    <nav class="topnav">
+        <a href="/">← Bureau</a>
+        <a href="/privacy">Confidentialité</a>
+    </nav>
 
-    <div class="card">
-        <p>Uploadez le fichier PDF reçu pour vérifier qu'il n'a pas été modifié depuis sa génération officielle.</p>
+    <span class="eyebrow">Contrôle d'authenticité</span>
+    <h1>Vérification du scellé</h1>
+    <p class="ref">DOSSIER OSINT-RPT-{{ scan_id }}</p>
+
+    <div class="paper">
+        <span class="crop tl"></span><span class="crop tr"></span>
+        <span class="crop bl"></span><span class="crop br"></span>
+
+        <div class="seal-head">
+            <div class="seal"><b>●</b>SCELLÉ<br>OSINT</div>
+            <div>
+                <h2>Contrôle d'intégrité</h2>
+                <div class="sub">Signature HMAC-SHA256 · serveur officiel</div>
+            </div>
+        </div>
+
+        <p>Déposez le PDF reçu. Son empreinte est recalculée et comparée à la
+           signature enregistrée lors du scellement officiel — toute modification,
+           même d'un octet, invalide le document.</p>
+
         <form id="verify-form" method="post" enctype="multipart/form-data" action="/verify/{{ scan_id }}?t={{ token }}">
-            <input type="file" name="pdf" accept="application/pdf,.pdf" required>
+            <label class="file">
+                <input type="file" name="pdf" accept="application/pdf,.pdf" required>
+            </label>
             <button type="submit">Vérifier le document</button>
         </form>
+
+        <div id="result" class="result" style="display:none"></div>
+
+        {% if sealed_at %}
+        <p class="kv" style="margin-top:1.4rem">Dernier scellement</p>
+        <div class="hash">{{ sealed_at }}</div>
+        {% endif %}
     </div>
 
-    <div id="result" class="card" style="display:none"></div>
-
-    {% if sealed_at %}
-    <p class="meta">Dernier scellement enregistré : {{ sealed_at }}</p>
-    {% endif %}
+    <p class="foot">OSINT ULTIMATE · PIÈCE VERSÉE AU DOSSIER</p>
+</div>
 
 <script>
 const form = document.getElementById('verify-form');
 const result = document.getElementById('result');
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 form.onsubmit = async (e) => {
     e.preventDefault();
     result.style.display = 'block';
-    result.innerHTML = '⏳ Calcul de l\'empreinte…';
+    result.innerHTML = '<p class="kv">Calcul de l\'empreinte…</p>';
     const fd = new FormData(form);
     try {
         const r = await fetch(form.action, { method: 'POST', body: fd });
         const d = await r.json();
         if (!r.ok) {
-            result.innerHTML = '<p class="ko">❌ ' + (d.error || 'Erreur') + '</p>';
+            result.innerHTML = '<p class="verdict ko"><span class="mark">✕</span> ' + esc(d.error || 'Erreur') + '</p>';
             return;
         }
-        const cls = d.valid ? 'ok' : 'ko';
-        result.innerHTML = `
-            <p class="${cls}">${d.message}</p>
-            <p class="meta"><strong>Fichier uploadé</strong></p>
-            <p class="hash">${d.uploaded_hash || '—'}</p>
-            ${d.stored_hash ? '<p class="meta"><strong>Empreinte officielle</strong></p><p class="hash">' + d.stored_hash + '</p>' : ''}
-            ${d.sealed_at ? '<p class="meta">Scellé le ' + d.sealed_at + '</p>' : ''}
-        `;
+        const ok = !!d.valid;
+        let html = '<p class="verdict ' + (ok?'ok':'ko') + '"><span class="mark">' + (ok?'✓':'✕') + '</span> ' + esc(d.message) + '</p>';
+        html += '<p class="kv">Empreinte du fichier déposé</p><div class="hash">' + esc(d.uploaded_hash || '—') + '</div>';
+        if (d.stored_hash) html += '<p class="kv">Signature officielle enregistrée</p><div class="hash">' + esc(d.stored_hash) + '</div>';
+        if (d.sealed_at) html += '<p class="kv">Scellé le</p><div class="hash">' + esc(d.sealed_at) + '</div>';
+        result.innerHTML = html;
     } catch (err) {
-        result.innerHTML = '<p class="ko">❌ ' + err.message + '</p>';
+        result.innerHTML = '<p class="verdict ko"><span class="mark">✕</span> ' + esc(err.message) + '</p>';
     }
 };
 </script>

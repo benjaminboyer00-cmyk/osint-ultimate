@@ -91,7 +91,9 @@
   }
 
   function boot() {
-    document.querySelectorAll('canvas[data-network]').forEach(initNetwork);
+    // « Le Dossier » : le fond « réseau IA » animé est retiré (bureau à l'encre pleine).
+    // initNetwork est conservé mais volontairement non appelé.
+    void initNetwork;
     initReveal();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

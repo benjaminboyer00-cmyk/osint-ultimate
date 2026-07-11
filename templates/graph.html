@@ -26,14 +26,17 @@
     </script>
     <style>
         *{box-sizing:border-box}
-        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
         header{padding:.75rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)}
         header a{color:var(--accent2);text-decoration:none;font-size:.85rem}
+        header strong{font-family:'IBM Plex Serif',Georgia,serif;font-weight:600}
         .toolbar{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
         .toolbar button,.toolbar select{
-            padding:.45rem .85rem;background:#14171c;color:var(--text);
-            border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.8rem;
+            padding:.45rem .8rem;background:var(--surface);color:var(--text);
+            border:1px solid var(--border-strong);border-radius:3px;cursor:pointer;font-size:.72rem;
+            font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;
         }
+        .toolbar button:hover{border-color:var(--accent)}
         .main{flex:1;display:flex;min-height:0}
         #cy{flex:1;min-height:200px}
         aside{
@@ -41,21 +44,21 @@
             padding:1rem;font-size:.82rem;overflow-y:auto;display:none;
         }
         aside.open{display:block}
-        aside h3{font-size:.9rem;color:var(--accent);margin-bottom:.5rem}
+        aside h3{font-family:'IBM Plex Serif',Georgia,serif;font-size:.95rem;color:var(--text);margin-bottom:.5rem}
         .legend{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)}
-        .legend-item{display:flex;align-items:center;gap:.5rem;margin:.35rem 0;font-size:.75rem}
-        .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+        .legend-item{display:flex;align-items:center;gap:.5rem;margin:.35rem 0;font-size:.72rem;font-family:var(--mono)}
+        .dot{width:11px;height:11px;border-radius:2px;flex-shrink:0}
         .edge-sample{width:24px;height:2px;background:var(--accent2)}
         #ctx-menu{
             display:none;position:fixed;z-index:9999;min-width:200px;
-            background:#14171c;border:1px solid var(--border);border-radius:10px;
-            box-shadow:0 8px 24px rgba(0,0,0,.5);padding:.35rem 0;
+            background:var(--surface);border:1px solid var(--border-strong);border-radius:3px;
+            box-shadow:var(--sh-3);padding:.35rem 0;
         }
         #ctx-menu button{
             display:block;width:100%;text-align:left;padding:.55rem 1rem;
-            background:transparent;border:none;color:var(--text);cursor:pointer;font-size:.85rem;
+            background:transparent;border:none;color:var(--text);cursor:pointer;font-size:.82rem;
         }
-        #ctx-menu button:hover{background:rgba(77,159,255,.15);color:var(--accent2)}
+        #ctx-menu button:hover{background:rgba(77,109,128,.18);color:var(--accent)}
         #ctx-menu hr{border:none;border-top:1px solid var(--border);margin:.25rem 0}
         /* Écrans réduits : le panneau passe SOUS le graphe (jamais coupé). */
         @media(max-width:960px){
@@ -92,28 +95,28 @@
         <button type="button" onclick="exportPng()">PNG</button>
         <button type="button" onclick="exportSvg()">SVG</button>
         <button type="button" onclick="loadLinksPanel()">Liens</button>
-        <button type="button" id="btn-persons" onclick="togglePersons()" title="Regrouper les identifiants fusionnés en nœuds Personne">👤 Personnes</button>
-        <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">🎯 Mode Enquête</button>
-        <button type="button" onclick="runAnalysis()" title="Analyse IA du graphe : incohérences, pistes">🧠 Analyse IA</button>
+        <button type="button" id="btn-persons" onclick="togglePersons()" title="Regrouper les identifiants fusionnés en nœuds Personne">Personnes</button>
+        <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">Mode Enquête</button>
+        <button type="button" onclick="runAnalysis()" title="Analyse IA du graphe : incohérences, pistes">Analyser</button>
         <select id="compare-select" onchange="runCompare(this.value)" title="Comparer ce graphe à un autre">
-            <option value="">⇄ Comparer à…</option>
+            <option value="">Comparer à…</option>
             {% for e in entities %}
             <option value="{{ e.id }}">{{ e.entity_type }}: {{ e.value[:30] }}</option>
             {% endfor %}
         </select>
         <button type="button" id="btn-show-all" onclick="showAllNodes()" style="display:none">Afficher tout</button>
-        <a href="#" id="dossier-link" style="display:none">📁 Dossier</a>
-        <a href="#" id="map-link" style="display:none;font-size:.85rem">🗺️ Carte</a>
-        <a href="#" id="timeline-link" style="display:none;font-size:.85rem">⏳ Timeline</a>
+        <a href="#" id="dossier-link" style="display:none">Dossier</a>
+        <a href="#" id="map-link" style="display:none;font-size:.85rem">Carte</a>
+        <a href="#" id="timeline-link" style="display:none;font-size:.85rem">Timeline</a>
     </div>
 </header>
 <div id="ctx-menu" role="menu">
-    <button type="button" id="ctx-pivot">🎯 Pivoter / Étendre l'enquête</button>
-    <button type="button" id="ctx-scan">🔍 Analyser (module unique)</button>
-    <button type="button" id="ctx-dossier">📁 Ouvrir le dossier</button>
+    <button type="button" id="ctx-pivot">Pivoter / Étendre l'enquête</button>
+    <button type="button" id="ctx-scan">Analyser (module unique)</button>
+    <button type="button" id="ctx-dossier">Ouvrir le dossier</button>
     <hr>
-    <button type="button" id="ctx-merge">🔗 Même personne…</button>
-    <button type="button" id="ctx-copy">📋 Copier la valeur</button>
+    <button type="button" id="ctx-merge">Lier — même personne…</button>
+    <button type="button" id="ctx-copy">Copier la valeur</button>
 </div>
 <div class="main">
     <div id="cy"></div>
@@ -121,21 +124,22 @@
         <h3 id="panel-title">Sélectionnez un nœud</h3>
         <p id="panel-desc" style="color:var(--dim)">Cliquez sur un nœud pour lancer une analyse ou ouvrir le dossier.</p>
         <p id="scan-status" style="display:none;margin-top:.4rem;font-size:.8rem;color:var(--accent2)"></p>
-        <div id="analysis-block" style="display:none;margin-top:.5rem;padding:.5rem;background:#14171c;border:1px solid var(--border);border-radius:8px;max-height:340px;overflow:auto"></div>
-        <button type="button" id="btn-scan" style="display:none;margin-top:.5rem;width:100%;padding:.6rem;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer">🔍 Analyser cette entité</button>
-        <button type="button" id="btn-dossier" style="display:none;margin-top:.4rem;width:100%;padding:.5rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:8px;cursor:pointer">📁 Voir le dossier</button>
+        <div id="analysis-block" style="display:none;margin-top:.5rem;padding:.5rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;max-height:340px;overflow:auto"></div>
+        <button type="button" id="btn-scan" style="display:none;margin-top:.5rem;width:100%;padding:.6rem;background:var(--accent);color:#f3ecdd;border:1px solid var(--stamp-deep);border-radius:3px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:.74rem;font-weight:600;cursor:pointer">Analyser cette entité</button>
+        <button type="button" id="btn-dossier" style="display:none;margin-top:.4rem;width:100%;padding:.5rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:3px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:.74rem;cursor:pointer">Voir le dossier</button>
         <div class="legend">
-            <strong style="font-size:.75rem;color:var(--dim)">LÉGENDE — Nœuds</strong>
-            <div class="legend-item"><span class="dot" style="background:#00e5a0"></span> email</div>
-            <div class="legend-item"><span class="dot" style="background:#4d9fff"></span> phone</div>
-            <div class="legend-item"><span class="dot" style="background:#ff6b9d"></span> username</div>
-            <div class="legend-item"><span class="dot" style="background:#ffa502"></span> domain</div>
-            <div class="legend-item"><span class="dot" style="background:#a29bfe"></span> platform / ip</div>
-            <strong style="font-size:.75rem;color:var(--dim);display:block;margin-top:.6rem">LIENS</strong>
+            <strong style="font-size:.72rem;color:var(--dim);font-family:var(--mono);letter-spacing:.14em">LÉGENDE — PIÈCES</strong>
+            <div class="legend-item"><span class="dot" style="background:#4d6d80"></span> email</div>
+            <div class="legend-item"><span class="dot" style="background:#46705f"></span> phone</div>
+            <div class="legend-item"><span class="dot" style="background:#b8802f"></span> username</div>
+            <div class="legend-item"><span class="dot" style="background:#9c6b3f"></span> domain</div>
+            <div class="legend-item"><span class="dot" style="background:#6d5b7a"></span> platform / ip</div>
+            <div class="legend-item"><span class="dot" style="background:#a5342a"></span> personne</div>
+            <strong style="font-size:.72rem;color:var(--dim);display:block;margin-top:.6rem;font-family:var(--mono);letter-spacing:.14em">LIENS</strong>
             <div class="legend-item"><span class="edge-sample"></span> épaisseur = confiance</div>
-            <div class="legend-item"><span class="dot" style="background:#ffd700;border:2px solid #fff"></span> priorité (mode enquête)</div>
+            <div class="legend-item"><span class="dot" style="background:transparent;border:2px solid #b8802f"></span> priorité (mode enquête)</div>
         </div>
-        <p id="enquiry-tip" style="display:none;margin-top:.5rem;font-size:.75rem;color:#ffd700"></p>
+        <p id="enquiry-tip" style="display:none;margin-top:.5rem;font-size:.75rem;color:#b8802f"></p>
         <div id="merge-block" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
             <strong style="font-size:.75rem;color:var(--dim)">🔗 Même personne</strong>
             <div id="cluster-members" style="margin:.35rem 0;font-size:.78rem"></div>
@@ -145,15 +149,15 @@
         <div id="comments-block" style="margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem">
             <strong style="font-size:.75rem;color:var(--dim)">💬 Commentaires</strong>
             <ul id="comments-list" style="list-style:none;padding:0;margin:.4rem 0;max-height:100px;overflow:auto;font-size:.78rem"></ul>
-            <textarea id="comment-input" rows="2" placeholder="Note sur cette entité…" style="width:100%;background:#14171c;border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:.8rem"></textarea>
-            <button type="button" id="btn-comment" style="margin-top:.35rem;width:100%;padding:.4rem;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer">Publier</button>
+            <textarea id="comment-input" rows="2" placeholder="Note sur cette entité…" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:.8rem;font-family:var(--mono)"></textarea>
+            <button type="button" id="btn-comment" style="margin-top:.35rem;width:100%;padding:.4rem;background:var(--accent2);color:#f3ecdd;border:none;border-radius:3px;cursor:pointer;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:.72rem">Publier</button>
         </div>
     </aside>
 </div>
 <script>
 const NODE_COLORS = {
-    email:'#00e5a0', phone:'#4d9fff', username:'#ff6b9d',
-    domain:'#ffa502', platform:'#a29bfe', ip:'#a29bfe', person:'#ffd700', unknown:'#5a6180'
+    email:'#4d6d80', phone:'#46705f', username:'#b8802f',
+    domain:'#9c6b3f', platform:'#6d5b7a', ip:'#6d5b7a', person:'#a5342a', unknown:'#a99d86'
 };
 const MODULE_FOR_TYPE = {
     email:'email', phone:'phone', username:'sherlock',
@@ -185,16 +189,16 @@ if (graphSocket) {
         }
     });
     graphSocket.on('scan_completed', p => {
-        if (scanStatusEl) scanStatusEl.textContent = `✅ Scan #${p.scan_id} terminé (${p.module})`;
+        if (scanStatusEl) scanStatusEl.textContent = `✓ Scan #${p.scan_id} terminé (${p.module})`;
     });
 }
 
 if (typeof cytoscape === 'undefined') {
     const cyEl = document.getElementById('cy');
-    if (cyEl) cyEl.innerHTML = '<div style="padding:2rem;text-align:center;color:#ff6b9d">'
-        + '⚠️ La librairie du graphe n\'a pas pu être chargée.<br>'
+    if (cyEl) cyEl.innerHTML = '<div style="padding:2rem;text-align:center;color:#a5342a">'
+        + 'La librairie du graphe n\'a pas pu être chargée.<br>'
         + '<button onclick="location.reload()" style="margin-top:1rem;padding:.5rem 1rem;'
-        + 'background:#4d9fff;color:#fff;border:none;border-radius:8px;cursor:pointer">Recharger</button></div>';
+        + 'background:#4d6d80;color:#f3ecdd;border:none;border-radius:3px;cursor:pointer">Recharger</button></div>';
     throw new Error('cytoscape indisponible');
 }
 
@@ -204,7 +208,7 @@ const cy = cytoscape({
         { selector: 'node', style: {
             'background-color': 'data(color)',
             'label': 'data(label)',
-            'color': '#c8cfe8',
+            'color': '#e7ddc9',
             'font-size': '9px',
             'text-wrap': 'wrap',
             'text-max-width': '90px',
@@ -212,44 +216,44 @@ const cy = cytoscape({
             'height': 48,
             'min-zoomed-font-size': 8,
             'border-width': 2,
-            'border-color': '#07080f',
+            'border-color': '#15120d',
         }},
         { selector: 'node:selected', style: {
-            'border-color': '#fff',
+            'border-color': '#e7ddc9',
             'border-width': 3,
         }},
         { selector: 'edge', style: {
             'width': 'data(width)',
-            'line-color': '#4d9fff',
+            'line-color': '#4d6d80',
             'opacity': 'data(opacity)',
-            'target-arrow-color': '#4d9fff',
+            'target-arrow-color': '#4d6d80',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'label': 'data(label)',
             'font-size': '7px',
-            'color': '#8090b0',
+            'color': '#a99d86',
         }},
         { selector: 'edge[ltype = "MEME_PERSONNE"]', style: {
-            'line-color': '#ffd700',
+            'line-color': '#a5342a',
             'line-style': 'dashed',
             'target-arrow-shape': 'none',
             'source-arrow-shape': 'none',
-            'color': '#ffd700',
+            'color': '#a5342a',
             'width': 3,
             'opacity': 0.9,
         }},
         { selector: 'node.person-node', style: {
             'width': 68, 'height': 68,
-            'border-color': '#ffd700', 'border-width': 3,
+            'border-color': '#a5342a', 'border-width': 3,
             'font-size': '10px', 'font-weight': 'bold',
             'shape': 'round-rectangle',
         }},
         { selector: 'node.suggested', style: {
-            'border-color': '#ffd700',
+            'border-color': '#b8802f',
             'border-width': 4,
         }},
         { selector: 'node.pivot-new', style: {
-            'border-color': '#00e5a0',
+            'border-color': '#46705f',
             'border-width': 3,
         }},
     ],
@@ -303,12 +307,12 @@ cy.on('tap', 'node', evt => {
         selectedNode = n;
         cy.$('node:selected').unselect();
         evt.target.select();
-        document.getElementById('panel-title').textContent = '👤 Personne';
+        document.getElementById('panel-title').textContent = 'Personne';
         const members = (n._members || (n.value || '').split(' / '));
         document.getElementById('panel-desc').innerHTML =
             '<strong>Identifiants regroupés :</strong><ul style="margin:.4rem 0;padding-left:1.1rem">'
             + members.map(m => `<li>${escapeHtml(m)}</li>`).join('')
-            + '</ul><p style="color:var(--dim);font-size:.78rem">Cliquez « 👤 Personnes » pour déplier.</p>';
+            + '</ul><p style="color:var(--dim);font-size:.78rem">Cliquez « Personnes » pour déplier.</p>';
         ['btn-scan', 'btn-dossier'].forEach(id => document.getElementById(id).style.display = 'none');
         return;
     }
@@ -388,7 +392,7 @@ async function doMerge(aId, bId){
         mergeSourceId = wasSource;
         return;
     }
-    scanStatusEl.textContent = `✅ Entités liées (personne : ${d.cluster?.size || 2} identifiants)`;
+    scanStatusEl.textContent = `✓ Entités liées (personne : ${d.cluster?.size || 2} identifiants)`;
     const root = graphData?.root_id || document.getElementById('entity-select').value;
     if (root) loadGraph(root);
 }
@@ -418,7 +422,7 @@ async function runAnalysis(){
     if (!root) { alert('Chargez d’abord un graphe.'); return; }
     const block = document.getElementById('analysis-block');
     block.style.display = 'block';
-    block.innerHTML = '🧠 Analyse du graphe en cours…';
+    block.innerHTML = 'Analyse du graphe en cours…';
     const { ok, data: d } = await parseJsonResponse(
         await fetch(`/graph/entity/${root}/analysis`));
     if (!ok) { block.innerHTML = '❌ ' + escapeHtml(d.error || 'Erreur analyse'); return; }
@@ -429,16 +433,16 @@ function renderAnalysis(d){
     const block = document.getElementById('analysis-block');
     const tag = d.source === 'ia' ? 'IA' : 'hors-ligne';
     let h = `<div style="display:flex;justify-content:space-between;align-items:center">
-        <strong style="font-size:.8rem">🧠 Analyse (${tag})</strong>
+        <strong style="font-size:.8rem">Analyse (${tag})</strong>
         <button type="button" onclick="document.getElementById('analysis-block').style.display='none'"
             style="background:none;border:none;color:var(--dim);cursor:pointer">✕</button></div>`;
     if (d.error) { block.innerHTML = h + `<p style="font-size:.8rem">${escapeHtml(d.error)}</p>`; return; }
     if (d.synthese) h += `<p style="font-size:.82rem;margin:.4rem 0">${escapeHtml(d.synthese)}</p>`;
-    const GRAV = { elevee:'#ff5c7a', moyenne:'#ffa502', faible:'#8090b0' };
+    const GRAV = { elevee:'#a5342a', moyenne:'#b8802f', faible:'#a99d86' };
     if (d.incoherences?.length) {
-        h += '<strong style="font-size:.74rem;color:#ff6b9d">⚠️ Incohérences</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
+        h += '<strong style="font-size:.74rem;color:#a5342a">Incohérences</strong><ul style="padding-left:1rem;font-size:.78rem;margin:.25rem 0">';
         d.incoherences.forEach(i => {
-            h += `<li><span style="color:${GRAV[i.gravite] || '#8090b0'}">[${escapeHtml(i.gravite || '?')}]</span> ${escapeHtml(i.observation)}</li>`;
+            h += `<li><span style="color:${GRAV[i.gravite] || '#a99d86'}">[${escapeHtml(i.gravite || '?')}]</span> ${escapeHtml(i.observation)}</li>`;
         });
         h += '</ul>';
     }
@@ -452,7 +456,7 @@ function renderAnalysis(d){
     }
     if (d.pistes?.length) {
         const pistes = [...d.pistes].sort((a, b) => (a.priorite || 9) - (b.priorite || 9));
-        h += '<strong style="font-size:.74rem;color:#ffd700">🎯 Pistes d’investigation</strong><ol style="padding-left:1.1rem;font-size:.78rem;margin:.25rem 0">';
+        h += '<strong style="font-size:.74rem;color:#b8802f">Pistes d’investigation</strong><ol style="padding-left:1.1rem;font-size:.78rem;margin:.25rem 0">';
         pistes.forEach(p => {
             h += `<li><strong>${escapeHtml(p.action)}</strong> — <span style="color:var(--dim)">${escapeHtml(p.raison || '')}</span></li>`;
         });
@@ -529,7 +533,7 @@ async function loadMergeSuggestions(entityId){
                 <span title="${escapeHtml(s.reason)}">${escapeHtml(s.entity.entity_type)} : ${escapeHtml((s.entity.value || '').slice(0, 22))}
                     <small style="color:var(--dim)"> ${Math.round(s.score * 100)}%</small></span>
                 <button type="button" onclick="doMerge(${entityId},${parseInt(s.entity.id, 10)})"
-                    style="background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">Lier</button>
+                    style="background:var(--accent2);color:#f3ecdd;border:none;border-radius:3px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">Lier</button>
              </div>`).join('')
         : (members.length ? '' : '<div style="color:var(--dim)">Aucune suggestion</div>');
 }
@@ -600,7 +604,7 @@ function mergeGraphUpdate(payload){
     if (toAdd.length) {
         cy.add(toAdd);
         applyGraphLayout();
-        scanStatusEl.textContent = `✅ +${toAdd.filter(x => x.group === 'nodes').length} nœud(s) ajouté(s)`;
+        scanStatusEl.textContent = `✓ +${toAdd.filter(x => x.group === 'nodes').length} nœud(s) ajouté(s)`;
     }
 }
 
@@ -663,14 +667,14 @@ function pollGraphScan(scanId, pollToken){
             if (d.error) {
                 scanStatusEl.textContent = '❌ ' + d.error;
             } else {
-                scanStatusEl.textContent = `✅ Scan #${scanId} terminé — graphe mis à jour`;
+                scanStatusEl.textContent = `✓ Scan #${scanId} terminé — graphe mis à jour`;
                 const rootId = graphData?.root_id || document.getElementById('entity-select').value;
                 if (rootId) loadGraph(rootId);
             }
             document.getElementById('btn-scan').disabled = false;
         },
         onTimeout: () => {
-            scanStatusEl.textContent = '⚠️ Délai dépassé — vérifiez l\'historique';
+            scanStatusEl.textContent = 'Délai dépassé — vérifiez l\'historique';
             document.getElementById('btn-scan').disabled = false;
         },
     });
@@ -679,7 +683,7 @@ function pollGraphScan(scanId, pollToken){
 if (graphSocket) graphSocket.on('scan_done', ({ scan_id }) => {
     if (activeGraphScanId !== scan_id && activePivotScanId !== scan_id) return;
     scanStatusEl.style.display = 'block';
-    scanStatusEl.textContent = `✅ Scan #${scan_id} terminé — actualisation du graphe…`;
+    scanStatusEl.textContent = `✓ Scan #${scan_id} terminé — actualisation du graphe…`;
     const rootId = graphData?.root_id || document.getElementById('entity-select').value;
     if (rootId) loadGraph(rootId);
     if (selectedNode) showNodeIntel(selectedNode.id);
@@ -724,7 +728,7 @@ async function loadGraph(entityId){
         const r = await fetch(`/graph/data/${entityId}`);
         const { ok, data } = await parseJsonResponse(r);
         if (!ok) {
-            if (desc) desc.textContent = '⚠️ ' + (data.error || 'Graphe indisponible');
+            if (desc) desc.textContent = '' + (data.error || 'Graphe indisponible');
             return;
         }
         graphData = data;
@@ -733,7 +737,7 @@ async function loadGraph(entityId){
         const hi = new URLSearchParams(location.search).get('highlight');
         if (hi) setTimeout(() => highlightEntity(hi), 500);
     } catch (e) {
-        if (desc) desc.textContent = '⚠️ Erreur réseau au chargement du graphe.';
+        if (desc) desc.textContent = 'Erreur réseau au chargement du graphe.';
         console.error('loadGraph', e);
     }
 }
@@ -815,7 +819,7 @@ function render(data){
         data: {
             id: n.id,
             label: n.type === 'person'
-                ? '👤 ' + (n.value || 'Personne').slice(0, 28) + (n._count ? `\n(${n._count} identifiants)` : '')
+                ? '' + (n.value || 'Personne').slice(0, 28) + (n._count ? `\n(${n._count} identifiants)` : '')
                 : (n.type || '') + '\n' + (n.value || '').slice(0, 24),
             type: n.type,
             value: n.value,
@@ -902,13 +906,13 @@ function showAllNodes(){
 
 function exportPng(){
     const a = document.createElement('a');
-    a.href = cy.png({ full: true, scale: 2, bg: '#07080f' });
+    a.href = cy.png({ full: true, scale: 2, bg: '#15120d' });
     a.download = 'osint-graphe.png';
     a.click();
 }
 
 function exportSvg(){
-    const svg = cy.svg({ full: true, bg: '#07080f' });
+    const svg = cy.svg({ full: true, bg: '#15120d' });
     const blob = new Blob([svg], { type: 'image/svg+xml' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -942,7 +946,7 @@ async function loadLinksPanel(){
     const el = document.getElementById('links-list');
     if (!d.links?.length) { el.innerHTML = '<p style="color:var(--dim)">Aucun lien</p>'; return; }
     el.innerHTML = d.links.map(l =>
-        `<div style="margin:.35rem 0;padding:.4rem;background:rgba(255,255,255,.04);border-radius:6px">
+        `<div style="margin:.35rem 0;padding:.4rem;background:rgba(230,215,185,.04);border-radius:3px">
             <strong>${escapeHtml(l.type)}</strong><br><span style="color:var(--dim)">${escapeHtml(l.related?.value || '')}</span>
         </div>`
     ).join('');

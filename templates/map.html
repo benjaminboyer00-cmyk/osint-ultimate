@@ -15,7 +15,7 @@
     <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.markercluster.js') }}"></script>
     <style>
         *{box-sizing:border-box}
-        body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column}
         header{padding:.75rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)}
         header a{color:var(--accent2);text-decoration:none;font-size:.85rem}
         .toolbar{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
@@ -70,8 +70,8 @@
 </div>
 <script>
 const TYPE_COLORS = {
-    email:'#00e5a0', phone:'#4d9fff', username:'#ff6b9d',
-    domain:'#ffa502', platform:'#a29bfe', ip:'#ff4757', unknown:'#5a6180'
+    email:'#4d6d80', phone:'#4d6d80', username:'#a5342a',
+    domain:'#b8802f', platform:'#6d5b7a', ip:'#a5342a', unknown:'#5a6180'
 };
 let map = null;
 let cluster = null;

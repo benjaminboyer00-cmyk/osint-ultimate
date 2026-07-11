@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scans programmés – OSINT Ultimate</title>
     <style>
-        body{font-family:Inter,system-ui,sans-serif;background:#07080f;color:#c8cfe8;padding:2rem;max-width:800px;margin:0 auto}
-        h1{color:#00e5a0}
-        a{color:#4d9fff;margin-right:1rem}
+        body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#15120d;color:#e7ddc9;padding:2rem;max-width:800px;margin:0 auto}
+        h1{color:#4d6d80}
+        a{color:#4d6d80;margin-right:1rem}
         table{width:100%;border-collapse:collapse;margin:1.5rem 0;font-size:.88rem}
         th,td{padding:.6rem;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
         form.box{background:rgba(255,255,255,.04);padding:1.2rem;border-radius:12px;margin-bottom:2rem}
-        input,select{padding:.6rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#14171c;color:#c8cfe8;margin:.3rem 0}
-        button{padding:.5rem 1rem;background:#00e5a0;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+        input,select{padding:.6rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#14171c;color:#e7ddc9;margin:.3rem 0}
+        button{padding:.5rem 1rem;background:#4d6d80;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600}
         .off{opacity:.5}
     </style>
 </head>
@@ -55,7 +55,7 @@
                     <button type="submit">{{ 'Pause' if j.enabled else 'Activer' }}</button>
                 </form>
                 <form method="post" action="{{ url_for('views.scheduled_delete', job_id=j.id) }}" style="display:inline">
-                    <button type="submit" style="background:#ff4757">Suppr.</button>
+                    <button type="submit" style="background:#a5342a">Suppr.</button>
                 </form>
             </td>
         </tr>

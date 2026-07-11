@@ -6,11 +6,11 @@
     <title>OSINT Ultimate — Recherche Express</title>
     {% include 'includes/head_assets.html' %}
     <style>
-        /* Palette unifiée via design-system.css (identité + contraste). */
+        /* Palette unifiée via design-system.css — identité « Le Dossier ». */
         *{box-sizing:border-box;margin:0;padding:0}
         html{-webkit-text-size-adjust:100%}
         body{
-            font-family:Inter,system-ui,sans-serif;
+            font-family:'IBM Plex Sans',system-ui,sans-serif;
             background:var(--bg);color:var(--text);
             min-height:100dvh;display:flex;flex-direction:column;
         }
@@ -22,54 +22,55 @@
         nav a{color:var(--accent2);text-decoration:none}
         .graph-bar{
             display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;
-            padding:.6rem 1.25rem;background:rgba(77,159,255,.06);
+            padding:.6rem 1.25rem;background:var(--surface);
             border-bottom:1px solid var(--border);font-size:.82rem;
         }
         .graph-bar-info{display:flex;align-items:center;gap:.5rem;min-width:0}
-        .graph-bar-label,#graph-bar-label{color:var(--dim);overflow:hidden;text-overflow:ellipsis}
-        .graph-bar-dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex-shrink:0}
-        .graph-bar.active{background:rgba(0,229,160,.08)}
-        .graph-bar.active .graph-bar-dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+        .graph-bar-label,#graph-bar-label{color:var(--dim);overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:.74rem}
+        .graph-bar-dot{width:8px;height:8px;border-radius:1px;background:var(--dim);flex-shrink:0}
+        .graph-bar.active{background:var(--surface-2)}
+        .graph-bar.active .graph-bar-dot{background:var(--success)}
         .graph-bar.active #graph-bar-label{color:var(--text)}
         .graph-bar-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
         .gb-btn{
-            padding:.4rem .8rem;border-radius:8px;border:1px solid var(--border);
-            background:transparent;color:var(--text);cursor:pointer;font-size:.8rem;
+            padding:.4rem .8rem;border-radius:3px;border:1px solid var(--border-strong);
+            background:transparent;color:var(--text);cursor:pointer;font-size:.7rem;
+            font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;
             text-decoration:none;display:inline-block;
         }
         .gb-btn:hover{border-color:var(--accent2)}
-        .gb-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+        .gb-primary{background:var(--accent);color:#f3ecdd;border-color:var(--stamp-deep);font-weight:600}
         #graph-bar-select{
-            padding:.4rem .6rem;border-radius:8px;background:#0f1119;color:var(--text);
-            border:1px solid var(--border);max-width:190px;
+            padding:.4rem .6rem;border-radius:3px;background:var(--ink);color:var(--text);
+            border:1px solid var(--border-strong);max-width:190px;font-family:var(--mono);font-size:.74rem;
         }
         .ai-panel{
             max-width:680px;margin:1rem auto 0;padding:1rem 1.25rem;
-            background:linear-gradient(180deg,rgba(77,159,255,.06),transparent);
-            border:1px solid var(--border);border-radius:16px;
+            background:var(--surface);
+            border:1px solid var(--border);border-radius:3px;
         }
         .ai-head{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.5rem}
         .ai-panel .synth{font-size:.9rem;line-height:1.5;margin:.3rem 0 .6rem}
-        .ai-panel h4{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;margin:.6rem 0 .3rem}
+        .ai-panel h4{font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;margin:.6rem 0 .3rem;font-family:var(--mono)}
         .ai-panel ul{padding-left:1.1rem;font-size:.85rem;line-height:1.5}
         .ai-panel .piste{margin:.2rem 0}
         .ai-panel .piste b{color:var(--accent)}
-        .ai-panel .inco{color:#ffb347}
-        #mini-graph{height:260px;margin-top:.75rem;border:1px solid var(--border);border-radius:12px;background:#0a0b12}
+        .ai-panel .inco{color:var(--warn)}
+        #mini-graph{height:260px;margin-top:.75rem;border:1px solid var(--border);border-radius:3px;background:var(--ink)}
         @media(max-width:600px){ #mini-graph{height:220px} }
         .mode-switch{
-            display:inline-flex;border:1px solid var(--border);border-radius:999px;
-            overflow:hidden;font-size:.78rem;margin-left:auto;
+            display:inline-flex;border:1px solid var(--border);border-radius:3px;
+            overflow:hidden;font-size:.72rem;margin-left:auto;font-family:var(--mono);
         }
         .mode-switch a{
-            padding:.4rem .9rem;color:var(--dim);
+            padding:.4rem .9rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;
         }
         .mode-switch a.active{
-            background:var(--accent);color:#000;font-weight:700;
+            background:var(--accent);color:#f3ecdd;font-weight:600;
         }
         .mode-label{
-            font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;
-            color:var(--accent);margin-bottom:.5rem;
+            font-size:.72rem;text-transform:uppercase;letter-spacing:.18em;
+            color:var(--dim);margin-bottom:.5rem;font-family:var(--mono);
         }
         .hero{
             flex:1;display:flex;flex-direction:column;
@@ -77,40 +78,42 @@
             padding:1.5rem 1rem 2rem;width:100%;max-width:640px;margin:0 auto;
         }
         .logo{
-            font-size:clamp(1.5rem,5vw,2rem);font-weight:800;margin-bottom:.35rem;
-            background:linear-gradient(135deg,var(--accent),var(--accent2));
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;
+            font-family:'IBM Plex Serif',Georgia,serif;
+            font-size:clamp(1.7rem,5vw,2.4rem);font-weight:700;margin-bottom:.35rem;
+            color:var(--text);letter-spacing:-.01em;
         }
-        .tagline{color:var(--dim);font-size:clamp(.85rem,2.5vw,1rem);text-align:center;margin-bottom:1.75rem;line-height:1.5}
+        .tagline{color:var(--muted);font-size:clamp(.85rem,2.5vw,1rem);text-align:center;margin-bottom:1.75rem;line-height:1.5}
         .search-wrap{width:100%;position:relative}
         .search-inner{
             display:flex;align-items:stretch;
-            background:rgba(255,255,255,.05);
-            border:2px solid var(--border);
-            border-radius:999px;
-            transition:border-color .2s,box-shadow .2s;
+            background:rgba(230,215,185,.04);
+            border:1px solid var(--border-strong);
+            border-radius:3px;
+            transition:border-color .16s,box-shadow .16s;
             overflow:hidden;
         }
         .search-inner:focus-within{
             border-color:var(--accent);
-            box-shadow:0 0 0 4px rgba(0,229,160,.12);
+            box-shadow:0 0 0 2px rgba(77,109,128,.22);
         }
         #target{
             flex:1;min-width:0;border:none;background:transparent;
             padding:1rem 1.1rem;font-size:16px;color:var(--text);
+            font-family:var(--mono);
             outline:none;
         }
         #go{
-            border:none;background:var(--accent);color:#000;
-            font-weight:700;font-size:.95rem;
+            border:none;background:var(--accent);color:#f3ecdd;
+            font-family:var(--mono);font-weight:600;font-size:.82rem;
+            text-transform:uppercase;letter-spacing:.08em;
             padding:0 1.35rem;cursor:pointer;
             white-space:nowrap;
         }
+        #go:hover:not(:disabled){background:var(--stamp-deep)}
         #go:disabled{opacity:.45}
         #type-badge{
-            display:none;margin-top:.75rem;font-size:.82rem;color:var(--accent);
-            text-align:center;
+            display:none;margin-top:.75rem;font-size:.74rem;color:var(--accent);
+            text-align:center;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;
         }
         #type-badge.show{display:block}
         .examples{
@@ -118,36 +121,37 @@
             gap:.4rem;justify-content:center;
         }
         .chip{
-            font-size:.75rem;padding:.35rem .75rem;border-radius:20px;
-            border:1px solid var(--border);color:var(--dim);
-            cursor:pointer;background:transparent;
+            font-size:.72rem;padding:.35rem .75rem;border-radius:2px;
+            border:1px solid var(--border);color:var(--muted);
+            cursor:pointer;background:transparent;font-family:var(--mono);
         }
         .chip:hover{border-color:var(--accent2);color:var(--text)}
-        .prog{height:3px;width:100%;max-width:640px;margin:0 auto;background:rgba(255,255,255,.06);display:none}
-        .prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .35s}
+        .prog{height:3px;width:100%;max-width:640px;margin:0 auto;background:var(--surface-2);display:none}
+        .prog-bar{height:100%;width:0;background:var(--accent);transition:width .35s}
         .results{width:100%;max-width:640px;margin:0 auto;padding:0 1rem 2rem}
         .card{
-            background:rgba(14,17,28,.95);border:1px solid var(--border);
-            border-radius:16px;padding:1.25rem;display:none;
+            background:var(--surface);border:1px solid var(--border);
+            border-radius:3px;padding:1.25rem;display:none;
         }
         .card.show{display:block}
-        .card h2{font-size:1.05rem;color:var(--accent);margin-bottom:.75rem}
+        .card h2{font-family:'IBM Plex Serif',Georgia,serif;font-size:1.1rem;color:var(--text);margin-bottom:.75rem}
         .hl{display:flex;flex-wrap:wrap;gap:.25rem .75rem;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.88rem}
-        .hl .k{color:var(--dim);min-width:5rem}
-        .hl .v{flex:1;word-break:break-word}
+        .hl .k{color:var(--dim);min-width:5rem;font-family:var(--mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.05em}
+        .hl .v{flex:1;word-break:break-word;font-family:var(--mono)}
         .risk{color:var(--warn);font-size:.85rem;margin:.35rem 0}
         .steps{color:var(--accent2);font-size:.85rem;padding-left:1.1rem;margin-top:.75rem}
         .actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem}
         .btn{
-            padding:.55rem 1rem;border-radius:24px;border:1px solid var(--border);
-            background:rgba(255,255,255,.06);color:var(--text);
-            font-size:.82rem;cursor:pointer;text-decoration:none;
+            padding:.55rem 1rem;border-radius:3px;border:1px solid var(--border-strong);
+            background:transparent;color:var(--text);
+            font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
+            cursor:pointer;text-decoration:none;
             min-height:44px;display:inline-flex;align-items:center;
         }
         .btn-primary{border-color:var(--accent);color:var(--accent)}
         .assistant{
-            margin-top:1rem;padding:1rem;background:rgba(77,159,255,.08);
-            border-radius:12px;font-size:.88rem;line-height:1.65;
+            margin-top:1rem;padding:1rem;background:var(--surface-2);
+            border-radius:3px;font-size:.88rem;line-height:1.65;border:1px solid var(--border);
         }
         .legal{
             font-size:.72rem;color:var(--dim);text-align:center;
@@ -469,8 +473,8 @@ async function renderFirstAnalysis(root){
     box.innerHTML = h || '<p class="synth" style="color:var(--dim)">Pas encore assez de données pour une analyse.</p>';
 }
 
-const MINI_COLORS = {email:'#00e5a0',phone:'#4d9fff',username:'#ff6b9d',domain:'#ffa502',
-    platform:'#a29bfe',ip:'#a29bfe',person:'#ffd700',unknown:'#5a6180'};
+const MINI_COLORS = {email:'#4d6d80',phone:'#46705f',username:'#b8802f',domain:'#9c6b3f',
+    platform:'#6d5b7a',ip:'#6d5b7a',person:'#a5342a',unknown:'#a99d86'};
 
 // Chargement à la demande de cytoscape (365KB) : évité tant qu'aucun mini-graphe
 // n'est affiché (la majorité des recherches Express n'en ont pas besoin).
@@ -508,7 +512,7 @@ async function renderMiniGraph(root){
         container: wrap, elements: els,
         style: [
             { selector: 'node', style: { 'background-color':'data(color)','label':'data(label)',
-                'font-size':'8px','color':'#c8cfe8','width':22,'height':22,'text-max-width':'70px','text-wrap':'wrap' } },
+                'font-size':'8px','color':'#e7ddc9','width':22,'height':22,'text-max-width':'70px','text-wrap':'wrap' } },
             { selector: 'edge', style: { 'width':1.5,'line-color':'#2a3350','curve-style':'bezier' } },
         ],
         layout: { name: 'cose', animate: false, padding: 20 },

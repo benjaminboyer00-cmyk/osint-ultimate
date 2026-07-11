@@ -11,7 +11,7 @@
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: 'Inter', sans-serif;
+            font-family: 'IBM Plex Sans', sans-serif;
             min-height: 100vh;
             padding: 2rem 1rem;
         }
@@ -81,7 +81,7 @@
     </div>
     <h1>📋 Historique des scans</h1>
     <form method="get" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
-        <select name="module" style="padding:.5rem;background:#14171c;color:#c8cfe8;border:1px solid var(--border);border-radius:8px">
+        <select name="module" style="padding:.5rem;background:#14171c;color:#e7ddc9;border:1px solid var(--border);border-radius:8px">
             <option value="">Tous modules</option>
             {% for m in ['email','phone','ip','sherlock','hunter','dehashed','site','whois','wayback'] %}
             <option value="{{ m }}" {% if module_filter==m %}selected{% endif %}>{{ m }}</option>

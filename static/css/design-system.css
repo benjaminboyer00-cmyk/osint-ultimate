@@ -1,62 +1,85 @@
 /* ============================================================
-   OSINT Ultimate — Système de design (identité unique)
-   Source de vérité : tokens, typographie, composants, layout.
-   Chargé sur toutes les pages ; remplace les palettes divergentes.
+   OSINT Ultimate — Système de design « LE DOSSIER »
+   Métaphore : un dossier d'enquête posé sur le bureau de l'enquêteur.
+   Chrome = encre sombre chaude du bureau · Contenu = surface papier archive.
+   Signature = le scellé (cachet oxblood + horodatage + hash).
+   Les noms de variables historiques sont conservés (remappés) -> aucune casse.
    ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600;700&display=swap');
+
 :root {
-    /* — Couleurs — surfaces sombres pro, bon contraste — */
-    --bg:            #080a10;
-    --bg-elev:       #0e1119;
-    --surface:       #141824;
-    --surface-2:     #1b2030;
-    --border:        rgba(255,255,255,.09);
-    --border-strong: rgba(255,255,255,.16);
+    /* — Le bureau (chrome sombre, brun-noir CHAUD, pas bleu) — */
+    --ink:        #15120d;
+    --ink-raised: #1d1913;
+    --ink-2:      #241f17;
+    --ink-line:   rgba(230,215,185,.13);
+    --ink-line-strong: rgba(230,215,185,.22);
+    --ink-text:   #e7ddc9;
+    --ink-muted:  #a99d86;
+    --ink-dim:    #6f6553;
 
-    /* — Texte : hiérarchie lisible (corrige les textes peu visibles) — */
-    --text:   #e7ebf5;
-    --muted:  #9aa4bd;
-    --dim:    #6b7391;
+    /* — Le document (surface papier : dossiers, rapports) — */
+    --paper:      #e6dcc7;
+    --paper-2:    #efe7d5;
+    --paper-line: rgba(30,25,18,.16);
+    --paper-text: #211c15;
+    --paper-muted:#5a5140;
 
-    /* — Accent signature : teal -> bleu — */
-    --accent:      #00e5a0;
-    --accent-2:    #4d9fff;
-    --accent-ink:  #04120c;               /* texte sur fond accent */
-    --grad:        linear-gradient(135deg,#00e5a0 0%,#4d9fff 100%);
-    --grad-soft:   linear-gradient(135deg,rgba(0,229,160,.14),rgba(77,159,255,.14));
+    /* — Tampons — */
+    --seal:       #a5342a;   /* oxblood : scellés, critique, alarme UNIQUEMENT */
+    --seal-deep:  #7f271f;
+    --stamp:      #4d6d80;   /* bleu-encre acier : interactif principal */
+    --stamp-deep: #3a5666;
+    --verdigris:  #46705f;   /* authentifié / valide */
+    --amber:      #b8802f;   /* alertes (jaune-tampon vieilli) */
 
-    /* — États — */
-    --success: #00e5a0;
-    --warn:    #ffb454;
-    --danger:  #ff5c7a;
-    --info:    #4d9fff;
+    /* — Alias historiques -> nouvelle palette (compat templates) — */
+    --bg:         var(--ink);
+    --bg-elev:    var(--ink-raised);
+    --surface:    var(--ink-raised);
+    --surface-2:  var(--ink-2);
+    --border:     var(--ink-line);
+    --border-strong: var(--ink-line-strong);
+    --text:       var(--ink-text);
+    --muted:      var(--ink-muted);
+    --dim:        var(--ink-dim);
+    --text-dim:   var(--ink-muted);
+    --panel:      var(--ink-raised);
+    --accent:     var(--stamp);
+    --accent-2:   var(--stamp);
+    --accent2:    var(--stamp);
+    --accent3:    var(--seal);
+    --accent-ink: #f3ecdd;
+    --grad:       var(--stamp);          /* plus de dégradé : couleur pleine */
+    --grad-soft:  rgba(77,109,128,.14);
+    --success:    var(--verdigris);
+    --warn:       var(--amber);
+    --warning:    var(--amber);
+    --danger:     var(--seal);
+    --err:        var(--seal);
+    --error:      var(--seal);
+    --info:       var(--stamp);
+    --border-lit: rgba(77,109,128,.3);
+    --glass:      none;                    /* glassmorphism supprimé */
 
-    /* — Alias legacy (compat templates existants -> palette unifiée) — */
-    --accent2:    #4d9fff;
-    --accent3:    #ff6b9d;
-    --err:        #ff5c7a;
-    --error:      #ff5c7a;
-    --warning:    #ffb454;
-    --text-dim:   #9aa4bd;
-    --panel:      rgba(20,24,36,.85);
-    --border-lit: rgba(0,229,160,.25);
-    --shadow:     0 16px 44px rgba(0,0,0,.5);
-    --glass:      blur(16px) saturate(160%);
-    --r:          12px;
+    /* — Rayons : documents = angles nets (0–3px) — */
+    --r: 3px; --r-sm: 2px; --r-md: 3px; --r-lg: 3px; --r-xl: 4px; --r-pill: 2px;
 
-    /* — Rayons / ombres / espacement — */
-    --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
-    --sh-1: 0 1px 2px rgba(0,0,0,.3);
-    --sh-2: 0 6px 20px rgba(0,0,0,.35);
-    --sh-3: 0 16px 44px rgba(0,0,0,.5);
-    --glow: 0 0 0 1px rgba(0,229,160,.25), 0 8px 30px rgba(0,229,160,.12);
+    /* — Ombres : une seule, « le papier posé sur le bureau » — */
+    --sh-1: 0 1px 0 rgba(0,0,0,.25);
+    --sh-2: 0 1px 0 rgba(0,0,0,.3), 0 10px 24px -12px rgba(0,0,0,.55);
+    --sh-3: 0 2px 0 rgba(0,0,0,.3), 0 22px 48px -18px rgba(0,0,0,.7);
+    --shadow: var(--sh-3);
+    --glow: none;                          /* glow supprimé */
 
     --s-1:.25rem; --s-2:.5rem; --s-3:.75rem; --s-4:1rem; --s-5:1.5rem; --s-6:2rem; --s-8:3rem;
 
     --container: 1160px;
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
-    --tr: .18s cubic-bezier(.4,0,.2,1);
+    --font:  'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+    --mono:  'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --tr: .16s cubic-bezier(.4,0,.2,1);
 }
 
 /* — Reset léger — */
@@ -64,34 +87,29 @@
 * { margin: 0; }
 html {
     -webkit-text-size-adjust: 100%; scroll-behavior: smooth;
-    background:
-        radial-gradient(1200px 600px at 85% -10%, rgba(77,159,255,.10), transparent 60%),
-        radial-gradient(900px 500px at -10% 0%, rgba(0,229,160,.08), transparent 55%),
-        var(--bg);
-    background-attachment: fixed;
+    background: var(--ink);               /* bureau : encre pleine, pas de dégradé */
 }
 body {
     font-family: var(--font);
-    background: transparent;
-    color: var(--text);
-    line-height: 1.55;
+    background: var(--ink);
+    color: var(--ink-text);
+    line-height: 1.6;
     min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 }
-/* Pages avec fond réseau animé : body transparent pour laisser voir le canvas. */
-body.has-fx { background: transparent !important; }
-a { color: var(--accent-2); text-decoration: none; transition: color var(--tr); }
-a:hover { color: var(--accent); }
+body.has-fx { background: var(--ink) !important; }
+a { color: var(--stamp); text-decoration: none; transition: color var(--tr); }
+a:hover { color: var(--ink-text); }
 img, svg { display: block; max-width: 100%; }
-h1,h2,h3,h4 { line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
-::selection { background: rgba(0,229,160,.28); color: #fff; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+h1,h2,h3,h4 { font-family: var(--serif); line-height: 1.2; font-weight: 600; letter-spacing: -.01em; }
+::selection { background: var(--seal); color: #f3ecdd; }
+:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; border-radius: 2px; }
 
 /* — Scrollbar — */
-* { scrollbar-width: thin; scrollbar-color: var(--surface-2) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--ink-2) transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: var(--r-pill); }
+*::-webkit-scrollbar-thumb { background: var(--ink-2); border-radius: 2px; }
 
 /* ============================================================
    Layout
@@ -102,179 +120,218 @@ h1,h2,h3,h4 { line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
 .ds-row { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
 
 /* ============================================================
-   Barre de navigation (responsive, identité)
+   Navigation = onglets de dossier
    ============================================================ */
 .ds-nav {
     position: sticky; top: 0; z-index: 100;
     display: flex; align-items: center; gap: var(--s-4);
-    padding: .7rem clamp(1rem, 4vw, 2rem);
-    background: rgba(8,10,16,.72);
-    backdrop-filter: blur(14px) saturate(160%);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
-    border-bottom: 1px solid var(--border);
+    padding: .55rem clamp(1rem, 4vw, 2rem) 0;
+    background: var(--ink);
+    border-bottom: 1px solid var(--ink-line-strong);
 }
-.ds-brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 800; letter-spacing: -.02em; color: var(--text); font-size: 1.02rem; white-space: nowrap; }
-.ds-brand:hover { color: var(--text); }
-.ds-logo { width: 32px; height: 32px; display: grid; place-items: center; flex-shrink: 0; }
-.ds-logo-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 2px 8px rgba(0,229,160,.25)); }
-.ds-brand small { color: var(--dim); font-weight: 600; font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; }
-.ds-nav-links { display: flex; align-items: center; gap: .2rem; margin-left: var(--s-4); flex: 1 1 auto; flex-wrap: wrap; }
+.ds-brand { display: inline-flex; align-items: center; gap: .55rem; font-family: var(--serif); font-weight: 700; letter-spacing: -.01em; color: var(--ink-text); font-size: 1.02rem; white-space: nowrap; padding-bottom: .55rem; }
+.ds-brand:hover { color: var(--ink-text); }
+.ds-logo { width: 30px; height: 30px; display: grid; place-items: center; flex-shrink: 0; }
+.ds-logo-svg { width: 100%; height: 100%; display: block; }
+.ds-brand small { color: var(--ink-dim); font-weight: 500; font-size: .66rem; letter-spacing: .2em; text-transform: uppercase; }
+.ds-nav-links { display: flex; align-items: flex-end; gap: .15rem; margin-left: var(--s-5); flex: 1 1 auto; flex-wrap: wrap; }
 .ds-nav-links a {
-    color: var(--muted); font-size: .86rem; font-weight: 500;
-    padding: .45rem .7rem; border-radius: var(--r-sm); transition: all var(--tr);
+    font-family: var(--mono); color: var(--ink-muted); font-size: .74rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: .08em;
+    padding: .5rem .8rem; border: 1px solid transparent; border-bottom: none;
+    border-radius: 3px 3px 0 0; transition: color var(--tr), background var(--tr);
+    margin-bottom: -1px;
 }
-.ds-nav-links a:hover { color: var(--text); background: rgba(255,255,255,.05); }
-.ds-nav-links a.active { color: var(--accent); background: rgba(0,229,160,.10); }
-.ds-nav-right { margin-left: auto; display: flex; align-items: center; gap: .4rem; }
+.ds-nav-links a:hover { color: var(--ink-text); background: var(--ink-raised); }
+.ds-nav-links a.active {                    /* languette de chemise surélevée */
+    color: var(--ink-text); background: var(--ink-raised);
+    border-color: var(--ink-line-strong); border-bottom: 1px solid var(--ink-raised);
+}
+.ds-nav-right { margin-left: auto; display: flex; align-items: center; gap: .4rem; padding-bottom: .5rem; }
 .ds-nav-toggle { display: none; }
 .ds-burger {
-    display: none; width: 42px; height: 38px; border: 1px solid var(--border);
-    border-radius: var(--r-sm); background: var(--surface); cursor: pointer; margin-left: auto;
-    color: var(--text); font-size: 1.1rem; align-items: center; justify-content: center;
+    display: none; width: 40px; height: 36px; border: 1px solid var(--ink-line-strong);
+    border-radius: 3px; background: var(--ink-raised); cursor: pointer; margin-left: auto; margin-bottom: .5rem;
+    color: var(--ink-text); font-size: 1.1rem; align-items: center; justify-content: center;
 }
-
 @media (max-width: 860px) {
     .ds-burger { display: inline-flex; }
     .ds-nav-links {
-        position: fixed; inset: 56px 0 auto 0; flex-direction: column; align-items: stretch;
-        gap: 0; margin: 0; padding: var(--s-3);
-        background: var(--bg-elev); border-bottom: 1px solid var(--border);
-        box-shadow: var(--sh-3); max-height: 0; overflow: hidden; padding-block: 0;
+        position: fixed; inset: 52px 0 auto 0; flex-direction: column; align-items: stretch;
+        gap: 0; margin: 0; padding: 0;
+        background: var(--ink-raised); border-bottom: 1px solid var(--ink-line-strong);
+        box-shadow: var(--sh-3); max-height: 0; overflow: hidden;
         transition: max-height var(--tr), padding var(--tr);
     }
-    .ds-nav-toggle:checked ~ .ds-nav-links { max-height: 80vh; padding-block: var(--s-3); }
-    .ds-nav-links a { padding: .75rem 1rem; font-size: .95rem; }
-    .ds-nav-right { margin-left: 0; margin-top: .3rem; }
+    .ds-nav-toggle:checked ~ .ds-nav-links { max-height: 80vh; padding: var(--s-2) 0; }
+    .ds-nav-links a { padding: .8rem 1.1rem; font-size: .8rem; border-radius: 0; margin: 0; }
+    .ds-nav-right { margin-left: 0; }
 }
 
 /* ============================================================
-   Boutons
+   Étiquettes / références (Plex Mono, façon tampon de dossier)
+   ============================================================ */
+.ds-eyebrow, .ds-label {
+    display: block; font-family: var(--mono); font-size: .72rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: .18em; color: var(--ink-dim);
+}
+.ds-ref { font-family: var(--mono); letter-spacing: .06em; color: var(--ink-muted); }
+.ds-data, .ds-mono { font-family: var(--mono); }
+
+/* ============================================================
+   Boutons (plats, tampon administratif — 0 dégradé, 0 glow)
    ============================================================ */
 .ds-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-    padding: .62rem 1.1rem; border-radius: var(--r-md); border: 1px solid var(--border-strong);
-    background: var(--surface); color: var(--text); font-size: .9rem; font-weight: 600;
-    font-family: inherit; cursor: pointer; transition: all var(--tr); text-decoration: none; white-space: nowrap;
+    padding: .58rem 1rem; border-radius: 3px; border: 1px solid var(--ink-line-strong);
+    background: var(--ink-raised); color: var(--ink-text);
+    font-family: var(--mono); font-size: .78rem; font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+    cursor: pointer; transition: all var(--tr); text-decoration: none; white-space: nowrap;
 }
-.ds-btn:hover { border-color: var(--accent-2); color: var(--text); transform: translateY(-1px); }
-.ds-btn:active { transform: translateY(0); }
-.ds-btn-primary { background: var(--grad); color: var(--accent-ink); border: none; box-shadow: var(--sh-2); font-weight: 700; }
-.ds-btn-primary:hover { color: var(--accent-ink); filter: brightness(1.06); box-shadow: var(--glow); }
+.ds-btn:hover { border-color: var(--stamp); color: var(--ink-text); background: var(--ink-2); }
+.ds-btn:active { transform: translateY(1px); }
+.ds-btn-primary { background: var(--stamp); color: #f3ecdd; border-color: var(--stamp-deep); font-weight: 600; }
+.ds-btn-primary:hover { background: var(--stamp-deep); color: #fff; }
+.ds-btn-seal { background: var(--seal); color: #f3ecdd; border-color: var(--seal-deep); font-weight: 600; }
+.ds-btn-seal:hover { background: var(--seal-deep); color: #fff; }
 .ds-btn-ghost { background: transparent; }
-.ds-btn-sm { padding: .4rem .7rem; font-size: .8rem; border-radius: var(--r-sm); }
+.ds-btn-sm { padding: .38rem .65rem; font-size: .7rem; }
 .ds-btn-block { width: 100%; }
-.ds-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.ds-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
 /* ============================================================
    Champs de formulaire
    ============================================================ */
 .ds-field { display: block; }
-.ds-label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: .35rem; font-weight: 500; }
+.ds-label { margin-bottom: .4rem; }
 .ds-input, .ds-select, .ds-textarea {
-    width: 100%; padding: .75rem .9rem; background: var(--bg-elev);
-    border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text);
-    font-size: .95rem; font-family: inherit; transition: border-color var(--tr), box-shadow var(--tr);
+    width: 100%; padding: .7rem .85rem; background: var(--ink);
+    border: 1px solid var(--ink-line-strong); border-radius: 3px; color: var(--ink-text);
+    font-family: var(--font); font-size: .95rem; transition: border-color var(--tr), box-shadow var(--tr);
 }
-.ds-input::placeholder, .ds-textarea::placeholder { color: var(--dim); }
+.ds-input::placeholder, .ds-textarea::placeholder { color: var(--ink-dim); }
 .ds-input:focus, .ds-select:focus, .ds-textarea:focus {
-    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,160,.15);
+    outline: none; border-color: var(--stamp); box-shadow: 0 0 0 2px rgba(77,109,128,.25);
 }
 
 /* ============================================================
    Cartes & surfaces
    ============================================================ */
 .ds-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: var(--s-5); box-shadow: var(--sh-2);
+    background: var(--ink-raised); border: 1px solid var(--ink-line);
+    border-radius: 3px; padding: var(--s-5); box-shadow: var(--sh-2);
 }
-.ds-card-glass {
-    background: linear-gradient(180deg, rgba(255,255,255,.03), transparent), var(--surface);
-    backdrop-filter: blur(10px);
-}
+.ds-card-glass { background: var(--ink-raised); }   /* glass supprimé -> surface pleine */
 
-/* — Badges — */
+/* — Surface PAPIER : dossiers / rapports posés sur le bureau — */
+.ds-paper {
+    position: relative; background: var(--paper); color: var(--paper-text);
+    border-radius: 3px; padding: clamp(1.25rem, 4vw, 2.25rem); box-shadow: var(--sh-3);
+    border: 1px solid rgba(30,25,18,.2);
+}
+.ds-paper h1, .ds-paper h2, .ds-paper h3 { color: var(--paper-text); }
+.ds-paper .ds-eyebrow, .ds-paper .ds-label { color: var(--paper-muted); }
+.ds-paper a { color: var(--stamp-deep); }
+/* Marques de repère (crop marks) aux 4 coins */
+.ds-cropped::before, .ds-cropped::after,
+.ds-cropped > .cm-tl, .ds-cropped > .cm-tr { }
+.ds-paper.ds-cropped { }
+.ds-crop { position: absolute; width: 10px; height: 10px; border-color: var(--paper-muted); border-style: solid; opacity: .55; }
+.ds-crop.tl { top: 7px; left: 7px; border-width: 1px 0 0 1px; }
+.ds-crop.tr { top: 7px; right: 7px; border-width: 1px 1px 0 0; }
+.ds-crop.bl { bottom: 7px; left: 7px; border-width: 0 0 1px 1px; }
+.ds-crop.br { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
+
+/* — Badges / étiquettes de pièce — */
 .ds-badge {
-    display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .6rem;
-    border-radius: var(--r-pill); font-size: .72rem; font-weight: 600;
-    background: var(--grad-soft); color: var(--accent); border: 1px solid rgba(0,229,160,.25);
+    display: inline-flex; align-items: center; gap: .35rem; padding: .18rem .5rem;
+    border-radius: 2px; font-family: var(--mono); font-size: .68rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: .08em;
+    background: transparent; color: var(--stamp); border: 1px solid var(--stamp);
 }
-.ds-badge-muted { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+.ds-badge-muted { color: var(--ink-muted); border-color: var(--ink-line-strong); }
+.ds-badge-seal { color: var(--seal); border-color: var(--seal); }
+.ds-badge-ok { color: var(--verdigris); border-color: var(--verdigris); }
 
-/* — Séparateur — */
-.ds-divider { height: 1px; background: var(--border); border: 0; margin: var(--s-5) 0; }
+/* — Étiquette de pièce (type d'entité) : barre de couleur à gauche — */
+.ds-evidence {
+    display: inline-flex; align-items: center; gap: .45rem; padding: .16rem .5rem .16rem .4rem;
+    font-family: var(--mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--ink-muted); border-left: 3px solid var(--ink-muted); background: var(--ink-2);
+}
 
-/* — Pied de page — */
-.ds-footer { color: var(--dim); font-size: .78rem; text-align: center; padding: var(--s-6) var(--s-4); }
+/* — Séparateur & pied — */
+.ds-divider { height: 1px; background: var(--ink-line); border: 0; margin: var(--s-5) 0; }
+.ds-footer { color: var(--ink-dim); font-size: .74rem; text-align: center; padding: var(--s-6) var(--s-4); font-family: var(--mono); letter-spacing: .04em; }
 
 /* ============================================================
-   Effets modernes (fond réseau, reveal, dégradés, glow)
+   Le scellé (signature de l'app)
    ============================================================ */
-.fx-network {
-    position: fixed; inset: 0; width: 100%; height: 100%;
-    z-index: -1; pointer-events: none; opacity: .6;
-    -webkit-mask-image: radial-gradient(130% 100% at 50% 0%, #000 50%, transparent 100%);
-    mask-image: radial-gradient(130% 100% at 50% 0%, #000 50%, transparent 100%);
+.ds-seal {
+    display: inline-grid; place-items: center; width: 84px; height: 84px;
+    border: 2px solid var(--seal); border-radius: 50%; color: var(--seal);
+    font-family: var(--mono); font-size: .58rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .12em; text-align: center; line-height: 1.3;
+    transform: rotate(-8deg); box-shadow: inset 0 0 0 3px rgba(165,52,42,.25);
 }
+.ds-seal::before { content: '●'; display: block; font-size: .7rem; margin-bottom: 2px; }
 
-/* Texte en dégradé signature */
-.ds-grad-text {
-    background: var(--grad); -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent; color: transparent;
+/* — Caviardage : barres d'encre révélables — */
+.ds-redacted {
+    background: var(--ink-text); color: transparent; border-radius: 1px;
+    cursor: pointer; user-select: none; letter-spacing: .05em; padding: 0 .2em;
 }
+.ds-redacted.revealed { background: transparent; color: inherit; cursor: text; user-select: text; }
 
-/* Apparition au scroll */
-.reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+/* ============================================================
+   Effets (retenue) — fond animé & dégradés SUPPRIMÉS
+   ============================================================ */
+.fx-network { display: none !important; }   /* fond « réseau IA » retiré */
+.ds-grad-text { color: var(--ink-text); font-family: var(--serif); }   /* plus de texte en dégradé */
+.ds-glow { box-shadow: none; }
+.ds-pulse { }
+
+/* Développement des résultats à l'arrivée + apparition au scroll */
+.reveal { opacity: 0; transform: translateY(10px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,.7,.2,1); }
 .reveal.in { opacity: 1; transform: none; }
+@keyframes ds-develop { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: none; } }
+.ds-develop { animation: ds-develop .45s ease both; }
 
-/* Glow / halo */
-.ds-glow { box-shadow: var(--glow); }
-@keyframes ds-pulse { 0%,100% { opacity:.6 } 50% { opacity:1 } }
-.ds-pulse { animation: ds-pulse 2.4s ease-in-out infinite; }
-
-/* Bouton : reflet lumineux au survol (micro-interaction) */
-.ds-btn-primary { position: relative; overflow: hidden; }
-.ds-btn-primary::after {
-    content: ''; position: absolute; inset: 0; transform: translateX(-120%);
-    background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
-    transition: transform .6s;
-}
-.ds-btn-primary:hover::after { transform: translateX(120%); }
+/* Presse du tampon */
+@keyframes ds-stamp { 0% { transform: rotate(-8deg) scale(1.5); opacity: 0; } 60% { transform: rotate(-8deg) scale(.94); opacity: 1; } 100% { transform: rotate(-8deg) scale(1); } }
+.ds-seal.ds-stamped { animation: ds-stamp .4s cubic-bezier(.34,1.56,.64,1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-    .reveal { opacity: 1; transform: none; transition: none; }
-    .ds-pulse, .ds-btn-primary::after { animation: none; transition: none; }
+    .reveal, .ds-develop, .ds-seal.ds-stamped { opacity: 1; transform: none; filter: none; animation: none; transition: none; }
 }
 
 /* ============================================================
-   Barre « graphe actif » (créer un graphe -> les recherches s'y rattachent)
+   Barre « graphe actif »
    ============================================================ */
 .graph-bar {
     display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between;
-    padding: .6rem clamp(1rem, 4vw, 2rem); background: rgba(77,159,255,.06);
-    border-bottom: 1px solid var(--border); font-size: .82rem;
+    padding: .55rem clamp(1rem, 4vw, 2rem); background: var(--ink-raised);
+    border-bottom: 1px solid var(--ink-line); font-size: .8rem;
 }
 .graph-bar-info { display: flex; align-items: center; gap: .5rem; min-width: 0; }
-.graph-bar-label, #graph-bar-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-.graph-bar-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
-.graph-bar.active { background: rgba(0,229,160,.08); }
-.graph-bar.active .graph-bar-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-.graph-bar.active #graph-bar-label { color: var(--text); }
+.graph-bar-label, #graph-bar-label { color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: .74rem; }
+.graph-bar-dot { width: 8px; height: 8px; border-radius: 1px; background: var(--ink-dim); flex-shrink: 0; }
+.graph-bar.active { background: var(--ink-2); }
+.graph-bar.active .graph-bar-dot { background: var(--verdigris); }
+.graph-bar.active #graph-bar-label { color: var(--ink-text); }
 .graph-bar-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .gb-btn {
-    padding: .4rem .8rem; border-radius: 8px; border: 1px solid var(--border);
-    background: transparent; color: var(--text); cursor: pointer; font-size: .8rem;
+    padding: .38rem .7rem; border-radius: 3px; border: 1px solid var(--ink-line-strong);
+    background: transparent; color: var(--ink-text); cursor: pointer;
+    font-family: var(--mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em;
     text-decoration: none; display: inline-block;
 }
-.gb-btn:hover { border-color: var(--accent-2); }
-.gb-primary { background: var(--grad); color: var(--accent-ink); border-color: transparent; font-weight: 700; }
-#graph-bar-select {
-    padding: .4rem .6rem; border-radius: 8px; background: var(--bg-elev); color: var(--text);
-    border: 1px solid var(--border); max-width: 190px;
-}
+.gb-btn:hover { border-color: var(--stamp); }
+.gb-primary { background: var(--stamp); color: #f3ecdd; border-color: var(--stamp-deep); }
 
 /* — Utilitaires — */
-.ds-text-muted { color: var(--muted); }
-.ds-text-dim { color: var(--dim); }
+.ds-text-muted { color: var(--ink-muted); }
+.ds-text-dim { color: var(--ink-dim); }
 .ds-text-center { text-align: center; }
 .ds-mt-2 { margin-top: var(--s-2); } .ds-mt-4 { margin-top: var(--s-4); } .ds-mt-6 { margin-top: var(--s-6); }
 .ds-hide { display: none !important; }
