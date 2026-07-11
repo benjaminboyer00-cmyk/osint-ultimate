@@ -242,7 +242,8 @@ def investigate_start():
     query = (data.get('query') or data.get('objective') or '').strip()
     if not query:
         return jsonify({'error': 'Objectif manquant'}), 400
-    inv_id = start_investigation(current_user.id, query, app, socketio, fernet)
+    deep = bool(data.get('deep'))
+    inv_id = start_investigation(current_user.id, query, app, socketio, fernet, deep=deep)
     return jsonify({
         'investigation_id': inv_id,
         'status': 'started',

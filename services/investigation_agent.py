@@ -138,7 +138,7 @@ def _summarize_result(module: str, result: dict) -> str:
     return ', '.join(f'{k}: {str(result[k])[:40]}' for k in keys if not str(k).startswith('_'))
 
 
-def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dict:
+def plan_next_action(objective: str, previous_steps: list, step_num: int, deep: bool = False) -> dict:
     """Demande à Groq la prochaine action ou TERMINE."""
     prev_compact = []
     for s in previous_steps[-6:]:
@@ -149,11 +149,18 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
             'summary': s.get('summary'),
         })
 
+    mods = ('sherlock, hunter, epieos, email, phone, whois, wayback, site, ip, '
+            'github, pseudo, subdomains, reverse_ip, typosquat')
+    if deep:
+        mods += ', dehashed'
     system = (
         'Tu es un enquêteur OSINT autonome. Réponds UNIQUEMENT en JSON valide, sans markdown. '
-        'Format: {"action":"nom_module","params":{"target":"valeur"},"reason":"courte explication"} '
+        'Format: {"action":"nom_module","params":{"target":"valeur_CONCRETE"},"reason":"courte explication"} '
         'ou {"action":"TERMINE","summary":"synthèse finale en français"} si objectif atteint ou plus rien à faire. '
-        'Modules autorisés: sherlock, dehashed, hunter, epieos, email, phone, whois, wayback, site, ip, github, pseudo, subdomains, reverse_ip, typosquat.'
+        'RÈGLE STRICTE : "target" doit être une valeur RÉELLE et concrète (un email, un domaine, '
+        'un pseudo, un numéro, une IP effectivement présents dans les données) — JAMAIS une description '
+        'du type "le domaine obtenu via epieos". Si tu n\'as pas de valeur concrète, réponds TERMINE. '
+        f'Modules autorisés: {mods}.'
     )
 
     # Confidentialité : le LLM ne voit que des jetons (USERNAME_1, EMAIL_2…) ;
@@ -182,7 +189,7 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
     except Exception:
         pass
 
-    return _fallback_plan(objective, previous_steps)
+    return _fallback_plan(objective, previous_steps, deep)
 
 
 # Mots vides FR/EN : ne doivent jamais être pris pour un pseudo à scanner.
@@ -231,18 +238,21 @@ def _extract_identifiers(text: str) -> dict:
             'domain': uniq(domains), 'username': uniq(usernames)}
 
 
-def _fallback_plan(objective: str, previous_steps: list) -> dict:
-    """Plan local si Groq indisponible — cible le VRAI identifiant, pas les mots vides."""
+def _fallback_plan(objective: str, previous_steps: list, deep: bool = False) -> dict:
+    """Plan local si Groq indisponible — cible le VRAI identifiant, pas les mots vides.
+
+    ``deep`` : mode approfondi -> inclut dehashed (fuites de données, plus lent).
+    """
     done = {s.get('action') for s in previous_steps}
     ids = _extract_identifiers(objective)
 
     for e in ids['email']:
         if 'email' not in done:
             return {'action': 'email', 'params': {'email': e}, 'reason': 'Analyse email'}
-        if 'dehashed' not in done:
-            return {'action': 'dehashed', 'params': {'email': e}, 'reason': 'Fuites de données'}
         if 'epieos' not in done:
             return {'action': 'epieos', 'params': {'email': e}, 'reason': 'Enrichissement email'}
+        if deep and 'dehashed' not in done:
+            return {'action': 'dehashed', 'params': {'email': e}, 'reason': 'Fuites de données (approfondi)'}
     for ip in ids['ip']:
         if 'ip' not in done:
             return {'action': 'ip', 'params': {'ip': ip}, 'reason': 'Géoloc & Shodan'}
@@ -260,8 +270,8 @@ def _fallback_plan(objective: str, previous_steps: list) -> dict:
     for u in ids['username']:
         if 'sherlock' not in done:
             return {'action': 'sherlock', 'params': {'pseudo': u}, 'reason': 'Recherche pseudo'}
-        if 'dehashed' not in done:
-            return {'action': 'dehashed', 'params': {'pseudo': u}, 'reason': 'Fuites pseudo'}
+        if deep and 'dehashed' not in done:
+            return {'action': 'dehashed', 'params': {'pseudo': u}, 'reason': 'Fuites pseudo (approfondi)'}
 
     return {'action': 'TERMINE',
             'summary': 'Enquête terminée. Ouvrez le graphe pour explorer les corrélations.'}
@@ -318,7 +328,8 @@ def _build_user_options(user_id: int, fernet) -> dict:
     return opts
 
 
-def execute_module(module: str, target: str, user_id: int, options: dict, investigation_id: int):
+def execute_module(module: str, target: str, user_id: int, options: dict,
+                   investigation_id: int, timeout: int = MODULE_TIMEOUT):
     """Exécute un module synchrone et enregistre le scan."""
     from app import SCAN_FUNCTIONS, fernet
     from services.correlation import process_scan_correlations
@@ -330,7 +341,7 @@ def execute_module(module: str, target: str, user_id: int, options: dict, invest
     opts = dict(options or {})
     opts['_root_entity_id'] = opts.get('_root_entity_id')
 
-    result = _run_module_with_timeout(func, target, opts, opts.get('_app'))
+    result = _run_module_with_timeout(func, target, opts, opts.get('_app'), timeout=timeout)
 
     scan = Scan(
         user_id=user_id,
@@ -369,7 +380,7 @@ def _emit(socketio, event: str, payload: dict, user_id: int | None = None):
             socketio.emit(event, payload)
 
 
-def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, socketio, fernet):
+def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, socketio, fernet, deep: bool = False):
     """Corps de la boucle d'enquête (enveloppé par run_investigation_loop)."""
     with app.app_context():
         inv = db.session.get(Investigation, investigation_id)
@@ -407,7 +418,7 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
                 'message': f'🧠 Étape {step_num}/{MAX_STEPS} — l\'IA choisit le prochain module…',
             }, user_id)
 
-            plan = plan_next_action(objective, steps, step_num)
+            plan = plan_next_action(objective, steps, step_num, deep)
             action = (plan.get('action') or '').upper()
 
             if action == 'TERMINE':
@@ -447,6 +458,25 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
                 }, user_id)
                 continue
 
+            # dehashed : lent -> seulement en mode approfondi (avec timeout long).
+            if module == 'dehashed' and not deep:
+                steps.append({
+                    'step': step_num, 'action': module, 'target': target,
+                    'reason': reason, 'status': 'skipped', 'scan_id': None,
+                    'summary': 'Ignoré (mode rapide — cocher « approfondie » pour les fuites)',
+                })
+                inv.steps_json = json.dumps(steps, ensure_ascii=False)
+                db.session.commit()
+                _emit(socketio, 'investigation_step', {
+                    'investigation_id': investigation_id, 'step': step_num,
+                    'phase': 'done', 'status': 'done', 'action': module, 'target': target,
+                    'message': '⏭️ dehashed ignoré (mode rapide)',
+                }, user_id)
+                continue
+
+            step_timeout = (int(os.environ.get('DEHASHED_DEEP_TIMEOUT', '90'))
+                            if module == 'dehashed' else MODULE_TIMEOUT)
+
             _emit(socketio, 'investigation_step', {
                 'investigation_id': investigation_id,
                 'step': step_num,
@@ -458,7 +488,7 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
             }, user_id)
 
             result, scan_id = execute_module(
-                module, target, user_id, options, investigation_id,
+                module, target, user_id, options, investigation_id, timeout=step_timeout,
             )
             summary = _summarize_result(module, result)
 
@@ -510,11 +540,11 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
         }, user_id)
 
 
-def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, fernet):
+def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, fernet, deep: bool = False):
     """Enveloppe bulletproof : toute exception finalise l'enquête + émet
     ``investigation_done`` (évite le statut bloqué à « running » = spinner infini)."""
     try:
-        _run_investigation_loop_inner(investigation_id, user_id, app, socketio, fernet)
+        _run_investigation_loop_inner(investigation_id, user_id, app, socketio, fernet, deep)
     except Exception as e:  # noqa: BLE001
         logger.exception('Enquête #%s interrompue', investigation_id)
         try:
@@ -534,8 +564,8 @@ def run_investigation_loop(investigation_id: int, user_id: int, app, socketio, f
         }, user_id)
 
 
-def start_investigation(user_id: int, query: str, app, socketio, fernet) -> int:
-    """Crée une enquête et lance le thread agent."""
+def start_investigation(user_id: int, query: str, app, socketio, fernet, deep: bool = False) -> int:
+    """Crée une enquête et lance le thread agent. ``deep`` = mode approfondi."""
     with app.app_context():
         title = (query or 'Enquête')[:180]
         inv = Investigation(
@@ -551,7 +581,7 @@ def start_investigation(user_id: int, query: str, app, socketio, fernet) -> int:
 
     t = threading.Thread(
         target=run_investigation_loop,
-        args=(inv_id, user_id, app, socketio, fernet),
+        args=(inv_id, user_id, app, socketio, fernet, deep),
         daemon=True,
         name=f'investigation-{inv_id}',
     )

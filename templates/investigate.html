@@ -66,6 +66,9 @@
                 (Sherlock, Dehashed, Hunter…) — chaque étape s'affiche ici en direct.
             </div>
         </div>
+        <label id="deep-label" title="Ajoute les fuites de données (Dehashed) — plus précis mais plus lent">
+            <input type="checkbox" id="deep-mode"> 🔎 Enquête approfondie
+        </label>
         <footer>
             <input id="query" placeholder="Ex : Qui se cache derrière darkdev42 ?" onkeydown="if(event.key==='Enter')startInvestigation()">
             <button type="button" id="go" onclick="startInvestigation()">Lancer l'enquête</button>
@@ -165,9 +168,10 @@ async function startInvestigation(){
     addBubble(q.replace(/</g,'&lt;'), 'user');
     setProgress('🧠 L\'IA planifie l\'enquête…', true);
     addBubble('Connexion à l\'agent…', 'step-planning', true);
+    const deep = !!document.getElementById('deep-mode')?.checked;
     const r = await fetch('/investigate/start', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ query: q })
+        body: JSON.stringify({ query: q, deep })
     });
     const d = await r.json();
     go.disabled = false;
