@@ -35,8 +35,13 @@
         .examples{font-size:.75rem;color:var(--dim);padding:0 1.2rem .5rem}
         .chip{display:inline-block;margin:.2rem;padding:.3rem .65rem;border:1px solid var(--border);border-radius:16px;cursor:pointer}
         .chip:hover{border-color:var(--accent)}
-        aside{width:220px;border-left:1px solid var(--border);padding:.8rem;font-size:.78rem;overflow-y:auto;display:none}
-        @media(min-width:900px){.layout{display:flex;flex:1;min-height:0}aside{display:block}}
+        aside{width:220px;border-left:1px solid var(--border);padding:.8rem;font-size:.78rem;overflow-y:auto}
+        @media(min-width:900px){.layout{display:flex;flex:1;min-height:0}}
+        /* Écran réduit : l'aside « Enquêtes récentes » passe en bas (jamais caché). */
+        @media(max-width:899px){
+            .layout{display:flex;flex-direction:column}
+            aside{width:100%;border-left:none;border-top:1px solid var(--border);max-height:26vh;order:2}
+        }
         .recent{margin:.4rem 0;padding:.45rem;background:rgba(255,255,255,.03);border-radius:6px;cursor:pointer}
         .recent:hover{background:rgba(77,159,255,.1)}
     </style>

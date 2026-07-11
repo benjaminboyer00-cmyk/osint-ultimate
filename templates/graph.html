@@ -57,9 +57,14 @@
         }
         #ctx-menu button:hover{background:rgba(77,159,255,.15);color:var(--accent2)}
         #ctx-menu hr{border:none;border-top:1px solid var(--border);margin:.25rem 0}
-        @media(max-width:768px){
+        /* Écrans réduits : le panneau passe SOUS le graphe (jamais coupé). */
+        @media(max-width:960px){
             .main{flex-direction:column}
-            aside{width:100%;max-width:none;border-left:none;border-top:1px solid var(--border)}
+            #cy{min-height:48vh}
+            aside{
+                width:100%;max-width:none;border-left:none;
+                border-top:1px solid var(--border);max-height:46vh;
+            }
         }
     </style>
 </head>
