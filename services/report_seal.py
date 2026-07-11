@@ -51,20 +51,30 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def seal_scan_report(scan, pdf_hash: str, *, generated_at: str | None = None) -> None:
-    """Enregistre l'empreinte du PDF final en base."""
+def seal_scan_report(scan, pdf, *, generated_at: str | None = None) -> None:
+    """Scelle le PDF final : stocke sa SIGNATURE HMAC (pas un simple hash).
+
+    Accepte les octets du PDF (recommandé). Une chaîne est acceptée pour
+    compat mais ne constitue pas une vraie signature.
+    """
     from extensions import db
-    scan.report_pdf_hash = pdf_hash
+    from services.report_signing import sign_bytes
+    if isinstance(pdf, (bytes, bytearray)):
+        scan.report_pdf_hash = sign_bytes(bytes(pdf))
+    else:
+        scan.report_pdf_hash = str(pdf)  # compat (déconseillé)
     scan.report_sealed_at = datetime.utcnow()
     db.session.add(scan)
 
 
 def verify_uploaded_pdf(file_bytes: bytes, scan) -> dict:
     """
-    Compare le hash du fichier uploadé à l'empreinte enregistrée.
+    Vérifie la SIGNATURE HMAC du fichier uploadé contre celle enregistrée.
     Retourne {valid, uploaded_hash, stored_hash, message, sealed_at}.
     """
-    uploaded = sha256_bytes(file_bytes)
+    import hmac as _hmac
+    from services.report_signing import sign_bytes
+    uploaded = sign_bytes(file_bytes)
     stored = (scan.report_pdf_hash or '').strip().lower() if scan else ''
     if not stored:
         return {
@@ -74,7 +84,7 @@ def verify_uploaded_pdf(file_bytes: bytes, scan) -> dict:
             'message': 'Aucun PDF officiel enregistré pour ce scan — générez le rapport depuis la plateforme.',
             'sealed_at': None,
         }
-    valid = uploaded.lower() == stored.lower()
+    valid = _hmac.compare_digest(uploaded.lower(), stored.lower())
     sealed = scan.report_sealed_at.isoformat() if getattr(scan, 'report_sealed_at', None) else None
     return {
         'valid': valid,

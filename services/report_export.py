@@ -31,18 +31,17 @@ def generate_pdf_response(scan, raw_data: dict, **kwargs):
             kwargs['base_url'] = public_base_url()
         html_str = render_report_html(scan, raw_data, **kwargs)
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
-        pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
         from services.report_seal import seal_scan_report
         from extensions import db
-        seal_scan_report(scan, pdf_hash)
+        seal_scan_report(scan, pdf_bytes)   # signe les OCTETS du PDF (HMAC)
         db.session.commit()
         # 2e passe : empreinte PDF visible sur la page de garde
         html_str = render_report_html(scan, raw_data, **kwargs)
         ctx = build_report_context(scan, raw_data, **kwargs)
         pdf_bytes = WeasyHTML(string=html_str).write_pdf()
-        pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
-        seal_scan_report(scan, pdf_hash)
+        seal_scan_report(scan, pdf_bytes)   # signe le PDF FINAL (HMAC)
         db.session.commit()
+        pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()   # empreinte affichée (cosmétique)
     except Exception as e:
         return None, None, jsonify({'error': str(e)}), 500
 

@@ -10,6 +10,7 @@ from services.report_seal import (
     verify_page_url,
     sha256_bytes,
 )
+from services.report_signing import sign_bytes
 
 
 def test_section_status_fallback():
@@ -32,10 +33,17 @@ def test_traceability_has_statut():
 
 def test_verify_uploaded_pdf_match():
     data = b'%PDF-1.4 fake'
-    h = sha256_bytes(data)
-    scan = MagicMock(report_pdf_hash=h, report_sealed_at=None)
+    sig = sign_bytes(data)   # sceau = signature HMAC des octets
+    scan = MagicMock(report_pdf_hash=sig, report_sealed_at=None)
     out = verify_uploaded_pdf(data, scan)
     assert out['valid'] is True
+
+
+def test_verify_rejects_sha256_only_seal():
+    """Un simple SHA-256 stocké ne doit PAS valider (il faut la signature HMAC)."""
+    data = b'%PDF-1.4 fake'
+    scan = MagicMock(report_pdf_hash=sha256_bytes(data), report_sealed_at=None)
+    assert verify_uploaded_pdf(data, scan)['valid'] is False
 
 
 def test_verify_uploaded_pdf_no_seal():
@@ -65,9 +73,10 @@ def test_verify_page_url():
     assert url == 'https://test.hf.space/verify/7'
 
 
-def test_seal_scan_report():
+def test_seal_scan_report_signs_bytes():
+    data = b'%PDF-1.4 final'
     scan = MagicMock(report_pdf_hash=None, report_sealed_at=None)
     with patch('extensions.db') as mock_db:
-        seal_scan_report(scan, 'deadbeef' * 8)
-    assert scan.report_pdf_hash == 'deadbeef' * 8
+        seal_scan_report(scan, data)
+    assert scan.report_pdf_hash == sign_bytes(data)   # HMAC, pas un simple hash
     mock_db.session.add.assert_called_with(scan)
