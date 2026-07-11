@@ -91,23 +91,33 @@ let investigationFinished = false;
 // Filet de sécurité : même si les événements Socket.IO n'arrivent pas
 // (réseau, long-polling…), on interroge le statut pour ne jamais tourner
 // à l'infini.
+let renderedSteps = 0;
 function startPolling(id){
     investigationFinished = false;
+    renderedSteps = 0;
     if (pollTimer) clearInterval(pollTimer);
     let ticks = 0;
-    pollTimer = setInterval(async () => {
+    const tick = async () => {
         ticks++;
-        if (investigationFinished || ticks > 120) { clearInterval(pollTimer); return; }
+        if (investigationFinished || ticks > 150) { clearInterval(pollTimer); return; }
         try {
             const st = await fetch('/investigate/' + id + '/status').then(r => r.json());
-            if (st && st.steps && st.steps.length) {
-                setProgress(`Enquête en cours — ${st.steps.length} étape(s)…`, true);
+            const steps = (st && st.steps) || [];
+            // Affiche chaque nouvelle étape terminée (sur HF il n'y a pas de socket)
+            for (let i = renderedSteps; i < steps.length; i++) {
+                const s = steps[i];
+                addBubble(`✅ Étape ${s.step} — <strong>${String(s.action || '').replace(/</g,'&lt;')}</strong> : ${String(s.summary || '').replace(/</g,'&lt;')}`, 'step-ok');
             }
+            renderedSteps = steps.length;
             if (st && (st.status === 'completed' || st.status === 'failed')) {
                 finalizeInvestigation(st);
+            } else {
+                setProgress(steps.length ? `🔍 Enquête en cours — ${steps.length} étape(s)…` : '🧠 Planification…', true);
             }
         } catch (e) { /* on réessaie au prochain tick */ }
-    }, 3000);
+    };
+    tick();                       // premier appel immédiat
+    pollTimer = setInterval(tick, 2500);
 }
 
 function finalizeInvestigation(st){
@@ -171,30 +181,19 @@ async function startInvestigation(){
     }
 }
 
+// Socket (si présent) : mise à jour temps réel du texte de progression
+// uniquement. Le rendu des bulles + la finalisation sont gérés par le polling
+// (source unique -> fonctionne aussi sur HF où Socket.IO est désactivé, et
+// évite les doublons quand le socket est présent).
 if (socket) socket.on('investigation_started', p => {
     if(activeInvId && p.investigation_id !== activeInvId) return;
     activeInvId = p.investigation_id;
     setProgress(p.message || 'Enquête en cours…', true);
-    addBubble('Objectif : ' + (p.objective || '').replace(/</g,'&lt;'), 'agent');
 });
 
-socket.on('investigation_step', p => {
+if (socket) socket.on('investigation_step', p => {
     if(activeInvId && p.investigation_id !== activeInvId) return;
-    const phase = p.phase || p.status || 'running';
-    if(phase === 'planning'){
-        setProgress(p.message || 'Planification…', true);
-        addBubble((p.message || 'Planification…').replace(/</g,'&lt;'), 'step-planning', true);
-        return;
-    }
-    if(phase === 'running'){
-        setProgress(p.message || 'Scan en cours…', true);
-        addBubble((p.message || 'Scan…').replace(/</g,'&lt;'), 'step-run', true);
-        return;
-    }
-    if(phase === 'done'){
-        setProgress('Étape terminée — suite…', true);
-        addBubble((p.message || 'Terminé').replace(/</g,'&lt;'), 'step-ok');
-    }
+    if(p.message) setProgress(p.message, true);
 });
 
 if (socket) socket.on('investigation_done', p => {

@@ -13,8 +13,8 @@ from services.target_detector import detect_target_type, target_category
 
 logger = logging.getLogger(__name__)
 
-MAX_STEPS = 8
-MODULE_TIMEOUT = int(os.environ.get('INVESTIGATION_MODULE_TIMEOUT', '60'))
+MAX_STEPS = int(os.environ.get('INVESTIGATION_MAX_STEPS', '6'))
+MODULE_TIMEOUT = int(os.environ.get('INVESTIGATION_MODULE_TIMEOUT', '25'))
 
 
 def _run_module_with_timeout(func, target, opts, app, timeout=MODULE_TIMEOUT):
