@@ -220,7 +220,6 @@
 <p class="legal">Sources publiques uniquement. Usage responsable et conforme au RGPD.</p>
 
 <script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/vendor/cytoscape.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/socketio-client.js') }}"></script>
 <script src="{{ url_for('static', filename='js/scan-poll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runtime-banner.js') }}"></script>
@@ -472,8 +471,24 @@ async function renderFirstAnalysis(root){
 
 const MINI_COLORS = {email:'#00e5a0',phone:'#4d9fff',username:'#ff6b9d',domain:'#ffa502',
     platform:'#a29bfe',ip:'#a29bfe',person:'#ffd700',unknown:'#5a6180'};
+
+// Chargement à la demande de cytoscape (365KB) : évité tant qu'aucun mini-graphe
+// n'est affiché (la majorité des recherches Express n'en ont pas besoin).
+const CYTOSCAPE_SRC = "{{ url_for('static', filename='js/vendor/cytoscape.min.js') }}";
+const _scriptCache = {};
+function loadScriptOnce(src){
+    if (_scriptCache[src]) return _scriptCache[src];
+    _scriptCache[src] = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    return _scriptCache[src];
+}
+
 async function renderMiniGraph(root){
     const wrap = document.getElementById('mini-graph');
+    try { await loadScriptOnce(CYTOSCAPE_SRC); } catch (e) { wrap.style.display = 'none'; return; }
     if (typeof cytoscape === 'undefined') { wrap.style.display = 'none'; return; }
     let g;
     try { g = await (await fetch('/graph/data/' + root)).json(); } catch (e) { return; }
