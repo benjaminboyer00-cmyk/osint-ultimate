@@ -62,11 +62,28 @@ def attach_poll_token_to_result(result: dict, token: str | None) -> dict:
     return result
 
 
+# Clés d'options qui portent des objets non-sérialisables (jamais à persister ;
+# le worker les reconstruit lui-même). Ex: _app (objet Flask) causait un
+# TypeError 'Flask is not JSON serializable' -> 500 sur /graph/scan-node.
+_NON_SERIALIZABLE_OPT_KEYS = {'_app', '_socketio', '_fernet'}
+
+
+def _json_safe(value):
+    """True si la valeur est sérialisable en JSON (types de base uniquement)."""
+    return isinstance(value, (str, int, float, bool, list, dict, type(None)))
+
+
 def pending_payload(options: dict) -> dict[str, Any]:
-    """JSON stocké avant exécution du scan (pending)."""
-    opts = dict(options or {})
-    tok = opts.get('_poll_token')
+    """JSON stocké avant exécution du scan (pending).
+
+    Ne conserve que les options sérialisables (retire _app/_socketio/_fernet
+    et tout objet non-JSON), sinon json.dumps lève et le scan renvoie 500.
+    """
+    opts = {
+        k: v for k, v in (options or {}).items()
+        if k not in _NON_SERIALIZABLE_OPT_KEYS and _json_safe(v)
+    }
     return {
         '_pending_options': opts,
-        '_poll_token': tok,
+        '_poll_token': opts.get('_poll_token'),
     }
