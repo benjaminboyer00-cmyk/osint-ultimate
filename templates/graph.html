@@ -87,6 +87,7 @@
         <button type="button" onclick="exportPng()">PNG</button>
         <button type="button" onclick="exportSvg()">SVG</button>
         <button type="button" onclick="loadLinksPanel()">Liens</button>
+        <button type="button" id="btn-persons" onclick="togglePersons()" title="Regrouper les identifiants fusionnés en nœuds Personne">👤 Personnes</button>
         <button type="button" onclick="runEnquiryMode()" title="Suggère le prochain nœud">🎯 Mode Enquête</button>
         <button type="button" onclick="runAnalysis()" title="Analyse IA du graphe : incohérences, pistes">🧠 Analyse IA</button>
         <select id="compare-select" onchange="runCompare(this.value)" title="Comparer ce graphe à un autre">
@@ -147,7 +148,7 @@
 <script>
 const NODE_COLORS = {
     email:'#00e5a0', phone:'#4d9fff', username:'#ff6b9d',
-    domain:'#ffa502', platform:'#a29bfe', ip:'#a29bfe', unknown:'#5a6180'
+    domain:'#ffa502', platform:'#a29bfe', ip:'#a29bfe', person:'#ffd700', unknown:'#5a6180'
 };
 const MODULE_FOR_TYPE = {
     email:'email', phone:'phone', username:'sherlock',
@@ -232,6 +233,12 @@ const cy = cytoscape({
             'width': 3,
             'opacity': 0.9,
         }},
+        { selector: 'node.person-node', style: {
+            'width': 68, 'height': 68,
+            'border-color': '#ffd700', 'border-width': 3,
+            'font-size': '10px', 'font-weight': 'bold',
+            'shape': 'round-rectangle',
+        }},
         { selector: 'node.suggested', style: {
             'border-color': '#ffd700',
             'border-width': 4,
@@ -284,6 +291,20 @@ cy.on('tap', 'node', evt => {
     const n = evt.target.data();
     if (mergeSourceId && String(n.id) !== String(mergeSourceId)) {
         doMerge(mergeSourceId, n.id);
+        return;
+    }
+    // Nœud « Personne » (super-nœud replié) : afficher ses membres, pas de scan.
+    if (n.type === 'person') {
+        selectedNode = n;
+        cy.$('node:selected').unselect();
+        evt.target.select();
+        document.getElementById('panel-title').textContent = '👤 Personne';
+        const members = (n._members || (n.value || '').split(' / '));
+        document.getElementById('panel-desc').innerHTML =
+            '<strong>Identifiants regroupés :</strong><ul style="margin:.4rem 0;padding-left:1.1rem">'
+            + members.map(m => `<li>${escapeHtml(m)}</li>`).join('')
+            + '</ul><p style="color:var(--dim);font-size:.78rem">Cliquez « 👤 Personnes » pour déplier.</p>';
+        ['btn-scan', 'btn-dossier'].forEach(id => document.getElementById(id).style.display = 'none');
         return;
     }
     selectedNode = n;
@@ -788,11 +809,15 @@ function render(data){
     const nodes = rawNodes.map(n => ({
         data: {
             id: n.id,
-            label: (n.type || '') + '\n' + (n.value || '').slice(0, 24),
+            label: n.type === 'person'
+                ? '👤 ' + (n.value || 'Personne').slice(0, 28) + (n._count ? `\n(${n._count} identifiants)` : '')
+                : (n.type || '') + '\n' + (n.value || '').slice(0, 24),
             type: n.type,
             value: n.value,
+            _members: n._members || null,
             color: NODE_COLORS[n.type] || NODE_COLORS.unknown,
-        }
+        },
+        classes: n.type === 'person' ? 'person-node' : '',
     }));
     const edges = (data.edges || []).filter(e =>
         nodeIds.has(String(e.source)) && nodeIds.has(String(e.target))
@@ -812,6 +837,52 @@ function render(data){
     cy.add([...nodes, ...edges]);
     applyGraphLayout();
     cy.fit(undefined, 50);
+}
+
+// ---- Super-nœud « Personne » : regroupe les identifiants fusionnés ----
+let personsCollapsed = false;
+function togglePersons(){
+    personsCollapsed = !personsCollapsed;
+    const btn = document.getElementById('btn-persons');
+    if (btn) btn.style.background = personsCollapsed ? 'var(--accent)' : '';
+    if (btn) btn.style.color = personsCollapsed ? '#000' : '';
+    render(personsCollapsed ? collapsedGraph(graphData) : graphData);
+}
+
+function collapsedGraph(data){
+    // union-find sur les arêtes MEME_PERSONNE
+    const parent = {};
+    const find = x => { parent[x] = parent[x] ?? x; return parent[x] === x ? x : (parent[x] = find(parent[x])); };
+    const uni = (a, b) => { parent[find(a)] = find(b); };
+    (data.edges || []).forEach(e => { if (e.label === 'MEME_PERSONNE') uni(String(e.source), String(e.target)); });
+
+    const clusters = {};
+    (data.nodes || []).forEach(n => { const r = find(String(n.id)); (clusters[r] = clusters[r] || []).push(n); });
+
+    const nodeMap = {}; const newNodes = [];
+    Object.entries(clusters).forEach(([r, members]) => {
+        if (members.length > 1) {
+            const pid = 'person_' + r;
+            const label = members.map(m => m.value).filter(Boolean).slice(0, 3).join(' / ');
+            newNodes.push({ id: pid, type: 'person', value: label, _count: members.length,
+                            _members: members.map(m => m.value) });
+            members.forEach(m => { nodeMap[String(m.id)] = pid; });
+        } else {
+            newNodes.push(members[0]); nodeMap[String(members[0].id)] = String(members[0].id);
+        }
+    });
+
+    const seen = new Set(); const newEdges = [];
+    (data.edges || []).forEach(e => {
+        if (e.label === 'MEME_PERSONNE') return;      // devient interne au super-nœud
+        const s = nodeMap[String(e.source)] || String(e.source);
+        const t = nodeMap[String(e.target)] || String(e.target);
+        if (s === t) return;
+        const id = `${s}|${t}|${e.label}`;
+        if (seen.has(id)) return; seen.add(id);
+        newEdges.push({ ...e, source: s, target: t, id });
+    });
+    return { ...data, nodes: newNodes, edges: newEdges };
 }
 
 function showAllNodes(){
