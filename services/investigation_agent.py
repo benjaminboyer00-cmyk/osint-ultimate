@@ -54,6 +54,9 @@ MODULES_SPEC = [
     {'name': 'ip', 'description': 'Géolocalisation et Shodan IP', 'inputs': ['ip']},
     {'name': 'github', 'description': 'Profil GitHub public', 'inputs': ['pseudo']},
     {'name': 'pseudo', 'description': 'Recherche pseudo réseaux classiques', 'inputs': ['pseudo']},
+    {'name': 'subdomains', 'description': 'Sous-domaines exposés (Certificate Transparency / crt.sh)', 'inputs': ['domain']},
+    {'name': 'reverse_ip', 'description': 'Domaines hébergés sur la même IP (mutualisé)', 'inputs': ['ip', 'domain']},
+    {'name': 'typosquat', 'description': 'Domaines sosies qui résolvent (anti-phishing)', 'inputs': ['domain']},
 ]
 
 
@@ -123,7 +126,7 @@ def plan_next_action(objective: str, previous_steps: list, step_num: int) -> dic
         'Tu es un enquêteur OSINT autonome. Réponds UNIQUEMENT en JSON valide, sans markdown. '
         'Format: {"action":"nom_module","params":{"target":"valeur"},"reason":"courte explication"} '
         'ou {"action":"TERMINE","summary":"synthèse finale en français"} si objectif atteint ou plus rien à faire. '
-        'Modules autorisés: sherlock, dehashed, hunter, epieos, email, phone, whois, wayback, site, ip, github, pseudo.'
+        'Modules autorisés: sherlock, dehashed, hunter, epieos, email, phone, whois, wayback, site, ip, github, pseudo, subdomains, reverse_ip, typosquat.'
     )
 
     # Confidentialité : le LLM ne voit que des jetons (USERNAME_1, EMAIL_2…) ;
@@ -167,11 +170,47 @@ def _fallback_plan(objective: str, previous_steps: list) -> dict:
             return {'action': 'email', 'params': {'email': word}, 'reason': 'Analyse email'}
         if cat == 'pseudo' and 'sherlock' not in done:
             return {'action': 'sherlock', 'params': {'pseudo': word}, 'reason': 'Recherche pseudo'}
-        if cat == 'domain' and 'whois' not in done:
-            return {'action': 'whois', 'params': {'domain': word}, 'reason': 'WHOIS domaine'}
-    if len(previous_steps) >= 2:
-        return {'action': 'TERMINE', 'summary': 'Enquête terminée (mode fallback). Consultez le graphe pour les corrélations.'}
+        if cat == 'domain':
+            # Enchaînement d'enrichissement d'infrastructure sur un domaine
+            for mod, reason in (
+                ('whois', 'WHOIS domaine'),
+                ('subdomains', 'Sous-domaines exposés'),
+                ('site', 'DNS / HTTP / sécurité'),
+                ('hunter', 'Emails professionnels'),
+                ('typosquat', 'Domaines sosies (phishing)'),
+                ('wayback', 'Historique web'),
+            ):
+                if mod not in done:
+                    return {'action': mod, 'params': {'domain': word}, 'reason': reason}
+    if len(previous_steps) >= 3:
+        return {'action': 'TERMINE', 'summary': 'Enquête terminée. Dossier et corrélations disponibles dans le graphe.'}
     return {'action': 'sherlock', 'params': {'pseudo': t[:40]}, 'reason': 'Recherche initiale'}
+
+
+def _final_dossier(user_id: int, root_entity_id, base_summary: str) -> str:
+    """Synthèse finale enrichie par l'analyse IA du graphe (vrai dossier)."""
+    if not root_entity_id:
+        return base_summary
+    try:
+        from services.graph_analysis import analyze_graph
+        a = analyze_graph(user_id, int(root_entity_id))
+        if not isinstance(a, dict) or a.get('error'):
+            return base_summary
+        parts = []
+        if a.get('synthese'):
+            parts.append(a['synthese'])
+        inc = a.get('incoherences') or []
+        if inc:
+            parts.append('⚠️ Incohérences : ' + ' ; '.join(
+                str(i.get('observation', '')) for i in inc[:3] if i.get('observation')))
+        pistes = sorted(a.get('pistes') or [], key=lambda p: p.get('priorite', 9))[:3]
+        if pistes:
+            parts.append('🎯 Pistes : ' + ' ; '.join(
+                str(p.get('action', '')) for p in pistes if p.get('action')))
+        return '\n\n'.join(p for p in parts if p) or base_summary
+    except Exception as e:  # noqa: BLE001
+        logger.debug('dossier final: %s', e)
+        return base_summary
 
 
 def _build_user_options(user_id: int, fernet) -> dict:
@@ -292,7 +331,8 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
             action = (plan.get('action') or '').upper()
 
             if action == 'TERMINE':
-                summary = plan.get('summary') or 'Enquête terminée.'
+                base = plan.get('summary') or 'Enquête terminée.'
+                summary = _final_dossier(user_id, inv.root_entity_id, base)
                 inv.result_summary = summary
                 inv.status = 'completed'
                 inv.completed_at = datetime.utcnow()
@@ -358,9 +398,10 @@ def _run_investigation_loop_inner(investigation_id: int, user_id: int, app, sock
                     db.session.commit()
 
         inv.status = 'completed'
-        inv.result_summary = (
+        inv.result_summary = _final_dossier(
+            user_id, inv.root_entity_id,
             f'Enquête terminée après {len(steps)} étapes. '
-            'Ouvrez le graphe pour explorer les corrélations.'
+            'Ouvrez le graphe pour explorer les corrélations.',
         )
         inv.completed_at = datetime.utcnow()
         inv.steps_json = json.dumps(steps, ensure_ascii=False)
